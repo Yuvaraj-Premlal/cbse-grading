@@ -156,6 +156,23 @@ def login():
             })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
-
+# ── LIST USERS ────────────────────────────────────────
+@app.route("/users")
+def list_users():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            users = conn.execute(text("""
+                SELECT name, email, role, is_active,
+                       CONVERT(VARCHAR, created_at, 120) as created_at
+                FROM users
+                ORDER BY created_at DESC
+            """)).fetchall()
+            return jsonify({
+                "ok": True,
+                "users": [dict(u._mapping) for u in users]
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CBSE Grading — System Health</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:#0F172A;color:#E2E8F0;min-height:100vh;padding:40px 20px;}
+.wrap{max-width:900px;margin:0 auto;}
+h1{font-size:26px;color:#38BDF8;margin-bottom:4px;}
+.sub{color:#64748B;font-size:13px;margin-bottom:36px;}
+.card{background:#1E293B;border-radius:14px;padding:26px;margin-bottom:20px;border:1px solid #334155;}
+.card h2{font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:18px;}
+.row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #0F172A;}
+.row:last-child{border-bottom:none;}
+.lbl{color:#64748B;font-size:12px;width:110px;flex-shrink:0;padding-top:3px;}
+.val{font-size:13px;flex:1;line-height:1.6;}
+.ok{color:#4ADE80;}
+.fail{color:#F87171;}
+.warn{color:#FBBF24;}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:#0F172A;color:#94A3B8;margin:2px;}
+button{background:#38BDF8;color:#0F172A;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-right:8px;margin-top:4px;}
+button:hover{background:#7DD3FC;}
+button.sec{background:#334155;color:#E2E8F0;}
+button.sec:hover{background:#475569;}
+button.green{background:#4ADE80;color:#052E16;}
+input,select{background:#0F172A;border:1px solid #334155;color:#E2E8F0;padding:10px 13px;border-radius:8px;font-size:13px;width:100%;margin-bottom:10px;}
+input::placeholder{color:#475569;}
+.result{margin-top:14px;padding:14px 16px;border-radius:10px;font-size:13px;line-height:1.7;display:none;}
+.result.ok{background:#052E16;border:1px solid #166534;color:#4ADE80;}
+.result.fail{background:#2D0B0B;border:1px solid #991B1B;color:#F87171;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:600px){.grid{grid-template-columns:1fr;}}
+#health-area .row{animation:fadein .3s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>⚡ CBSE Grading — System Health</h1>
+  <div class="sub">Test all services · Register users · Verify login · Check database tables</div>
+
+  <!-- HEALTH CHECK -->
+  <div class="card">
+    <h2>🔌 Service Status</h2>
+    <div id="health-area">
+      <div class="row">
+        <div class="lbl">Status</div>
+        <div class="val" style="color:#64748B;">Click Run Health Check to begin</div>
+      </div>
+    </div>
+    <button onclick="runHealth()" style="margin-top:16px;">▶ Run Health Check</button>
+    <button class="sec" onclick="location.reload()">↺ Reset</button>
+  </div>
+
+  <!-- REGISTER + LOGIN -->
+  <div class="grid">
+
+    <!-- REGISTER -->
+    <div class="card">
+      <h2>👤 Register Test User</h2>
+      <input type="text"     id="reg-name"     placeholder="Full name"/>
+      <input type="email"    id="reg-email"    placeholder="Email address"/>
+      <input type="password" id="reg-password" placeholder="Password"/>
+      <select id="reg-role">
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button class="green" onclick="register()">+ Register User</button>
+      <div class="result" id="reg-result"></div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="card">
+      <h2>🔐 Test Login</h2>
+      <input type="email"    id="login-email"    placeholder="Email address"/>
+      <input type="password" id="login-password" placeholder="Password"/>
+      <button onclick="login()">→ Login</button>
+      <div class="result" id="login-result"></div>
+    </div>
+
+  </div>
+
+  <!-- DB QUERY -->
+  <div class="card">
+    <h2>🗄️ Database — Users Table</h2>
+    <button onclick="loadUsers()">↓ Load All Users</button>
+    <div id="users-area" style="margin-top:16px;font-size:13px;color:#64748B;">
+      Click to load users from database.
+    </div>
+  </div>
+
+</div>
+
+<script>
+async function runHealth() {
+  document.getElementById("health-area").innerHTML =
+    '<div class="row"><div class="lbl">Checking</div><div class="val warn">Running checks — please wait...</div></div>';
+
+  const res  = await fetch("/health");
+  const data = await res.json();
+  let html   = "";
+
+  // Key Vault
+  html += `<div class="row">
+    <div class="lbl">Key Vault</div>
+    <div class="val ${data.keyvault.ok ? "ok" : "fail"}">
+      ${data.keyvault.ok ? "✅" : "❌"} ${data.keyvault.status}
+    </div>
+  </div>`;
+
+  // Database
+  html += `<div class="row">
+    <div class="lbl">Database</div>
+    <div class="val ${data.database.ok ? "ok" : "fail"}">
+      ${data.database.ok ? "✅" : "❌"} ${data.database.status}
+    </div>
+  </div>`;
+
+  // Tables
+  if (data.tables.ok) {
+    const tags = data.tables.list.map(t =>
+      `<span class="tag">${t}</span>`).join("");
+    html += `<div class="row">
+      <div class="lbl">Tables</div>
+      <div class="val ok">✅ ${data.tables.status}<br/>${tags}</div>
+    </div>`;
+  } else {
+    html += `<div class="row">
+      <div class="lbl">Tables</div>
+      <div class="val fail">❌ ${data.tables.status}</div>
+    </div>`;
+  }
+
+  document.getElementById("health-area").innerHTML = html;
+}
+
+async function register() {
+  const body = {
+    name:     document.getElementById("reg-name").value,
+    email:    document.getElementById("reg-email").value,
+    password: document.getElementById("reg-password").value,
+    role:     document.getElementById("reg-role").value
+  };
+  const res  = await fetch("/register", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  const el   = document.getElementById("reg-result");
+  el.className = `result ${data.ok ? "ok" : "fail"}`;
+  el.style.display = "block";
+  el.textContent = data.ok ? data.message : `❌ ${data.error}`;
+}
+
+async function login() {
+  const body = {
+    email:    document.getElementById("login-email").value,
+    password: document.getElementById("login-password").value
+  };
+  const res  = await fetch("/login", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  const el   = document.getElementById("login-result");
+  el.className = `result ${data.ok ? "ok" : "fail"}`;
+  el.style.display = "block";
+  if (data.ok) {
+    el.innerHTML = `${data.message}<br/>
+      <span class="tag">role: ${data.user.role}</span>
+      <span class="tag">email: ${data.user.email}</span>`;
+  } else {
+    el.textContent = `❌ ${data.error}`;
+  }
+}
+
+async function loadUsers() {
+  const res  = await fetch("/users");
+  const data = await res.json();
+  const area = document.getElementById("users-area");
+  if (!data.ok) {
+    area.innerHTML = `<span class="fail">❌ ${data.error}</span>`;
+    return;
+  }
+  if (data.users.length === 0) {
+    area.innerHTML = `<span class="warn">No users yet — register one above.</span>`;
+    return;
+  }
+  let html = `<table style="width:100%;border-collapse:collapse;">
+    <tr style="color:#64748B;font-size:11px;text-transform:uppercase;">
+      <th style="text-align:left;padding:6px;">Name</th>
+      <th style="text-align:left;padding:6px;">Email</th>
+      <th style="text-align:left;padding:6px;">Role</th>
+      <th style="text-align:left;padding:6px;">Active</th>
+      <th style="text-align:left;padding:6px;">Created</th>
+    </tr>`;
+  data.users.forEach(u => {
+    html += `<tr style="border-top:1px solid #1E293B;">
+      <td style="padding:8px 6px;">${u.name}</td>
+      <td style="padding:8px 6px;color:#94A3B8;">${u.email}</td>
+      <td style="padding:8px 6px;"><span class="tag">${u.role}</span></td>
+      <td style="padding:8px 6px;" class="${u.is_active ? 'ok' : 'fail'}">${u.is_active ? "✅" : "❌"}</td>
+      <td style="padding:8px 6px;color:#64748B;">${u.created_at}</td>
+    </tr>`;
+  });
+  html += "</table>";
+  area.innerHTML = html;
+}
+</script>
+</body>
+</html>

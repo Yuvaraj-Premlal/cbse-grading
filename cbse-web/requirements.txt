@@ -1,0 +1,9 @@
+flask
+pyodbc
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+azure-keyvault-secrets
+azure-identity
+python-dotenv
+gunicorn

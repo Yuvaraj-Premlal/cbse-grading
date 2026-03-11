@@ -94,11 +94,22 @@ def require_role(*roles):
 # ── PAGES ─────────────────────────────────────────────
 @app.route("/")
 def index():
-    # If already logged in → redirect to right dashboard
     user = get_current_user(request)
     if user:
-        return redirect(url_for(user["role"]))
+        role = user.get("role")
+        if role == "teacher":
+            return redirect(url_for('teacher'))
+        elif role == "admin":
+            return redirect(url_for('admin'))
+        else:
+            return redirect(url_for('student'))
     return render_template("login.html")
+
+@app.route("/admin")
+@require_role("admin")
+def admin():
+    user = get_current_user(request)
+    return render_template("admin.html", user=user)
 
 @app.route("/student")
 @require_role("student")

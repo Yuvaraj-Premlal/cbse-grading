@@ -227,10 +227,10 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     </div>
     <div class="sidebar-footer">
       <div class="sidebar-user">
-        <div class="su-avatar">P</div>
+        <div class="su-avatar" id="sidebar-avatar">T</div>
         <div style="flex:1;">
-          <div class="su-name">Mrs. Priya Sharma</div>
-          <div class="su-role">Mathematics Teacher</div>
+          <div class="su-name" id="sidebar-name">Loading...</div>
+          <div class="su-role">Teacher</div>
         </div>
       </div>
       <button onclick="window.location.href='/logout'" style="width:100%;margin-top:10px;padding:9px;background:none;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;" onmouseover="this.style.borderColor='#C0392B';this.style.color='#C0392B';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)';">Sign out</button>
@@ -254,8 +254,8 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
   </div>
   <div class="content-area">
     <div style="margin-bottom:24px;">
-      <div class="page-title">Good morning, Mrs. Sharma 👋</div>
-      <div class="page-sub">Wednesday, March 11, 2026 · 3 submissions need your review</div>
+      <div class="page-title" id="dash-greeting">Good morning 👋</div>
+      <div class="page-sub" id="dash-sub">Loading your dashboard...</div>
     </div>
 
     <!-- STATS -->
@@ -263,25 +263,25 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <div class="stat-card">
         <div class="sc-icon">📝</div>
         <div class="sc-label">Active Exams</div>
-        <div class="sc-val">2</div>
+        <div class="sc-val" id="stat-active-exams">—</div>
         <div class="sc-sub">Assigned this week</div>
       </div>
       <div class="stat-card">
         <div class="sc-icon">🔍</div>
         <div class="sc-label">Pending Review</div>
-        <div class="sc-val" style="color:var(--amber);">3</div>
+        <div class="sc-val" id="stat-pending" style="color:var(--amber);">—</div>
         <div class="sc-sub">AI graded, awaiting you</div>
       </div>
       <div class="stat-card">
         <div class="sc-icon">⚖️</div>
         <div class="sc-label">Open Disputes</div>
-        <div class="sc-val" style="color:var(--red);">2</div>
-        <div class="sc-sub">1 expires in 8 hours</div>
+        <div class="sc-val" id="stat-disputes" style="color:var(--red);">—</div>
+        <div class="sc-sub" id="stat-disputes-sub">—</div>
       </div>
       <div class="stat-card">
         <div class="sc-icon">👥</div>
         <div class="sc-label">Students</div>
-        <div class="sc-val">28</div>
+        <div class="sc-val" id="stat-students">—</div>
         <div class="sc-sub">Assigned this month</div>
       </div>
     </div>
@@ -293,25 +293,8 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="card" style="padding:0;overflow:hidden;">
           <table class="tbl">
             <thead><tr><th>Student</th><th>Exam</th><th>AI Score</th><th>Action</th></tr></thead>
-            <tbody>
-              <tr>
-                <td><strong>Aryan Mehta</strong></td>
-                <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
-                <td><span class="badge badge-green">21/28 · 75%</span></td>
-                <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
-              </tr>
-              <tr>
-                <td><strong>Sneha Iyer</strong></td>
-                <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
-                <td><span class="badge badge-amber">18/28 · 64%</span></td>
-                <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
-              </tr>
-              <tr>
-                <td><strong>Rahul Das</strong></td>
-                <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
-                <td><span class="badge badge-red">11/28 · 39%</span></td>
-                <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
-              </tr>
+            <tbody id="pending-review-tbody">
+              <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -355,19 +338,12 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="section-label">Active Assignments</div>
     <div class="card" style="padding:0;overflow:hidden;">
       <table class="tbl">
-        <thead><tr><th>Paper</th><th>Class</th><th>Due Date</th><th>Submitted</th><th>Graded</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>Mathematics — Unit Test 4</strong><div style="font-size:11px;color:var(--muted);">28 marks · Calculus, Vectors</div></td>
-            <td>28 students</td>
-            <td>Mar 14, 2026</td>
-            <td>4 / 28</td>
-            <td>1 / 4</td>
-            <td><span class="badge badge-blue">Active</span></td>
-            <td><button class="btn btn-ghost btn-sm">View</button></td>
-          </tr>
-          <tr>
-            <td><strong>Physics — Electrostatics</strong><div style="font-size:11px;color:var(--muted);">25 marks · Chapter 1–3</div></td>
+        <thead><tr><th>Paper</th><th>Students</th><th>Due Date</th><th>Submitted</th><th>Graded</th><th>Status</th><th></th></tr></thead>
+        <tbody id="assignments-tbody">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
             <td>14 students</td>
             <td>Mar 8, 2026</td>
             <td>14 / 14</td>
@@ -1351,15 +1327,80 @@ function switchReview(student,btn){
   btn.classList.add('active');
 }
 
-// ── DISPUTE RESOLVE ──
-function resolveDispute(btn){
-  const card = btn.closest('.dispute-card');
-  card.style.opacity='.5';
-  card.querySelector('.badge-red').className='badge badge-green';
-  card.querySelector('.badge-red') && (card.querySelector('.badge').textContent='Resolved');
-  btn.textContent='✓ Resolved';
-  btn.disabled=true;
+// ── DASHBOARD DATA ──
+async function loadDashboard() {
+  try {
+    const res  = await fetch('/api/teacher/dashboard');
+    const data = await res.json();
+    if (!data.ok) return;
+    const d = data.dashboard;
+
+    // Greeting
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('dash-greeting').textContent = `${greeting}, ${d.name} 👋`;
+    document.getElementById('dash-sub').textContent =
+      `${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${d.pending_review} submission${d.pending_review !== 1 ? 's' : ''} need your review`;
+
+    // Sidebar
+    document.getElementById('sidebar-name').textContent = d.name;
+    document.getElementById('sidebar-avatar').textContent = d.name.charAt(0).toUpperCase();
+
+    // Stats
+    document.getElementById('stat-active-exams').textContent = d.active_exams;
+    document.getElementById('stat-pending').textContent      = d.pending_review;
+    document.getElementById('stat-disputes').textContent     = d.open_disputes;
+    document.getElementById('stat-disputes-sub').textContent =
+      d.urgent_disputes > 0 ? `${d.urgent_disputes} expires soon` : 'No urgent disputes';
+    document.getElementById('stat-students').textContent     = d.total_students;
+
+    // Pending review table
+    const prTbody = document.getElementById('pending-review-tbody');
+    if (d.pending_submissions.length === 0) {
+      prTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">✅ No pending reviews</td></tr>`;
+    } else {
+      prTbody.innerHTML = d.pending_submissions.map(s => {
+        const pct  = s.total_marks > 0 ? Math.round((s.ai_score / s.total_marks) * 100) : 0;
+        const cls  = pct >= 75 ? 'badge-green' : pct >= 45 ? 'badge-amber' : 'badge-red';
+        return `<tr>
+          <td><strong>${s.student_name}</strong></td>
+          <td>${s.paper_title}<div style="font-size:11px;color:var(--muted);">${s.total_marks} marks</div></td>
+          <td><span class="badge ${cls}">${s.ai_score}/${s.total_marks} · ${pct}%</span></td>
+          <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Active assignments table
+    const aTbody = document.getElementById('assignments-tbody');
+    if (d.active_assignments.length === 0) {
+      aTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">No active assignments</td></tr>`;
+    } else {
+      aTbody.innerHTML = d.active_assignments.map(a => {
+        const due    = new Date(a.due_date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+        const isPast = new Date(a.due_date) < new Date();
+        const badge  = isPast ? `<span class="badge badge-amber">Pending Release</span>`
+                               : `<span class="badge badge-blue">Active</span>`;
+        return `<tr>
+          <td><strong>${a.title}</strong><div style="font-size:11px;color:var(--muted);">${a.total_marks} marks</div></td>
+          <td>${a.student_count} students</td>
+          <td>${due}</td>
+          <td>${a.submitted} / ${a.student_count}</td>
+          <td>${a.graded} / ${a.submitted || 0}</td>
+          <td>${badge}</td>
+          <td><button class="btn btn-ghost btn-sm">View</button></td>
+        </tr>`;
+      }).join('');
+    }
+
+  } catch(err) {
+    console.error('Dashboard load error:', err);
+    document.getElementById('dash-sub').textContent = 'Could not load dashboard data.';
+  }
 }
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadDashboard);
 </script>
 </body>
 </html>

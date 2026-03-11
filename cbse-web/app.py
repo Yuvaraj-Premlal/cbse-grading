@@ -2,14 +2,12 @@ from flask import Flask, render_template, request, jsonify
 from sqlalchemy import create_engine, text
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
-from passlib.context import CryptContext
 from dotenv import load_dotenv
-import urllib, os
+import urllib, os, hashlib, hmac
 
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("JWT_SECRET", "dev-secret-key")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ── SECRETS ───────────────────────────────────────────
 def get_secrets():
@@ -31,6 +29,17 @@ def get_secrets():
         }
 
 secrets = get_secrets()
+
+# ── PASSWORD HASHING ──────────────────────────────────
+# Using SHA256 instead of bcrypt to avoid 72 byte limit
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password: str, hashed: str) -> bool:
+    return hmac.compare_digest(
+        hashlib.sha256(password.encode()).hexdigest(),
+        hashed
+    )
 
 # ── DATABASE ──────────────────────────────────────────
 def get_engine():
@@ -100,6 +109,16 @@ def health():
 def register():
     data = request.json
     try:
+        # Validate input
+        if not data.get("name"):
+            return jsonify({"ok": False, "error": "Name is required"})
+        if not data.get("email"):
+            return jsonify({"ok": False, "error": "Email is required"})
+        if not data.get("password"):
+            return jsonify({"ok": False, "error": "Password is required"})
+        if data.get("role") not in ["student", "teacher", "admin"]:
+            return jsonify({"ok": False, "error": "Invalid role"})
+
         engine = get_engine()
         with engine.begin() as conn:
             existing = conn.execute(text(
@@ -115,7 +134,7 @@ def register():
             """), {
                 "name":  data["name"],
                 "email": data["email"],
-                "hash":  pwd_context.hash(data["password"][:72]),
+                "hash":  hash_password(data["password"]),
                 "role":  data["role"]
             })
 
@@ -131,6 +150,9 @@ def register():
 def login():
     data = request.json
     try:
+        if not data.get("email") or not data.get("password"):
+            return jsonify({"ok": False, "error": "Email and password required"})
+
         engine = get_engine()
         with engine.connect() as conn:
             user = conn.execute(text("""
@@ -142,7 +164,7 @@ def login():
                 return jsonify({"ok": False, "error": "Email not found"})
             if not user.is_active:
                 return jsonify({"ok": False, "error": "Account deactivated"})
-            if not pwd_context.verify(data["password"][:72], user.password_hash):
+            if not verify_password(data["password"], user.password_hash):
                 return jsonify({"ok": False, "error": "Wrong password"})
 
             return jsonify({
@@ -156,6 +178,7 @@ def login():
             })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
+
 # ── LIST USERS ────────────────────────────────────────
 @app.route("/users")
 def list_users():
@@ -174,5 +197,6 @@ def list_users():
             })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

@@ -261,5 +261,18 @@ def list_users():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
 
+@app.route("/admin/set-role", methods=["POST"])
+def set_role():
+    data = request.json
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE users SET role = :role WHERE email = :email
+            """), {"role": data["role"], "email": data["email"]})
+        return jsonify({"ok": True, "message": f"Updated {data['email']} to {data['role']}"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

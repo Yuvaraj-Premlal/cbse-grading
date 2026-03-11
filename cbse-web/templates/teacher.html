@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CBSE Grading — Teacher Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --blue:#0068B5;--blue-d:#004F8C;--blue-l:#E8F3FC;--blue-m:#C2DDF5;
+  --ink:#0A0E1A;--text:#1E2A3A;--muted:#6B7A8D;--border:#E2EAF2;
+  --bg:#F7FAFD;--white:#FFFFFF;
+  --green:#0A7C52;--green-l:#E6F5EF;
+  --red:#C0392B;--red-l:#FDECEA;
+  --amber:#9A5D00;--amber-l:#FEF3E2;
+  --purple:#5B21B6;--purple-l:#EDE9FE;
+  --radius:14px;
+  --shadow:0 2px 20px rgba(0,104,181,.08);
+  --shadow-lg:0 8px 40px rgba(0,104,181,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* ── PAGE SYSTEM ── */
+.page{position:fixed;top:0;left:0;width:100%;height:100%;overflow-y:auto;background:var(--bg);visibility:hidden;opacity:0;pointer-events:none;transition:opacity .25s ease;}
+.page.active{visibility:visible;opacity:1;pointer-events:all;position:relative;height:auto;min-height:100vh;}
+@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ── LAYOUT ── */
+.app-shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:var(--white);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:100;transition:transform .25s;}
+.sidebar-logo{padding:22px 24px 18px;border-bottom:1px solid var(--border);}
+.sidebar-logo-text{font-family:'DM Serif Display',serif;font-size:19px;color:var(--blue);}
+.sidebar-logo-sub{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:2px;}
+.sidebar-nav{flex:1;padding:16px 12px;overflow-y:auto;}
+.nav-section-label{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;padding:0 12px;margin:16px 0 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--muted);transition:all .15s;border:none;background:none;font-family:'DM Sans',sans-serif;width:100%;text-align:left;}
+.nav-item:hover{background:var(--bg);color:var(--text);}
+.nav-item.active{background:var(--blue-l);color:var(--blue);font-weight:700;}
+.nav-item .ni-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.nav-item .ni-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border);}
+.sidebar-user{display:flex;align-items:center;gap:10px;}
+.su-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.su-name{font-size:13px;font-weight:600;color:var(--text);}
+.su-role{font-size:11px;color:var(--muted);}
+
+.main-content{margin-left:240px;flex:1;min-width:0;}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+.content-area{padding:32px;}
+
+/* ── MOBILE ── */
+.menu-toggle{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:8px;}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main-content{margin-left:0;}
+  .menu-toggle{display:block;}
+  .content-area{padding:20px 16px;}
+  .topbar{padding:0 16px;}
+}
+
+/* ── TYPOGRAPHY ── */
+.page-title{font-family:'DM Serif Display',serif;font-size:26px;color:var(--ink);line-height:1.2;margin-bottom:4px;}
+.page-sub{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.section-label{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:24px;box-shadow:var(--shadow);}
+.card-sm{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:18px;box-shadow:var(--shadow);}
+
+/* ── STAT CARDS ── */
+.stat-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:20px 22px;box-shadow:var(--shadow);}
+.sc-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.sc-val{font-family:'DM Serif Display',serif;font-size:30px;color:var(--ink);line-height:1;}
+.sc-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+.sc-icon{font-size:22px;margin-bottom:8px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all .16s ease;text-decoration:none;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-d);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,104,181,.28);}
+.btn-secondary{background:var(--white);color:var(--blue);border:1.5px solid var(--blue);}
+.btn-secondary:hover{background:var(--blue-l);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#085f3e;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-red:hover{background:#a93226;}
+.btn-sm{padding:7px 14px;font-size:12.5px;border-radius:8px;}
+.btn-full{width:100%;}
+
+/* ── INPUTS ── */
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-size:13.5px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white);transition:border-color .15s;}
+.form-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,104,181,.1);}
+.form-input::placeholder{color:#B0BAC8;}
+textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-blue{background:var(--blue-l);color:var(--blue);}
+.badge-green{background:var(--green-l);color:var(--green);}
+.badge-red{background:var(--red-l);color:var(--red);}
+.badge-amber{background:var(--amber-l);color:var(--amber);}
+.badge-purple{background:var(--purple-l);color:var(--purple);}
+.badge-muted{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:10px 14px;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
+.tbl td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--bg);}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}}
+
+/* ── PROGRESS ── */
+.progress-track{height:6px;background:var(--border);border-radius:20px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:20px;background:var(--blue);}
+.progress-fill.green{background:var(--green);}
+.progress-fill.amber{background:#F59E0B;}
+.progress-fill.red{background:var(--red);}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:var(--border);margin:20px 0;}
+
+/* ── MODAL OVERLAY ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,14,26,.4);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--white);border-radius:18px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:fadein .2s ease;}
+.modal-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:11px;padding:4px;width:fit-content;margin-bottom:24px;}
+.tab{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--muted);border:none;background:none;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.tab.active{background:var(--white);color:var(--blue);font-weight:700;box-shadow:0 1px 5px rgba(0,104,181,.1);}
+
+/* ── DRAG + DROP ── */
+.q-bank-item{background:var(--white);border:1px solid var(--border);border-radius:11px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:grab;transition:box-shadow .15s;}
+.q-bank-item:hover{box-shadow:var(--shadow);border-color:var(--blue-m);}
+.q-bank-item.selected{border-color:var(--blue);background:var(--blue-l);}
+.q-drag-handle{color:var(--border);font-size:16px;cursor:grab;flex-shrink:0;}
+.q-body{flex:1;min-width:0;}
+.q-text{font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.q-meta{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:10px;}
+
+/* ── ANSWER VIEWER ── */
+.answer-img-box{background:var(--bg);border-radius:12px;border:1px solid var(--border);min-height:300px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);}
+.mark-input{width:70px;padding:8px 10px;border:2px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;font-family:'DM Serif Display',serif;text-align:center;color:var(--ink);}
+.mark-input:focus{outline:none;border-color:var(--blue);}
+
+/* ── DISPUTE CARD ── */
+.dispute-card{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--border);padding:20px;margin-bottom:12px;}
+.dispute-card.urgent{border-color:var(--red);}
+.dispute-card.urgent .dc-header{color:var(--red);}
+.dc-header{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.dc-question{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+.dc-reason{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+.dc-scores{display:flex;gap:20px;margin-bottom:16px;}
+.dc-score-box{background:var(--bg);border-radius:9px;padding:10px 16px;text-align:center;}
+.dc-score-val{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);}
+.dc-score-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── RELEASE CARD ── */
+.release-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:20px;margin-bottom:10px;display:flex;align-items:center;gap:16px;}
+.rc-avatar{width:40px;height:40px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rc-body{flex:1;}
+.rc-name{font-size:14px;font-weight:600;color:var(--text);}
+.rc-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.rc-score{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);text-align:right;flex-shrink:0;}
+.rc-pct{font-size:11px;color:var(--muted);text-align:right;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SHARED SIDEBAR + SHELL
+══════════════════════════════════════ -->
+<div class="app-shell">
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">CBSE AI</div>
+      <div class="sidebar-logo-sub">Teacher Portal</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <button class="nav-item active" onclick="showPage('page-dashboard',this)">
+        <span class="ni-icon">🏠</span> Dashboard
+      </button>
+
+      <div class="nav-section-label">Exam Management</div>
+      <button class="nav-item" onclick="showPage('page-questions',this)">
+        <span class="ni-icon">📚</span> Question Bank
+      </button>
+      <button class="nav-item" onclick="showPage('page-papers',this)">
+        <span class="ni-icon">📋</span> Paper Builder
+      </button>
+      <button class="nav-item" onclick="showPage('page-assign',this)">
+        <span class="ni-icon">📤</span> Assign Exam
+      </button>
+
+      <div class="nav-section-label">Grading</div>
+      <button class="nav-item" onclick="showPage('page-review',this)">
+        <span class="ni-icon">🔍</span> Review Queue
+        <span class="ni-badge">3</span>
+      </button>
+      <button class="nav-item" onclick="showPage('page-disputes',this)">
+        <span class="ni-icon">⚖️</span> Disputes
+        <span class="ni-badge">2</span>
+      </button>
+      <button class="nav-item" onclick="showPage('page-release',this)">
+        <span class="ni-icon">✅</span> Grade Release
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="su-avatar">P</div>
+        <div>
+          <div class="su-name">Mrs. Priya Sharma</div>
+          <div class="su-role">Mathematics · Class 12</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+<!-- ══════════════════════════════════════
+     PAGE 1 — DASHBOARD
+══════════════════════════════════════ -->
+<div id="page-dashboard" class="page active">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Dashboard</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" onclick="showPage('page-assign',document.querySelector('[onclick*=page-assign]'))">+ Assign Exam</button>
+    </div>
+  </div>
+  <div class="content-area">
+    <div style="margin-bottom:24px;">
+      <div class="page-title">Good morning, Mrs. Sharma 👋</div>
+      <div class="page-sub">Wednesday, March 11, 2026 · 3 submissions need your review</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="grid-4" style="margin-bottom:24px;">
+      <div class="stat-card">
+        <div class="sc-icon">📝</div>
+        <div class="sc-label">Active Exams</div>
+        <div class="sc-val">2</div>
+        <div class="sc-sub">Assigned this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">🔍</div>
+        <div class="sc-label">Pending Review</div>
+        <div class="sc-val" style="color:var(--amber);">3</div>
+        <div class="sc-sub">AI graded, awaiting you</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">⚖️</div>
+        <div class="sc-label">Open Disputes</div>
+        <div class="sc-val" style="color:var(--red);">2</div>
+        <div class="sc-sub">1 expires in 8 hours</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">👥</div>
+        <div class="sc-label">Students</div>
+        <div class="sc-val">28</div>
+        <div class="sc-sub">Class 12A + 12B</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:24px;">
+      <!-- PENDING REVIEW -->
+      <div>
+        <div class="section-label">Needs Your Attention</div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table class="tbl">
+            <thead><tr><th>Student</th><th>Exam</th><th>AI Score</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Aryan Mehta</strong><div style="font-size:11px;color:var(--muted);">Class 12A</div></td>
+                <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
+                <td><span class="badge badge-green">21/28 · 75%</span></td>
+                <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
+              </tr>
+              <tr>
+                <td><strong>Sneha Iyer</strong><div style="font-size:11px;color:var(--muted);">Class 12A</div></td>
+                <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
+                <td><span class="badge badge-amber">18/28 · 64%</span></td>
+                <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
+              </tr>
+              <tr>
+                <td><strong>Rahul Das</strong><div style="font-size:11px;color:var(--muted);">Class 12B</div></td>
+                <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
+                <td><span class="badge badge-red">11/28 · 39%</span></td>
+                <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CLASS PERFORMANCE -->
+      <div>
+        <div class="section-label">Class Performance — Unit Test 3</div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);">68%</div>
+              <div style="font-size:12px;color:var(--muted);">Class average · 28 students</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:13px;font-weight:600;color:var(--green);">↑ 6% from last test</div>
+              <div style="font-size:12px;color:var(--muted);">Previous avg: 62%</div>
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>A (≥75%)</span><span>9 students</span></div>
+            <div class="progress-track"><div class="progress-fill green" style="width:32%"></div></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>B (60–74%)</span><span>12 students</span></div>
+            <div class="progress-track"><div class="progress-fill" style="width:43%"></div></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>C (45–59%)</span><span>5 students</span></div>
+            <div class="progress-track"><div class="progress-fill amber" style="width:18%"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>Below C (&lt;45%)</span><span>2 students</span></div>
+            <div class="progress-track"><div class="progress-fill red" style="width:7%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVE ASSIGNMENTS -->
+    <div class="section-label">Active Assignments</div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr><th>Paper</th><th>Class</th><th>Due Date</th><th>Submitted</th><th>Graded</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Mathematics — Unit Test 4</strong><div style="font-size:11px;color:var(--muted);">28 marks · Calculus, Vectors</div></td>
+            <td>12A + 12B</td>
+            <td>Mar 14, 2026</td>
+            <td>4 / 28</td>
+            <td>1 / 4</td>
+            <td><span class="badge badge-blue">Active</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td><strong>Physics — Electrostatics</strong><div style="font-size:11px;color:var(--muted);">25 marks · Chapter 1–3</div></td>
+            <td>12A</td>
+            <td>Mar 8, 2026</td>
+            <td>14 / 14</td>
+            <td>14 / 14</td>
+            <td><span class="badge badge-amber">Pending Release</span></td>
+            <td><button class="btn btn-green btn-sm" onclick="showPage('page-release',document.querySelector('[onclick*=page-release]'))">Release →</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 2 — QUESTION BANK
+══════════════════════════════════════ -->
+<div id="page-questions" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Question Bank</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-question')">+ Add Question</button>
+    </div>
+  </div>
+  <div class="content-area">
+    <!-- FILTERS -->
+    <div class="card" style="margin-bottom:20px;padding:18px 20px;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:180px;">
+          <div class="form-label">Subject</div>
+          <select class="form-input">
+            <option>Mathematics</option><option>Physics</option><option>Chemistry</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <div class="form-label">Chapter / Topic</div>
+          <select class="form-input">
+            <option>All Topics</option><option>Integration</option><option>Differentiation</option><option>Matrices</option><option>Probability</option><option>Vectors</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <div class="form-label">Difficulty</div>
+          <select class="form-input">
+            <option>All Levels</option><option>Easy</option><option>Medium</option><option>Hard</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:140px;">
+          <div class="form-label">Source</div>
+          <select class="form-input">
+            <option>All Sources</option><option>CBSE Past Papers</option><option>Teacher Created</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-bottom:1px;">🔍 Filter</button>
+      </div>
+    </div>
+
+    <!-- QUESTION LIST -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-label" style="margin-bottom:0;">24 Questions</div>
+      <div style="font-size:12px;color:var(--muted);">Select questions to add to a paper →</div>
+    </div>
+
+    <div id="question-list">
+      <div class="q-bank-item" onclick="toggleSelect(this)">
+        <div class="q-drag-handle">⋮⋮</div>
+        <div class="q-body">
+          <div class="q-text">Find ∫ x · eˣ dx using integration by parts. Show all working steps using ILATE rule.</div>
+          <div class="q-meta">
+            <span class="badge badge-red" style="font-size:10px;">Calculus</span>
+            <span class="badge badge-amber" style="font-size:10px;">Medium</span>
+            <span>5 marks</span>
+            <span>CBSE 2022</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openModal('modal-view-question')">View</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openModal('modal-add-question')">Edit</button>
+        </div>
+      </div>
+      <div class="q-bank-item" onclick="toggleSelect(this)">
+        <div class="q-drag-handle">⋮⋮</div>
+        <div class="q-body">
+          <div class="q-text">Find the angle between vectors a = 2î + ĵ − k̂ and b = î − 2ĵ + k̂</div>
+          <div class="q-meta">
+            <span class="badge badge-blue" style="font-size:10px;">Vectors</span>
+            <span class="badge badge-muted" style="font-size:10px;">Easy</span>
+            <span>3 marks</span>
+            <span>CBSE 2021</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();">View</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();">Edit</button>
+        </div>
+      </div>
+      <div class="q-bank-item" onclick="toggleSelect(this)">
+        <div class="q-drag-handle">⋮⋮</div>
+        <div class="q-body">
+          <div class="q-text">A bag contains 4 red and 6 blue balls. Two balls are drawn at random without replacement. Find P(both red).</div>
+          <div class="q-meta">
+            <span class="badge badge-green" style="font-size:10px;">Probability</span>
+            <span class="badge badge-muted" style="font-size:10px;">Easy</span>
+            <span>3 marks</span>
+            <span>Teacher Created</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();">View</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();">Edit</button>
+        </div>
+      </div>
+      <div class="q-bank-item" onclick="toggleSelect(this)">
+        <div class="q-drag-handle">⋮⋮</div>
+        <div class="q-body">
+          <div class="q-text">Find the inverse of the matrix A = [[2, 1], [5, 3]] using the adjoint method.</div>
+          <div class="q-meta">
+            <span class="badge badge-purple" style="font-size:10px;">Matrices</span>
+            <span class="badge badge-amber" style="font-size:10px;">Medium</span>
+            <span>5 marks</span>
+            <span>CBSE 2023</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();">View</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();">Edit</button>
+        </div>
+      </div>
+      <div class="q-bank-item" onclick="toggleSelect(this)">
+        <div class="q-drag-handle">⋮⋮</div>
+        <div class="q-body">
+          <div class="q-text">Evaluate ∫₀¹ x² dx using the fundamental theorem of calculus.</div>
+          <div class="q-meta">
+            <span class="badge badge-red" style="font-size:10px;">Calculus</span>
+            <span class="badge badge-muted" style="font-size:10px;">Easy</span>
+            <span>3 marks</span>
+            <span>CBSE 2020</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();">View</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();">Edit</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="selected-bar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:14px 24px;border-radius:14px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-lg);z-index:200;">
+      <span id="selected-count" style="font-size:13.5px;font-weight:600;">0 questions selected</span>
+      <button class="btn btn-primary btn-sm" onclick="showPage('page-papers',document.querySelector('[onclick*=page-papers]'))">Add to Paper →</button>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;" onclick="clearSelection()">✕ Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 3 — PAPER BUILDER
+══════════════════════════════════════ -->
+<div id="page-papers" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Paper Builder</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="showPage('page-questions',document.querySelector('[onclick*=page-questions]'))">← Question Bank</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-save-paper')">💾 Save Paper</button>
+    </div>
+  </div>
+  <div class="content-area">
+    <div class="grid-2" style="align-items:start;gap:24px;">
+
+      <!-- LEFT: PAPER SETTINGS -->
+      <div>
+        <div class="section-label">Paper Details</div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="form-group">
+            <label class="form-label">Paper Title</label>
+            <input class="form-input" type="text" placeholder="e.g. Mathematics — Unit Test 4" value="Mathematics — Unit Test 4"/>
+          </div>
+          <div class="grid-2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Subject</label>
+              <select class="form-input"><option>Mathematics</option><option>Physics</option></select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Class</label>
+              <select class="form-input"><option>Class 12</option><option>Class 11</option><option>Class 10</option><option>Class 9</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label">Sections</div>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="btn btn-secondary btn-sm">+ Add Section</button>
+          </div>
+
+          <!-- SECTION A -->
+          <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Section A <span style="font-weight:400;color:var(--muted);">· 1 mark each</span></div>
+              <button class="btn btn-ghost btn-sm">+ Add Q</button>
+            </div>
+            <div style="font-size:12px;color:var(--muted);">No questions added yet</div>
+          </div>
+
+          <!-- SECTION B -->
+          <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Section B <span style="font-weight:400;color:var(--muted);">· 3 marks each</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="openModal('modal-pick-question')">+ Add Q</button>
+            </div>
+            <div class="q-bank-item" style="cursor:default;margin-bottom:0;">
+              <div class="q-drag-handle">⋮⋮</div>
+              <div class="q-body">
+                <div class="q-text">Find the angle between vectors a = 2î + ĵ and b = î − 2ĵ</div>
+                <div class="q-meta"><span>3 marks</span><span class="badge badge-blue" style="font-size:10px;">Vectors</span></div>
+              </div>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);">✕</button>
+            </div>
+          </div>
+
+          <!-- SECTION C -->
+          <div style="background:var(--bg);border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">Section C <span style="font-weight:400;color:var(--muted);">· 5 marks each</span></div>
+              <button class="btn btn-ghost btn-sm" onclick="openModal('modal-pick-question')">+ Add Q</button>
+            </div>
+            <div class="q-bank-item" style="cursor:default;margin-bottom:8px;">
+              <div class="q-drag-handle">⋮⋮</div>
+              <div class="q-body">
+                <div class="q-text">Find ∫ x · eˣ dx using integration by parts</div>
+                <div class="q-meta"><span>5 marks</span><span class="badge badge-red" style="font-size:10px;">Calculus</span></div>
+              </div>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);">✕</button>
+            </div>
+            <div class="q-bank-item" style="cursor:default;margin-bottom:0;">
+              <div class="q-drag-handle">⋮⋮</div>
+              <div class="q-body">
+                <div class="q-text">Find the inverse of matrix A = [[2,1],[5,3]] using adjoint method</div>
+                <div class="q-meta"><span>5 marks</span><span class="badge badge-purple" style="font-size:10px;">Matrices</span></div>
+              </div>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: PAPER SUMMARY -->
+      <div style="position:sticky;top:80px;">
+        <div class="section-label">Paper Summary</div>
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);">13</div>
+              <div style="font-size:12px;color:var(--muted);">Total Marks</div>
+            </div>
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);">3</div>
+              <div style="font-size:12px;color:var(--muted);">Questions</div>
+            </div>
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);">30m</div>
+              <div style="font-size:12px;color:var(--muted);">Est. Duration</div>
+            </div>
+          </div>
+          <div style="background:var(--blue-l);border-radius:9px;padding:12px;font-size:12.5px;color:var(--blue);line-height:1.6;">
+            ⏱️ Timer formula: each question gets marks × 2 minutes. Students get soft stop — timer turns red but keeps running.
+          </div>
+        </div>
+
+        <div class="section-label">Model Solutions</div>
+        <div class="card">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Add model solutions so the AI can grade accurately. If left blank, the AI will generate its own.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg);border-radius:8px;">
+              <div style="font-size:13px;font-weight:500;">Q1 — Vectors</div>
+              <button class="btn btn-secondary btn-sm" onclick="openModal('modal-model-solution')">+ Add Solution</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--green-l);border-radius:8px;">
+              <div style="font-size:13px;font-weight:500;color:var(--green);">✓ Q2 — Calculus</div>
+              <button class="btn btn-ghost btn-sm">Edit</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg);border-radius:8px;">
+              <div style="font-size:13px;font-weight:500;">Q3 — Matrices</div>
+              <button class="btn btn-secondary btn-sm" onclick="openModal('modal-model-solution')">+ Add Solution</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 4 — ASSIGN EXAM
+══════════════════════════════════════ -->
+<div id="page-assign" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Assign Exam</div>
+    </div>
+  </div>
+  <div class="content-area">
+    <div style="max-width:680px;">
+      <div class="page-title">Assign a Paper</div>
+      <div class="page-sub">Select a paper, choose students, set a due date. Students are notified immediately.</div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-label">Step 1 — Select Paper</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:0;">
+          <label style="display:flex;align-items:center;gap:14px;padding:14px;border:2px solid var(--blue);border-radius:11px;background:var(--blue-l);cursor:pointer;">
+            <input type="radio" name="paper" checked style="accent-color:var(--blue);"/>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:600;color:var(--text);">Mathematics — Unit Test 4</div>
+              <div style="font-size:12px;color:var(--muted);">3 questions · 13 marks · Calculus, Vectors, Matrices</div>
+            </div>
+            <span class="badge badge-green">Ready</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;">
+            <input type="radio" name="paper" style="accent-color:var(--blue);"/>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:600;color:var(--text);">Mathematics — Half Yearly Practice</div>
+              <div style="font-size:12px;color:var(--muted);">8 questions · 40 marks · All topics</div>
+            </div>
+            <span class="badge badge-amber">Draft</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;">
+            <input type="radio" name="paper" style="accent-color:var(--blue);"/>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:600;color:var(--text);">Physics — Electrostatics Unit Test</div>
+              <div style="font-size:12px;color:var(--muted);">5 questions · 25 marks · Ch 1–3</div>
+            </div>
+            <span class="badge badge-green">Ready</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-label">Step 2 — Select Students</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <button class="btn btn-secondary btn-sm" onclick="selectAll()">Select All (28)</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectClass('12A')">Class 12A (14)</button>
+          <button class="btn btn-ghost btn-sm" onclick="selectClass('12B')">Class 12B (14)</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAll()">Clear</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;" id="student-grid">
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" checked style="accent-color:var(--blue);"/>Aryan Mehta <span style="font-size:10px;color:var(--muted);">12A</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" checked style="accent-color:var(--blue);"/>Sneha Iyer <span style="font-size:10px;color:var(--muted);">12A</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" checked style="accent-color:var(--blue);"/>Rahul Das <span style="font-size:10px;color:var(--muted);">12B</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" style="accent-color:var(--blue);"/>Priya Nair <span style="font-size:10px;color:var(--muted);">12A</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" style="accent-color:var(--blue);"/>Vikram Singh <span style="font-size:10px;color:var(--muted);">12B</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" style="accent-color:var(--blue);"/>Ananya Roy <span style="font-size:10px;color:var(--muted);">12B</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-label">Step 3 — Set Due Date</div>
+        <div class="grid-2">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Due Date</label>
+            <input class="form-input" type="date" value="2026-03-14"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Due Time</label>
+            <input class="form-input" type="time" value="23:59"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPEAT WARNING -->
+      <div style="background:var(--amber-l);border:1.5px solid #F59E0B;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">⚠️ Repeat Question Warning</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">1 question in this paper was seen by 3 students in a previous exam. <strong>Aryan Mehta, Sneha Iyer, Rahul Das</strong> attempted Q2 (Calculus) on Feb 12.</div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm">✓ Confirm Anyway</button>
+          <button class="btn btn-ghost btn-sm">← Change Paper</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <button class="btn btn-primary" onclick="openModal('modal-assign-confirm')">📤 Assign to 3 Students →</button>
+        <button class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 5 — REVIEW QUEUE
+══════════════════════════════════════ -->
+<div id="page-review" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Review Queue</div>
+    </div>
+    <div class="topbar-actions">
+      <span style="font-size:13px;color:var(--muted);">3 pending · Mathematics Unit Test 3</span>
+    </div>
+  </div>
+  <div class="content-area">
+
+    <!-- STUDENT SELECTOR -->
+    <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
+      <button class="tab active" onclick="switchReview('aryan',this)">Aryan Mehta <span class="badge badge-green" style="margin-left:4px;">21/28</span></button>
+      <button class="tab" onclick="switchReview('sneha',this)">Sneha Iyer <span class="badge badge-amber" style="margin-left:4px;">18/28</span></button>
+      <button class="tab" onclick="switchReview('rahul',this)">Rahul Das <span class="badge badge-red" style="margin-left:4px;">11/28</span></button>
+    </div>
+
+    <div id="review-aryan">
+      <div class="grid-2" style="align-items:start;gap:24px;">
+
+        <!-- ANSWER IMAGE -->
+        <div>
+          <div class="section-label">Answer Sheet — Aryan Mehta</div>
+          <div class="card" style="padding:16px;">
+            <div class="answer-img-box" style="min-height:400px;">
+              <div style="text-align:center;">
+                <div style="font-size:32px;margin-bottom:8px;">📄</div>
+                <div>Answer sheet image appears here</div>
+                <div style="font-size:12px;margin-top:4px;color:var(--muted);">Submitted Mar 5 · 2.4MB · JPEG</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <button class="btn btn-ghost btn-sm btn-full">↕ Zoom</button>
+              <button class="btn btn-ghost btn-sm btn-full">⤢ Full Screen</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI GRADING + TEACHER OVERRIDE -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="section-label" style="margin-bottom:0;">AI Grading</div>
+            <div style="font-size:12px;color:var(--muted);">AI gave <strong>21/28</strong> · Override if needed</div>
+          </div>
+
+          <!-- Q1 -->
+          <div class="card-sm" style="margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div style="font-size:13.5px;font-weight:700;color:var(--text);">Q1 — Probability (5 marks)</div>
+                <div style="font-size:11.5px;color:var(--green);margin-top:2px;">AI Confidence: High · No flag</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:11px;color:var(--muted);">AI gave</div>
+                <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);">5/5</div>
+                <div style="font-size:11px;color:var(--muted);">Override:</div>
+                <input class="mark-input" type="number" value="5" min="0" max="5"/>
+                <div style="font-size:13px;color:var(--muted);">/5</div>
+              </div>
+            </div>
+            <div style="font-size:12.5px;color:var(--muted);line-height:1.6;background:var(--bg);padding:10px;border-radius:8px;">AI: All steps correct. Bayes theorem applied perfectly. Clear working throughout.</div>
+            <div style="margin-top:10px;">
+              <label class="form-label" style="font-size:11px;">Teacher Feedback (optional — shown to student after release)</label>
+              <input class="form-input" type="text" placeholder="Add comment for student..." style="font-size:13px;padding:8px 12px;"/>
+            </div>
+          </div>
+
+          <!-- Q2 -->
+          <div class="card-sm" style="margin-bottom:10px;border-color:var(--amber);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div style="font-size:13.5px;font-weight:700;color:var(--text);">Q2 — Calculus (8 marks)</div>
+                <div style="font-size:11.5px;color:var(--amber);margin-top:2px;">⚠️ AI Confidence: Medium · Review recommended</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:11px;color:var(--muted);">AI gave</div>
+                <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--red);">3/8</div>
+                <div style="font-size:11px;color:var(--muted);">Override:</div>
+                <input class="mark-input" type="number" value="3" min="0" max="8" style="border-color:var(--amber);"/>
+                <div style="font-size:13px;color:var(--muted);">/8</div>
+              </div>
+            </div>
+            <div style="font-size:12.5px;color:var(--muted);line-height:1.6;background:var(--bg);padding:10px;border-radius:8px;">AI: ILATE rule not applied — u/dv selection wrong. Formula recalled correctly (+1). Chain rule applied (+1). Definite integral not evaluated (0/2). Final answer not reached (0/2).</div>
+            <div style="margin-top:10px;">
+              <label class="form-label" style="font-size:11px;">Teacher Feedback</label>
+              <input class="form-input" type="text" placeholder="Add comment..." value="Good start — formula recalled correctly. Remember ILATE: Algebraic before Exponential." style="font-size:13px;padding:8px 12px;"/>
+            </div>
+          </div>
+
+          <!-- Q3 + Q4 collapsed -->
+          <div class="card-sm" style="margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-size:13.5px;font-weight:700;">Q3 — Probability (7 marks)</div><div style="font-size:11.5px;color:var(--green);margin-top:2px;">AI Confidence: High</div></div>
+              <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:11px;color:var(--muted);">AI gave</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);">7/7</div><div style="font-size:11px;color:var(--muted);">Override:</div><input class="mark-input" type="number" value="7" min="0" max="7"/><div style="font-size:13px;color:var(--muted);">/7</div></div>
+            </div>
+          </div>
+          <div class="card-sm" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><div style="font-size:13.5px;font-weight:700;">Q4 — Matrices (8 marks)</div><div style="font-size:11.5px;color:var(--muted);margin-top:2px;">AI Confidence: High</div></div>
+              <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:11px;color:var(--muted);">AI gave</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--amber);">6/8</div><div style="font-size:11px;color:var(--muted);">Override:</div><input class="mark-input" type="number" value="6" min="0" max="8"/><div style="font-size:13px;color:var(--muted);">/8</div></div>
+            </div>
+          </div>
+
+          <div style="background:var(--bg);border-radius:11px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <div style="font-size:11px;color:var(--muted);">Final Total</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);">21 <span style="font-size:16px;color:var(--muted);">/ 28</span></div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:22px;font-family:'DM Serif Display',serif;color:var(--blue);">75%</div>
+              <div style="font-size:12px;color:var(--muted);">Grade A</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-green" onclick="openModal('modal-review-done')">✓ Approve & Mark Reviewed</button>
+            <button class="btn btn-ghost">← Previous</button>
+            <button class="btn btn-secondary">Next Student →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="review-sneha" style="display:none;">
+      <div class="card" style="text-align:center;padding:48px;">
+        <div style="font-size:32px;margin-bottom:12px;">📋</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Sneha Iyer — AI gave 18/28</div>
+        <div style="font-size:13px;color:var(--muted);">Answer sheet and AI breakdown loads here</div>
+      </div>
+    </div>
+
+    <div id="review-rahul" style="display:none;">
+      <div class="card" style="text-align:center;padding:48px;">
+        <div style="font-size:32px;margin-bottom:12px;">📋</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Rahul Das — AI gave 11/28</div>
+        <div style="font-size:13px;color:var(--muted);">Answer sheet and AI breakdown loads here</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 6 — DISPUTES
+══════════════════════════════════════ -->
+<div id="page-disputes" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Dispute Resolution</div>
+    </div>
+    <div class="topbar-actions">
+      <span style="font-size:13px;color:var(--red);font-weight:600;">⚠️ 1 expires in 8 hours</span>
+    </div>
+  </div>
+  <div class="content-area">
+    <div style="max-width:760px;">
+      <div class="page-sub" style="margin-bottom:24px;">Students can raise up to 3 disputes per exam. Each must be resolved within 48 hours. One dispute per question only.</div>
+
+      <!-- URGENT -->
+      <div class="section-label">Urgent — Expires Soon</div>
+      <div class="dispute-card urgent">
+        <div class="dc-header">
+          <span>⚠️ Expires in 8h 14m · Raised Mar 9 at 11:20 PM</span>
+          <span class="badge badge-red">Open</span>
+        </div>
+        <div class="dc-question">Aryan Mehta · Q2 — Integration by Parts</div>
+        <div class="dc-reason">"I used the correct method — the formula setup was right and I clearly showed u = x and dv = eˣdx. The limits were substituted correctly on the next page which the AI may have missed."</div>
+        <div class="dc-scores">
+          <div class="dc-score-box">
+            <div class="dc-score-val">3</div>
+            <div class="dc-score-lbl">Original</div>
+          </div>
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--muted);">→</div>
+          <div class="dc-score-box" style="background:var(--blue-l);">
+            <div class="dc-score-val" style="color:var(--blue);">?</div>
+            <div class="dc-score-lbl">Revised</div>
+          </div>
+          <div class="dc-score-box">
+            <div class="dc-score-val">8</div>
+            <div class="dc-score-lbl">Max</div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Revised Marks</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input class="mark-input" type="number" min="0" max="8" placeholder="0"/>
+            <span style="color:var(--muted);">/ 8</span>
+            <span style="font-size:12px;color:var(--muted);">(original: 3/8)</span>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Resolution Note (shown to student)</label>
+          <textarea class="form-input" placeholder="Explain your decision clearly — student will see this...">After reviewing the answer sheet, the ILATE selection was incorrect as the AI noted. However, the limit substitution on page 2 was partially correct — awarding 1 additional mark for method.</textarea>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-green btn-sm" onclick="resolveDispute(this)">✓ Resolve — Award Revised Marks</button>
+          <button class="btn btn-ghost btn-sm">👁 View Answer Sheet</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red);">Escalate</button>
+        </div>
+      </div>
+
+      <!-- REGULAR -->
+      <div class="section-label" style="margin-top:24px;">Open Disputes</div>
+      <div class="dispute-card">
+        <div class="dc-header">
+          <span>Raised Mar 10 at 2:15 PM · 32h remaining</span>
+          <span class="badge badge-blue">Open</span>
+        </div>
+        <div class="dc-question">Sneha Iyer · Q4 — Matrices</div>
+        <div class="dc-reason">"I showed all the steps for finding the adjoint correctly. The sign error the AI flagged was in the original question paper's notation, not in my working."</div>
+        <div class="dc-scores">
+          <div class="dc-score-box"><div class="dc-score-val">4</div><div class="dc-score-lbl">Original</div></div>
+          <div style="display:flex;align-items:center;font-size:20px;color:var(--muted);">→</div>
+          <div class="dc-score-box" style="background:var(--blue-l);"><div class="dc-score-val" style="color:var(--blue);">?</div><div class="dc-score-lbl">Revised</div></div>
+          <div class="dc-score-box"><div class="dc-score-val">8</div><div class="dc-score-lbl">Max</div></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-dispute-resolve')">Resolve →</button>
+          <button class="btn btn-ghost btn-sm">👁 View Answer Sheet</button>
+        </div>
+      </div>
+
+      <!-- RESOLVED -->
+      <div class="section-label" style="margin-top:24px;">Resolved</div>
+      <div class="dispute-card" style="opacity:.7;">
+        <div class="dc-header">
+          <span>Resolved Mar 8 at 4:45 PM</span>
+          <span class="badge badge-green">Resolved</span>
+        </div>
+        <div class="dc-question">Rahul Das · Q1 — Probability</div>
+        <div class="dc-reason">Student claimed partial credit for method. Teacher reviewed — original marks upheld. AI assessment was correct.</div>
+        <div style="font-size:13px;color:var(--muted);">Original: 2/5 · Revised: 2/5 (no change) · Resolution: Working shown was incomplete — AI marks upheld.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     PAGE 7 — GRADE RELEASE
+══════════════════════════════════════ -->
+<div id="page-release" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Grade Release</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-green" onclick="openModal('modal-release-all')">✅ Release All Grades</button>
+    </div>
+  </div>
+  <div class="content-area">
+    <div style="max-width:800px;">
+      <div class="page-title">Mathematics — Unit Test 3</div>
+      <div class="page-sub">28 students · All reviewed · No open disputes · Ready to release</div>
+
+      <!-- SUMMARY BANNER -->
+      <div style="background:linear-gradient(135deg,var(--blue-d),var(--blue));border-radius:16px;padding:24px 28px;color:#fff;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;">
+        <div>
+          <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:4px;">Class Average</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:36px;">68%</div>
+          <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:2px;">↑ Up 6% from last test</div>
+        </div>
+        <div style="display:flex;gap:24px;">
+          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">28</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Students</div></div>
+          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">28</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Reviewed</div></div>
+          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">0</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Disputes Open</div></div>
+          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">28</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Parent Emails</div></div>
+        </div>
+      </div>
+
+      <!-- CHECKLIST -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-label">Pre-Release Checklist</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> All 28 submissions reviewed by teacher</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> No open disputes remaining</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> AI model solutions generated for all questions</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> Teacher feedback added for flagged submissions</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> Parent CC email configured (28 students have parent email set)</div>
+        </div>
+      </div>
+
+      <!-- INDIVIDUAL GRADES -->
+      <div class="section-label">Individual Grades</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+        <div class="release-card">
+          <div class="rc-avatar">A</div>
+          <div class="rc-body">
+            <div class="rc-name">Aryan Mehta <span style="font-weight:400;font-size:12px;color:var(--muted);">· Class 12A</span></div>
+            <div class="rc-meta">Reviewed · No disputes · Parent email: yes</div>
+          </div>
+          <div>
+            <div class="rc-score">21/28</div>
+            <div class="rc-pct">75% · Grade A</div>
+          </div>
+          <span class="badge badge-green">Ready</span>
+        </div>
+        <div class="release-card">
+          <div class="rc-avatar">S</div>
+          <div class="rc-body">
+            <div class="rc-name">Sneha Iyer <span style="font-weight:400;font-size:12px;color:var(--muted);">· Class 12A</span></div>
+            <div class="rc-meta">Reviewed · Dispute resolved · Parent email: yes</div>
+          </div>
+          <div>
+            <div class="rc-score">19/28</div>
+            <div class="rc-pct">68% · Grade B+</div>
+          </div>
+          <span class="badge badge-green">Ready</span>
+        </div>
+        <div class="release-card">
+          <div class="rc-avatar">R</div>
+          <div class="rc-body">
+            <div class="rc-name">Rahul Das <span style="font-weight:400;font-size:12px;color:var(--muted);">· Class 12B</span></div>
+            <div class="rc-meta">Reviewed · No disputes · Parent email: yes</div>
+          </div>
+          <div>
+            <div class="rc-score">11/28</div>
+            <div class="rc-pct">39% · Grade D</div>
+          </div>
+          <span class="badge badge-amber">⚠️ Low Score</span>
+        </div>
+      </div>
+
+      <div style="background:var(--blue-l);border:1px solid var(--blue-m);border-radius:12px;padding:16px;margin-bottom:20px;font-size:13px;color:var(--text);line-height:1.7;">
+        📧 <strong>On release:</strong> Each student gets access to their full report with step-by-step breakdown and teacher feedback. Parents of all 28 students will receive a grade summary email. Practice section unlocks for students who haven't yet attempted an exam.
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-full" onclick="openModal('modal-release-all')" style="max-width:280px;">✅ Release All 28 Grades →</button>
+        <button class="btn btn-secondary" onclick="openModal('modal-release-all')">Release Selected Only</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  </div><!-- end main-content -->
+</div><!-- end app-shell -->
+
+<!-- ══════════════════════════════════════
+     MODALS
+══════════════════════════════════════ -->
+
+<!-- Add Question -->
+<div class="modal-overlay" id="modal-add-question">
+  <div class="modal">
+    <div class="modal-title">Add Question</div>
+    <div class="modal-sub">Add to the question bank · Can be used in any paper</div>
+    <div class="form-group">
+      <label class="form-label">Question Text (LaTeX supported)</label>
+      <textarea class="form-input" placeholder="Type question here... Use $ $ for inline LaTeX"></textarea>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-input"><option>Mathematics</option><option>Physics</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Topic</label>
+        <input class="form-input" type="text" placeholder="e.g. Calculus — Integration"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Marks</label>
+        <input class="form-input" type="number" min="1" max="20" value="5"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Difficulty</label>
+        <select class="form-input"><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Model Solution (optional — AI uses this for grading)</label>
+      <textarea class="form-input" placeholder="Step 1: ... (1 mark)&#10;Step 2: ... (2 marks)&#10;Final answer: ... (2 marks)"></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Source</label>
+      <select class="form-input"><option>Teacher Created</option><option>CBSE 2023</option><option>CBSE 2022</option><option>CBSE 2021</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-question')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-add-question')">Save Question →</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Question -->
+<div class="modal-overlay" id="modal-view-question">
+  <div class="modal">
+    <div class="modal-title">Question Preview</div>
+    <div class="modal-sub">CBSE 2022 · Mathematics · Calculus</div>
+    <div style="background:var(--bg);border-radius:11px;padding:16px;margin-bottom:16px;font-size:14px;line-height:1.7;color:var(--ink);">
+      Find ∫ x · eˣ dx using integration by parts. Show all working steps using the ILATE rule. Evaluate the definite integral from 0 to 1.
+    </div>
+    <div class="grid-3" style="margin-bottom:16px;">
+      <div style="text-align:center;background:var(--blue-l);border-radius:9px;padding:10px;"><div style="font-weight:700;color:var(--blue);">5</div><div style="font-size:11px;color:var(--muted);">Marks</div></div>
+      <div style="text-align:center;background:var(--amber-l);border-radius:9px;padding:10px;"><div style="font-weight:700;color:var(--amber);">Medium</div><div style="font-size:11px;color:var(--muted);">Difficulty</div></div>
+      <div style="text-align:center;background:var(--green-l);border-radius:9px;padding:10px;"><div style="font-weight:700;color:var(--green);">10 min</div><div style="font-size:11px;color:var(--muted);">Est. Time</div></div>
+    </div>
+    <div class="section-label">Model Solution</div>
+    <div style="background:var(--bg);border-radius:11px;padding:14px;font-size:13px;line-height:1.8;color:var(--text);">
+      Step 1: Apply ILATE — u = x (Algebraic), dv = eˣdx → du = dx, v = eˣ (1 mark)<br/>
+      Step 2: Apply formula ∫u·dv = uv − ∫v·du → x·eˣ − ∫eˣdx (2 marks)<br/>
+      Step 3: Simplify → xeˣ − eˣ + C = eˣ(x−1) + C (1 mark)<br/>
+      Step 4: Evaluate [eˣ(x−1)]₀¹ = e⁰·0 − e⁰·(−1) = 0 + 1 = 1 (1 mark)
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-view-question')">Close</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-view-question')">Add to Paper →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Model Solution -->
+<div class="modal-overlay" id="modal-model-solution">
+  <div class="modal">
+    <div class="modal-title">Add Model Solution</div>
+    <div class="modal-sub">Q1 — Vectors · 3 marks · For this paper only</div>
+    <div class="form-group">
+      <label class="form-label">Steps + Marks Breakdown</label>
+      <textarea class="form-input" style="min-height:140px;" placeholder="Step 1: Identify vectors — (1 mark)&#10;Step 2: Apply dot product formula — (1 mark)&#10;Step 3: Calculate angle — (1 mark)"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Common Errors to Watch For</label>
+      <textarea class="form-input" placeholder="e.g. Students often forget to normalise before taking arccos..."></textarea>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Alternate Methods Accepted</label>
+      <input class="form-input" type="text" placeholder="e.g. Cross product method also acceptable"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-model-solution')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-model-solution')">Save Solution →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Confirm -->
+<div class="modal-overlay" id="modal-assign-confirm">
+  <div class="modal">
+    <div class="modal-title">Confirm Assignment</div>
+    <div class="modal-sub">This will notify students immediately.</div>
+    <div style="background:var(--bg);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13.5px;line-height:2;">
+        📋 <strong>Paper:</strong> Mathematics — Unit Test 4<br/>
+        👥 <strong>Students:</strong> 3 selected<br/>
+        📅 <strong>Due:</strong> March 14, 2026 at 11:59 PM<br/>
+        ⚠️ <strong>Repeat warning confirmed</strong> — logged in audit trail
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-assign-confirm')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-assign-confirm')">📤 Assign Now →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Review Done -->
+<div class="modal-overlay" id="modal-review-done">
+  <div class="modal">
+    <div class="modal-title">Mark as Reviewed</div>
+    <div class="modal-sub">Aryan Mehta · Mathematics Unit Test 3</div>
+    <div style="background:var(--green-l);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13.5px;line-height:1.8;color:var(--green);">
+      ✅ Final marks: <strong>21/28 (75%)</strong><br/>
+      ✅ Teacher feedback added for Q2<br/>
+      ✅ Grade will be visible after full release
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:4px;">Grades are not visible to students until you release the full paper from Grade Release.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-review-done')">Cancel</button>
+      <button class="btn btn-green" onclick="closeModal('modal-review-done')">✓ Confirm Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dispute Resolve -->
+<div class="modal-overlay" id="modal-dispute-resolve">
+  <div class="modal">
+    <div class="modal-title">Resolve Dispute</div>
+    <div class="modal-sub">Sneha Iyer · Q4 — Matrices</div>
+    <div class="form-group">
+      <label class="form-label">Revised Marks</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input class="mark-input" type="number" min="0" max="8" value="5"/>
+        <span style="color:var(--muted);">/ 8 (original: 4/8)</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Resolution Note (shown to student)</label>
+      <textarea class="form-input">After reviewing the answer sheet, the adjoint matrix was correct. Awarding 1 additional mark for the correctly computed cofactor matrix.</textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-dispute-resolve')">Cancel</button>
+      <button class="btn btn-green" onclick="closeModal('modal-dispute-resolve')">✓ Resolve Dispute</button>
+    </div>
+  </div>
+</div>
+
+<!-- Release All -->
+<div class="modal-overlay" id="modal-release-all">
+  <div class="modal">
+    <div class="modal-title">Release All Grades</div>
+    <div class="modal-sub">Mathematics — Unit Test 3 · 28 students</div>
+    <div style="background:var(--blue-l);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13.5px;line-height:2;color:var(--text);">
+      👁 <strong>Students</strong> will see their full report — marks, step breakdown, AI coaching, teacher feedback<br/>
+      📧 <strong>Parents</strong> of all 28 students will receive a grade summary email<br/>
+      🔓 <strong>Practice section</strong> unlocks for first-time students<br/>
+      ✅ This action <strong>cannot be undone</strong>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-release-all')">Cancel</button>
+      <button class="btn btn-green" onclick="closeModal('modal-release-all')">✅ Release All 28 Grades →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PAGE NAVIGATION ──
+function showPage(id, navBtn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+  if(navBtn){
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    navBtn.classList.add('active');
+  }
+  // close sidebar on mobile
+  if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
+}
+
+// ── SIDEBAR TOGGLE (mobile) ──
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ── MODALS ──
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
+});
+
+// ── QUESTION SELECTION ──
+let selectedCount = 0;
+function toggleSelect(item){
+  item.classList.toggle('selected');
+  selectedCount = document.querySelectorAll('.q-bank-item.selected').length;
+  const bar = document.getElementById('selected-bar');
+  const cnt = document.getElementById('selected-count');
+  if(selectedCount>0){
+    bar.style.display='flex';
+    cnt.textContent = selectedCount + ' question' + (selectedCount>1?'s':'') + ' selected';
+  } else {
+    bar.style.display='none';
+  }
+}
+function clearSelection(){
+  document.querySelectorAll('.q-bank-item.selected').forEach(i=>i.classList.remove('selected'));
+  document.getElementById('selected-bar').style.display='none';
+  selectedCount=0;
+}
+
+// ── ASSIGN STUDENT SELECTION ──
+function selectAll(){ document.querySelectorAll('#student-grid input').forEach(c=>c.checked=true); }
+function clearAll(){ document.querySelectorAll('#student-grid input').forEach(c=>c.checked=false); }
+function selectClass(cls){
+  clearAll();
+  document.querySelectorAll('#student-grid label').forEach(l=>{
+    if(l.textContent.includes(cls)) l.querySelector('input').checked=true;
+  });
+}
+
+// ── REVIEW TABS ──
+function switchReview(student,btn){
+  ['aryan','sneha','rahul'].forEach(s=>{ const el=document.getElementById('review-'+s); if(el) el.style.display='none'; });
+  document.getElementById('review-'+student).style.display='block';
+  document.querySelectorAll('#page-review .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── DISPUTE RESOLVE ──
+function resolveDispute(btn){
+  const card = btn.closest('.dispute-card');
+  card.style.opacity='.5';
+  card.querySelector('.badge-red').className='badge badge-green';
+  card.querySelector('.badge-red') && (card.querySelector('.badge').textContent='Resolved');
+  btn.textContent='✓ Resolved';
+  btn.disabled=true;
+}
+</script>
+</body>
+</html>

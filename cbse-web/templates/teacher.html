@@ -230,7 +230,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="su-avatar">P</div>
         <div>
           <div class="su-name">Mrs. Priya Sharma</div>
-          <div class="su-role">Mathematics · Class 12</div>
+          <div class="su-role">Mathematics Teacher</div>
         </div>
       </div>
     </div>
@@ -281,7 +281,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="sc-icon">👥</div>
         <div class="sc-label">Students</div>
         <div class="sc-val">28</div>
-        <div class="sc-sub">Class 12A + 12B</div>
+        <div class="sc-sub">Assigned this month</div>
       </div>
     </div>
 
@@ -294,19 +294,19 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
             <thead><tr><th>Student</th><th>Exam</th><th>AI Score</th><th>Action</th></tr></thead>
             <tbody>
               <tr>
-                <td><strong>Aryan Mehta</strong><div style="font-size:11px;color:var(--muted);">Class 12A</div></td>
+                <td><strong>Aryan Mehta</strong></td>
                 <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
                 <td><span class="badge badge-green">21/28 · 75%</span></td>
                 <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
               </tr>
               <tr>
-                <td><strong>Sneha Iyer</strong><div style="font-size:11px;color:var(--muted);">Class 12A</div></td>
+                <td><strong>Sneha Iyer</strong></td>
                 <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
                 <td><span class="badge badge-amber">18/28 · 64%</span></td>
                 <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
               </tr>
               <tr>
-                <td><strong>Rahul Das</strong><div style="font-size:11px;color:var(--muted);">Class 12B</div></td>
+                <td><strong>Rahul Das</strong></td>
                 <td>Maths Unit 3<div style="font-size:11px;color:var(--muted);">28 marks</div></td>
                 <td><span class="badge badge-red">11/28 · 39%</span></td>
                 <td><button class="btn btn-primary btn-sm" onclick="showPage('page-review',document.querySelector('[onclick*=page-review]'))">Review →</button></td>
@@ -318,12 +318,12 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 
       <!-- CLASS PERFORMANCE -->
       <div>
-        <div class="section-label">Class Performance — Unit Test 3</div>
+        <div class="section-label">Paper Performance — Unit Test 3</div>
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
             <div>
               <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);">68%</div>
-              <div style="font-size:12px;color:var(--muted);">Class average · 28 students</div>
+              <div style="font-size:12px;color:var(--muted);">Paper average · 28 students</div>
             </div>
             <div style="text-align:right;">
               <div style="font-size:13px;font-weight:600;color:var(--green);">↑ 6% from last test</div>
@@ -358,7 +358,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <tbody>
           <tr>
             <td><strong>Mathematics — Unit Test 4</strong><div style="font-size:11px;color:var(--muted);">28 marks · Calculus, Vectors</div></td>
-            <td>12A + 12B</td>
+            <td>28 students</td>
             <td>Mar 14, 2026</td>
             <td>4 / 28</td>
             <td>1 / 4</td>
@@ -367,7 +367,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
           </tr>
           <tr>
             <td><strong>Physics — Electrostatics</strong><div style="font-size:11px;color:var(--muted);">25 marks · Chapter 1–3</div></td>
-            <td>12A</td>
+            <td>14 students</td>
             <td>Mar 8, 2026</td>
             <td>14 / 14</td>
             <td>14 / 14</td>
@@ -554,7 +554,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
             </div>
             <div class="form-group" style="margin-bottom:0;">
               <label class="form-label">Class</label>
-              <select class="form-input"><option>Class 12</option><option>Class 11</option><option>Class 10</option><option>Class 9</option></select>
+              <select class="form-input"><option>CBSE Grade 12</option><option>CBSE Grade 11</option><option>CBSE Grade 10</option><option>CBSE Grade 9</option></select>
             </div>
           </div>
         </div>
@@ -711,28 +711,26 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="section-label">Step 2 — Select Students</div>
         <div style="display:flex;gap:10px;margin-bottom:14px;">
           <button class="btn btn-secondary btn-sm" onclick="selectAll()">Select All (28)</button>
-          <button class="btn btn-ghost btn-sm" onclick="selectClass('12A')">Class 12A (14)</button>
-          <button class="btn btn-ghost btn-sm" onclick="selectClass('12B')">Class 12B (14)</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearAll()">Clear</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAll()">Clear All</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;" id="student-grid">
           <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" checked style="accent-color:var(--blue);"/>Aryan Mehta <span style="font-size:10px;color:var(--muted);">12A</span>
+            <input type="checkbox" checked style="accent-color:var(--blue);"/>Aryan Mehta
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" checked style="accent-color:var(--blue);"/>Sneha Iyer <span style="font-size:10px;color:var(--muted);">12A</span>
+            <input type="checkbox" checked style="accent-color:var(--blue);"/>Sneha Iyer
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" checked style="accent-color:var(--blue);"/>Rahul Das <span style="font-size:10px;color:var(--muted);">12B</span>
+            <input type="checkbox" checked style="accent-color:var(--blue);"/>Rahul Das
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" style="accent-color:var(--blue);"/>Priya Nair <span style="font-size:10px;color:var(--muted);">12A</span>
+            <input type="checkbox" style="accent-color:var(--blue);"/>Priya Nair
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" style="accent-color:var(--blue);"/>Vikram Singh <span style="font-size:10px;color:var(--muted);">12B</span>
+            <input type="checkbox" style="accent-color:var(--blue);"/>Vikram Singh
           </label>
           <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" style="accent-color:var(--blue);"/>Ananya Roy <span style="font-size:10px;color:var(--muted);">12B</span>
+            <input type="checkbox" style="accent-color:var(--blue);"/>Ananya Roy
           </label>
         </div>
       </div>
@@ -1062,7 +1060,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="release-card">
           <div class="rc-avatar">A</div>
           <div class="rc-body">
-            <div class="rc-name">Aryan Mehta <span style="font-weight:400;font-size:12px;color:var(--muted);">· Class 12A</span></div>
+            <div class="rc-name">Aryan Mehta</div>
             <div class="rc-meta">Reviewed · No disputes · Parent email: yes</div>
           </div>
           <div>
@@ -1074,7 +1072,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="release-card">
           <div class="rc-avatar">S</div>
           <div class="rc-body">
-            <div class="rc-name">Sneha Iyer <span style="font-weight:400;font-size:12px;color:var(--muted);">· Class 12A</span></div>
+            <div class="rc-name">Sneha Iyer</div>
             <div class="rc-meta">Reviewed · Dispute resolved · Parent email: yes</div>
           </div>
           <div>
@@ -1086,7 +1084,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="release-card">
           <div class="rc-avatar">R</div>
           <div class="rc-body">
-            <div class="rc-name">Rahul Das <span style="font-weight:400;font-size:12px;color:var(--muted);">· Class 12B</span></div>
+            <div class="rc-name">Rahul Das</div>
             <div class="rc-meta">Reviewed · No disputes · Parent email: yes</div>
           </div>
           <div>

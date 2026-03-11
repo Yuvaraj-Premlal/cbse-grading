@@ -109,6 +109,11 @@ def health():
 @app.route("/student")
 def student():
     return render_template("student.html")
+
+# ── TEACHER PAGE ──────────────────────────────────────────
+@app.route("/teacher")
+def teacher():
+    return render_template("teacher.html")
 # ── REGISTER ──────────────────────────────────────────
 
 

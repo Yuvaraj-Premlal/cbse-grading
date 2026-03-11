@@ -104,7 +104,14 @@ def health():
 
     return jsonify(results)
 
+# ── STUDENT PAGE ──────────────────────────────────────────
+
+@app.route("/student")
+def student():
+    return render_template("student.html")
 # ── REGISTER ──────────────────────────────────────────
+
+
 @app.route("/register", methods=["POST"])
 def register():
     data = request.json

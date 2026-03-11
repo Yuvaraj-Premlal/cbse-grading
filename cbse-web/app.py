@@ -115,7 +115,7 @@ def register():
             """), {
                 "name":  data["name"],
                 "email": data["email"],
-                "hash":  pwd_context.hash(data["password"]),
+                "hash":  pwd_context.hash(data["password"][:72]),
                 "role":  data["role"]
             })
 
@@ -142,7 +142,7 @@ def login():
                 return jsonify({"ok": False, "error": "Email not found"})
             if not user.is_active:
                 return jsonify({"ok": False, "error": "Account deactivated"})
-            if not pwd_context.verify(data["password"], user.password_hash):
+            if not pwd_context.verify(data["password"][:72], user.password_hash):
                 return jsonify({"ok": False, "error": "Wrong password"})
 
             return jsonify({

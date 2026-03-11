@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CBSE Grading — Student Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --blue:#0068B5;
+  --blue-d:#004F8C;
+  --blue-l:#E8F3FC;
+  --blue-m:#C2DDF5;
+  --ink:#0A0E1A;
+  --text:#1E2A3A;
+  --muted:#6B7A8D;
+  --border:#E2EAF2;
+  --bg:#F7FAFD;
+  --white:#FFFFFF;
+  --green:#0A7C52;
+  --green-l:#E6F5EF;
+  --red:#C0392B;
+  --red-l:#FDECEA;
+  --amber:#9A5D00;
+  --amber-l:#FEF3E2;
+  --radius:14px;
+  --shadow:0 2px 20px rgba(0,104,181,.08);
+  --shadow-lg:0 8px 40px rgba(0,104,181,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* ── PAGE SYSTEM ── */
+.page{position:fixed;top:0;left:0;width:100%;height:100%;overflow-y:auto;background:var(--bg);visibility:hidden;opacity:0;pointer-events:none;transition:opacity .25s ease;}
+.page.active{visibility:visible;opacity:1;pointer-events:all;position:relative;height:auto;min-height:100vh;}
+#page-login.active{position:fixed;top:0;left:0;width:100%;height:100%;overflow-y:auto;}
+@keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+/* ── NAV ── */
+nav{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:0 1px 8px rgba(0,104,181,.06);}
+.nav-inner{max-width:1100px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-family:'DM Serif Display',serif;font-size:20px;color:var(--blue);letter-spacing:-.3px;display:flex;align-items:center;gap:8px;}
+.nav-logo span{font-size:10px;background:var(--blue);color:#fff;padding:2px 7px;border-radius:20px;font-family:'DM Sans',sans-serif;font-weight:600;letter-spacing:.5px;}
+.nav-right{display:flex;align-items:center;gap:16px;}
+.nav-user{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.nav-logout{font-size:12px;color:var(--muted);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-family:'DM Sans',sans-serif;}
+.nav-logout:hover{background:var(--bg);color:var(--text);}
+
+/* ── WRAP ── */
+.wrap{max-width:1100px;margin:0 auto;padding:40px 24px;}
+.wrap-sm{max-width:480px;margin:0 auto;padding:40px 24px;}
+.wrap-md{max-width:720px;margin:0 auto;padding:40px 24px;}
+
+/* ── TYPOGRAPHY ── */
+.page-title{font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);line-height:1.2;margin-bottom:4px;}
+.page-sub{font-size:14px;color:var(--muted);margin-bottom:32px;line-height:1.6;}
+.section-label{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:28px;box-shadow:var(--shadow);}
+.card-sm{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:20px;box-shadow:var(--shadow);}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all .18s ease;text-decoration:none;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-d);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,104,181,.3);}
+.btn-secondary{background:var(--white);color:var(--blue);border:1.5px solid var(--blue);}
+.btn-secondary:hover{background:var(--blue-l);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:8px;}
+.btn-full{width:100%;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#085f3e;transform:translateY(-1px);}
+
+/* ── INPUTS ── */
+.form-group{margin-bottom:18px;}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--text);margin-bottom:7px;}
+.form-input{width:100%;padding:12px 15px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white);transition:border-color .15s;}
+.form-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,104,181,.1);}
+.form-input::placeholder{color:#B0BAC8;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;}
+.badge-blue{background:var(--blue-l);color:var(--blue);}
+.badge-green{background:var(--green-l);color:var(--green);}
+.badge-red{background:var(--red-l);color:var(--red);}
+.badge-amber{background:var(--amber-l);color:var(--amber);}
+.badge-muted{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+
+/* ── PROGRESS BAR ── */
+.progress-track{height:7px;background:var(--border);border-radius:20px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:20px;background:var(--blue);transition:width .6s ease;}
+.progress-fill.green{background:var(--green);}
+.progress-fill.red{background:var(--red);}
+.progress-fill.amber{background:#F59E0B;}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:var(--border);margin:24px 0;}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:768px){
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}
+  .wrap{padding:24px 16px;}
+  .nav-inner{padding:0 16px;}
+}
+
+/* ══════════════════════════════════════
+   PAGE 1 — LOGIN
+══════════════════════════════════════ */
+#page-login{background:var(--white);display:flex;min-height:100vh;}
+.login-left{flex:1;background:linear-gradient(145deg,var(--blue-d) 0%,var(--blue) 60%,#0094FF 100%);padding:60px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}
+.login-left::before{content:'';position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,.06);}
+.login-left::after{content:'';position:absolute;bottom:-60px;left:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.04);}
+.login-brand{font-family:'DM Serif Display',serif;font-size:32px;color:#fff;line-height:1.2;position:relative;z-index:1;}
+.login-brand em{font-style:italic;opacity:.8;}
+.login-tagline{color:rgba(255,255,255,.7);font-size:15px;margin-top:12px;line-height:1.7;max-width:320px;position:relative;z-index:1;}
+.login-features{list-style:none;position:relative;z-index:1;}
+.login-features li{color:rgba(255,255,255,.85);font-size:13.5px;padding:8px 0;display:flex;align-items:center;gap:10px;}
+.login-features li::before{content:'✓';width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.login-right{width:480px;padding:60px 56px;display:flex;flex-direction:column;justify-content:center;}
+.login-welcome{font-family:'DM Serif Display',serif;font-size:30px;color:var(--ink);margin-bottom:6px;}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:36px;}
+.login-footer{font-size:12px;color:var(--muted);margin-top:24px;text-align:center;}
+.login-error{background:var(--red-l);border:1px solid #FCCACA;border-radius:9px;padding:11px 14px;font-size:13px;color:var(--red);margin-bottom:16px;display:none;}
+@media(max-width:768px){
+  #page-login{flex-direction:column;}
+  .login-left{padding:40px 24px;min-height:200px;}
+  .login-right{width:100%;padding:40px 24px;}
+}
+
+/* ══════════════════════════════════════
+   PAGE 2 — DASHBOARD
+══════════════════════════════════════ */
+.stat-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:22px 24px;box-shadow:var(--shadow);}
+.stat-card .sc-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.stat-card .sc-val{font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);line-height:1;}
+.stat-card .sc-sub{font-size:12px;color:var(--muted);margin-top:5px;}
+.stat-card .sc-icon{font-size:24px;margin-bottom:10px;}
+
+.exam-card{background:var(--white);border-radius:var(--radius);border:2px solid var(--blue);padding:24px;box-shadow:0 4px 24px rgba(0,104,181,.1);position:relative;overflow:hidden;}
+.exam-card::before{content:'ACTIVE EXAM';position:absolute;top:14px;right:16px;font-size:9px;font-weight:800;color:var(--blue);letter-spacing:1.5px;background:var(--blue-l);padding:3px 8px;border-radius:20px;}
+.exam-card-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:6px;}
+.exam-card-meta{font-size:13px;color:var(--muted);margin-bottom:20px;display:flex;gap:14px;flex-wrap:wrap;}
+.exam-card-meta span{display:flex;align-items:center;gap:5px;}
+
+.no-exam-card{background:var(--bg);border-radius:var(--radius);border:2px dashed var(--border);padding:32px;text-align:center;}
+.no-exam-card p{font-size:14px;color:var(--muted);margin-top:8px;}
+
+.history-row{display:flex;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);gap:14px;}
+.history-row:last-child{border-bottom:none;}
+.hr-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.hr-body{flex:1;}
+.hr-title{font-size:13.5px;font-weight:600;color:var(--text);}
+.hr-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.hr-score{text-align:right;flex-shrink:0;}
+.hr-marks{font-family:'DM Serif Display',serif;font-size:18px;color:var(--ink);}
+.hr-pct{font-size:11px;color:var(--muted);}
+
+/* ══════════════════════════════════════
+   PAGE 3 — ACTIVE EXAM
+══════════════════════════════════════ */
+.exam-header{background:var(--white);border-bottom:1px solid var(--border);padding:20px 0;margin-bottom:32px;position:sticky;top:60px;z-index:50;}
+.exam-header-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.exam-title-block h2{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);}
+.exam-title-block p{font-size:13px;color:var(--muted);margin-top:2px;}
+.exam-timer{display:flex;align-items:center;gap:10px;}
+.timer-box{background:var(--blue-l);border:1.5px solid var(--blue-m);border-radius:10px;padding:10px 18px;text-align:center;}
+.timer-label{font-size:9.5px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;}
+.timer-val{font-family:'DM Serif Display',serif;font-size:24px;color:var(--blue);line-height:1.1;}
+.timer-val.red{color:var(--red);}
+
+.upload-zone{border:2px dashed var(--blue-m);border-radius:var(--radius);padding:48px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--blue-l);}
+.upload-zone:hover{border-color:var(--blue);background:#deeef9;}
+.upload-zone .uz-icon{font-size:40px;margin-bottom:12px;}
+.upload-zone h3{font-size:16px;font-weight:600;color:var(--blue);margin-bottom:6px;}
+.upload-zone p{font-size:13px;color:var(--muted);}
+
+.step-item{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}
+.step-item:last-child{border-bottom:none;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-body h4{font-size:13.5px;font-weight:600;color:var(--text);}
+.step-body p{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5;}
+
+/* ══════════════════════════════════════
+   PAGE 4 — GRADING REPORT
+══════════════════════════════════════ */
+.score-hero{background:linear-gradient(135deg,var(--blue-d),var(--blue));border-radius:18px;padding:36px;color:#fff;display:flex;align-items:center;gap:32px;margin-bottom:28px;flex-wrap:wrap;}
+.score-ring-wrap{flex-shrink:0;}
+.score-ring{width:100px;height:100px;border-radius:50%;border:6px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative;}
+.score-ring-pct{font-family:'DM Serif Display',serif;font-size:26px;color:#fff;}
+.score-ring-lbl{font-size:10px;color:rgba(255,255,255,.7);}
+.score-hero-info h2{font-family:'DM Serif Display',serif;font-size:24px;color:#fff;margin-bottom:4px;}
+.score-hero-info p{font-size:14px;color:rgba(255,255,255,.75);margin-bottom:14px;}
+.score-hero-stats{display:flex;gap:20px;flex-wrap:wrap;}
+.shs{text-align:center;}
+.shs-val{font-family:'DM Serif Display',serif;font-size:22px;color:#fff;}
+.shs-lbl{font-size:11px;color:rgba(255,255,255,.65);}
+
+.q-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:14px;overflow:hidden;box-shadow:var(--shadow);}
+.q-card-head{padding:16px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;user-select:none;}
+.q-card-head:hover{background:var(--bg);}
+.q-num{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.q-title{flex:1;}
+.q-title h4{font-size:14px;font-weight:600;color:var(--text);}
+.q-title p{font-size:12px;color:var(--muted);margin-top:2px;}
+.q-score{font-family:'DM Serif Display',serif;font-size:20px;flex-shrink:0;}
+.q-chevron{color:var(--muted);font-size:14px;transition:transform .2s;flex-shrink:0;}
+.q-card.open .q-chevron{transform:rotate(180deg);}
+.q-card-body{padding:20px;border-top:1px solid var(--border);display:none;}
+.q-card.open .q-card-body{display:block;}
+
+.step-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--bg);}
+.step-row:last-child{border-bottom:none;}
+.step-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:1px;}
+.step-dot.full{background:var(--green-l);color:var(--green);}
+.step-dot.half{background:var(--amber-l);color:var(--amber);}
+.step-dot.zero{background:var(--red-l);color:var(--red);}
+.step-content{flex:1;}
+.step-content strong{display:block;font-size:13px;font-weight:600;color:var(--text);}
+.step-content span{font-size:12px;color:var(--muted);line-height:1.5;}
+.step-marks{font-size:13px;font-weight:700;flex-shrink:0;}
+
+.feedback-box{border-radius:10px;padding:14px 16px;margin-bottom:10px;font-size:13px;line-height:1.6;}
+.fb-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+
+/* ══════════════════════════════════════
+   PAGE 5 — PRACTICE
+══════════════════════════════════════ */
+.practice-tabs{display:flex;gap:4px;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:28px;width:fit-content;}
+.ptab{padding:9px 20px;border-radius:9px;font-size:13.5px;font-weight:500;cursor:pointer;color:var(--muted);transition:all .18s;border:none;background:none;font-family:'DM Sans',sans-serif;}
+.ptab.active{background:var(--white);color:var(--blue);font-weight:700;box-shadow:0 1px 6px rgba(0,104,181,.1);}
+
+.q-practice-card{background:var(--white);border-radius:var(--radius);border:1.5px solid var(--border);padding:28px;margin-bottom:16px;box-shadow:var(--shadow);}
+.q-practice-card.active{border-color:var(--blue);box-shadow:0 4px 24px rgba(0,104,181,.12);}
+
+.timer-strip{background:var(--blue-l);border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.ts-left{display:flex;align-items:center;gap:16px;}
+.ts-timer{font-family:'DM Serif Display',serif;font-size:28px;color:var(--blue);}
+.ts-timer.red{color:var(--red);}
+.ts-label{font-size:11.5px;color:var(--muted);}
+.ts-label strong{display:block;font-size:13px;color:var(--text);}
+
+.dual-score{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;}
+.ds-box{border-radius:12px;padding:16px;text-align:center;}
+.ds-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.ds-val{font-family:'DM Serif Display',serif;font-size:28px;}
+.ds-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.streak-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:8px;}
+.streak-day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+
+.topic-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);}
+.topic-row:last-child{border-bottom:none;}
+.topic-name{flex:1;font-size:13.5px;font-weight:500;color:var(--text);}
+.topic-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.topic-bar-wrap{width:100px;flex-shrink:0;}
+
+/* ── COACHING PILL ── */
+.coaching{border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.65;display:flex;gap:10px;align-items:flex-start;}
+.coaching-ico{font-size:16px;flex-shrink:0;margin-top:1px;}
+.coaching-text .cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px;}
+
+/* ── NOTIFICATION DOT ── */
+.notif-dot{width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;margin-left:4px;vertical-align:middle;}
+
+/* ── BOTTOM NAV (mobile) ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:200;}
+.bn-inner{display:flex;justify-content:space-around;}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 16px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;border:none;background:none;font-family:'DM Sans',sans-serif;}
+.bn-item.active{color:var(--blue);}
+.bn-icon{font-size:20px;}
+@media(max-width:768px){.bottom-nav{display:block;}.wrap{padding-bottom:80px;}}
+</style>
+</head>
+<body>
+
+<!-- ══ PAGE 1 — LOGIN ══ -->
+<div id="page-login" class="page active">
+  <div class="login-left">
+    <div>
+      <div class="login-brand">CBSE<br/><em>AI Grading</em></div>
+      <div class="login-tagline">Step-by-step feedback. Personalised practice. Board exam preparation that actually works.</div>
+    </div>
+    <ul class="login-features">
+      <li>AI grading with step-by-step breakdown</li>
+      <li>Timed practice — exam conditions, every time</li>
+      <li>Spaced repetition — never forget a topic again</li>
+      <li>Predicted board score from your trajectory</li>
+    </ul>
+    <div style="font-size:12px;color:rgba(255,255,255,.4);">Class 9–12 · Mathematics · Science</div>
+  </div>
+  <div class="login-right">
+    <div class="login-welcome">Welcome back</div>
+    <div class="login-sub">Sign in to your student account</div>
+    <div class="login-error" id="login-error">Incorrect email or password. Please try again.</div>
+    <div class="form-group">
+      <label class="form-label">Email address</label>
+      <input class="form-input" type="email" id="l-email" placeholder="you@example.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" id="l-pass" placeholder="Enter your password"/>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()" style="margin-top:4px;">Sign in →</button>
+    <div class="login-footer">
+      Don't have an account? <a href="#" style="color:var(--blue);font-weight:600;" onclick="showPage('page-dashboard');return false;">Demo access</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 2 — DASHBOARD ══ -->
+<div id="page-dashboard" class="page">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
+      <div class="nav-right">
+        <div class="nav-user">
+          <div class="nav-avatar">A</div>
+          <span style="font-weight:600;color:var(--text);">Aryan · Class 12</span>
+        </div>
+        <button class="nav-logout" onclick="showPage('page-login')">Sign out</button>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div style="margin-bottom:28px;">
+      <div class="page-title">Good morning, Aryan 👋</div>
+      <div class="page-sub">Here's where you stand today — March 11, 2026</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="grid-4" style="margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="sc-icon">📝</div>
+        <div class="sc-label">Exams Taken</div>
+        <div class="sc-val">4</div>
+        <div class="sc-sub">This semester</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">📈</div>
+        <div class="sc-label">Avg Score</div>
+        <div class="sc-val">73%</div>
+        <div class="sc-sub">Up from 58% last month</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">🔥</div>
+        <div class="sc-label">Practice Streak</div>
+        <div class="sc-val">6</div>
+        <div class="sc-sub">days in a row</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">🎯</div>
+        <div class="sc-label">Predicted Score</div>
+        <div class="sc-val">78%</div>
+        <div class="sc-sub">Board exam trajectory</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:28px;">
+      <!-- ACTIVE EXAM -->
+      <div>
+        <div class="section-label">Active Exam</div>
+        <div class="exam-card">
+          <div class="exam-card-title">Mathematics — Unit Test 4</div>
+          <div class="exam-card-meta">
+            <span>📚 Class 12</span>
+            <span>⏰ Due Mar 14</span>
+            <span>📊 28 marks</span>
+          </div>
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:7px;">
+              <span>Calculus · Integration · Vectors</span>
+              <span>3 days left</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill amber" style="width:0%"></div></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="showPage('page-exam')">📤 Submit Answer Sheet</button>
+            <button class="btn btn-ghost btn-sm">👁️ View Paper</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOPIC HEATMAP -->
+      <div>
+        <div class="section-label">Topic Performance</div>
+        <div class="card">
+          <div class="topic-row">
+            <div style="flex:1;">
+              <div class="topic-name">Probability</div>
+              <div class="topic-sub">Last exam: 95%</div>
+            </div>
+            <div class="topic-bar-wrap">
+              <div class="progress-track"><div class="progress-fill green" style="width:95%"></div></div>
+            </div>
+            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--green);">95%</div>
+          </div>
+          <div class="topic-row">
+            <div style="flex:1;">
+              <div class="topic-name">Algebra</div>
+              <div class="topic-sub">Last exam: 80%</div>
+            </div>
+            <div class="topic-bar-wrap">
+              <div class="progress-track"><div class="progress-fill" style="width:80%"></div></div>
+            </div>
+            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--blue);">80%</div>
+          </div>
+          <div class="topic-row">
+            <div style="flex:1;">
+              <div class="topic-name">Matrices</div>
+              <div class="topic-sub">Last exam: 62%</div>
+            </div>
+            <div class="topic-bar-wrap">
+              <div class="progress-track"><div class="progress-fill amber" style="width:62%"></div></div>
+            </div>
+            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--amber);">62%</div>
+          </div>
+          <div class="topic-row">
+            <div style="flex:1;">
+              <div class="topic-name">Calculus</div>
+              <div class="topic-sub">Last exam: 38%</div>
+            </div>
+            <div class="topic-bar-wrap">
+              <div class="progress-track"><div class="progress-fill red" style="width:38%"></div></div>
+            </div>
+            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--red);">38%</div>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="btn btn-secondary btn-sm btn-full" onclick="showPage('page-practice')">📚 Practice weak topics →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXAM HISTORY -->
+    <div class="section-label">Exam History</div>
+    <div class="card">
+      <div class="history-row">
+        <div class="hr-icon" style="background:var(--green-l);">📊</div>
+        <div class="hr-body">
+          <div class="hr-title">Mathematics — Unit Test 3</div>
+          <div class="hr-sub">Released Mar 5 · Grade A</div>
+        </div>
+        <div class="hr-score">
+          <div class="hr-marks">21/28</div>
+          <div class="hr-pct">75%</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
+      </div>
+      <div class="history-row">
+        <div class="hr-icon" style="background:var(--blue-l);">📊</div>
+        <div class="hr-body">
+          <div class="hr-title">Physics — Electrostatics Test</div>
+          <div class="hr-sub">Released Feb 22 · Grade B+</div>
+        </div>
+        <div class="hr-score">
+          <div class="hr-marks">18/25</div>
+          <div class="hr-pct">72%</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
+      </div>
+      <div class="history-row">
+        <div class="hr-icon" style="background:var(--amber-l);">📊</div>
+        <div class="hr-body">
+          <div class="hr-title">Mathematics — Unit Test 2</div>
+          <div class="hr-sub">Released Feb 10 · Grade B</div>
+        </div>
+        <div class="hr-score">
+          <div class="hr-marks">16/28</div>
+          <div class="hr-pct">57%</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-item active" onclick="showPage('page-dashboard')"><div class="bn-icon">🏠</div>Home</button>
+      <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
+      <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
+      <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 3 — ACTIVE EXAM ══ -->
+<div id="page-exam" class="page">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
+      <div class="nav-right">
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-dashboard')">← Dashboard</button>
+      </div>
+    </div>
+  </nav>
+  <div class="exam-header">
+    <div class="exam-header-inner">
+      <div class="exam-title-block">
+        <h2>Mathematics — Unit Test 4</h2>
+        <p>Class 12 · 28 marks · Due March 14, 2026</p>
+      </div>
+      <div class="exam-timer">
+        <div class="timer-box">
+          <div class="timer-label">Due In</div>
+          <div class="timer-val" id="exam-countdown">2d 14h</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap-md">
+    <div style="margin-bottom:28px;">
+      <div class="page-title">Submit Your Answer Sheet</div>
+      <div class="page-sub">Upload a clear photo or scan of your handwritten answers. Both PDF and JPEG accepted.</div>
+    </div>
+
+    <!-- INSTRUCTIONS -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="section-label" style="margin-bottom:16px;">Before You Upload</div>
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-body"><h4>Write your answers clearly</h4><p>Use blue or black pen. Show all working steps — partial marks are awarded for correct method even if final answer is wrong.</p></div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-body"><h4>Photograph in good light</h4><p>Ensure all text is visible and the page is flat. Avoid shadows across your working.</p></div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-body"><h4>Check before uploading</h4><p>Once submitted, you cannot re-upload. Make sure all questions are answered and visible.</p></div>
+      </div>
+    </div>
+
+    <!-- UPLOAD ZONE -->
+    <div class="upload-zone" id="upload-zone" onclick="triggerUpload()">
+      <div class="uz-icon">📸</div>
+      <h3>Tap to upload your answer sheet</h3>
+      <p>PDF or JPEG · Max 20MB · Multiple pages supported</p>
+      <input type="file" id="file-input" style="display:none;" accept=".pdf,.jpg,.jpeg" onchange="fileSelected(this)"/>
+    </div>
+
+    <div id="file-preview" style="display:none;margin-top:16px;">
+      <div class="card-sm" style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:28px;">📄</div>
+        <div style="flex:1;">
+          <div style="font-size:13.5px;font-weight:600;color:var(--text);" id="file-name">answer_sheet.jpg</div>
+          <div style="font-size:12px;color:var(--muted);" id="file-size">2.4 MB</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="removeFile()">✕ Remove</button>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn btn-primary" id="submit-btn" onclick="submitExam()" style="display:none;">📤 Submit for Grading →</button>
+      <button class="btn btn-ghost" onclick="showPage('page-dashboard')">Cancel</button>
+    </div>
+
+    <!-- GRADING PROGRESS -->
+    <div id="grading-progress" style="display:none;margin-top:28px;">
+      <div class="card">
+        <div style="text-align:center;padding:20px 0;">
+          <div style="font-size:36px;margin-bottom:12px;">🤖</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:6px;">AI Grading in Progress</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:24px;">Analysing your answers step by step — usually takes 15–30 minutes</div>
+          <div style="max-width:320px;margin:0 auto;">
+            <div class="progress-track" style="height:10px;margin-bottom:10px;">
+              <div class="progress-fill" id="grading-bar" style="width:35%;transition:width 2s;"></div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);" id="grading-status">Reading question paper...</div>
+          </div>
+          <div style="margin-top:24px;">
+            <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">Preview Report (Demo) →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-item" onclick="showPage('page-dashboard')"><div class="bn-icon">🏠</div>Home</button>
+      <button class="bn-item active" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
+      <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
+      <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 4 — GRADING REPORT ══ -->
+<div id="page-report" class="page">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
+      <div class="nav-right">
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-dashboard')">← Dashboard</button>
+        <button class="btn btn-secondary btn-sm">📥 Download PDF</button>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap-md">
+    <div style="margin-bottom:24px;">
+      <div class="page-title">Grading Report</div>
+      <div class="page-sub">Mathematics — Unit Test 3 · Released March 5, 2026</div>
+    </div>
+
+    <!-- SCORE HERO -->
+    <div class="score-hero">
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <div class="score-ring-pct">75%</div>
+          <div class="score-ring-lbl">score</div>
+        </div>
+      </div>
+      <div class="score-hero-info">
+        <h2>21 out of 28 marks</h2>
+        <p>Mathematics · Class 12 · Grade A</p>
+        <div class="score-hero-stats">
+          <div class="shs"><div class="shs-val">4</div><div class="shs-lbl">Questions</div></div>
+          <div class="shs"><div class="shs-val">2</div><div class="shs-lbl">Full marks</div></div>
+          <div class="shs"><div class="shs-val">1</div><div class="shs-lbl">Disputed</div></div>
+          <div class="shs"><div class="shs-val">A</div><div class="shs-lbl">Grade</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI COACHING -->
+    <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:24px;">
+      <div class="coaching-ico">🧠</div>
+      <div class="coaching-text">
+        <span class="cl" style="color:var(--blue);">AI Coaching</span>
+        You clearly understand Probability and Algebra. Your main issue is Integration by Parts — you've lost marks on the u/dv selection in 3 consecutive exams. Practice 5 Calculus questions this week focusing on ILATE rule before touching anything else.
+      </div>
+    </div>
+
+    <!-- QUESTION BREAKDOWN -->
+    <div class="section-label">Question by Question</div>
+
+    <!-- Q1 -->
+    <div class="q-card open">
+      <div class="q-card-head" onclick="toggleQ(this)">
+        <div class="q-num" style="background:var(--green-l);color:var(--green);">Q1</div>
+        <div class="q-title"><h4>Probability — Conditional Events</h4><p>5 marks · Section A</p></div>
+        <div class="q-score" style="color:var(--green);">5/5</div>
+        <div class="q-chevron">▼</div>
+      </div>
+      <div class="q-card-body">
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Event identification correct</strong><span>P(A∩B) correctly identified from problem statement</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Bayes theorem applied</strong><span>Formula stated and correctly set up</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Calculation correct</strong><span>All arithmetic verified — clean working shown</span></div><div class="step-marks" style="color:var(--green);">3/3</div></div>
+        <div class="divider"></div>
+        <div class="feedback-box" style="background:var(--green-l);">
+          <div class="fb-label" style="color:var(--green);">💪 Strength</div>
+          Perfect answer. Clear method, all steps shown, correct final answer.
+        </div>
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="q-card">
+      <div class="q-card-head" onclick="toggleQ(this)">
+        <div class="q-num" style="background:var(--red-l);color:var(--red);">Q2</div>
+        <div class="q-title"><h4>Calculus — Integration by Parts</h4><p>8 marks · Section B</p></div>
+        <div class="q-score" style="color:var(--red);">3/8</div>
+        <div class="q-chevron">▼</div>
+      </div>
+      <div class="q-card-body">
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Formula stated correctly</strong><span>∫u·dv = uv − ∫v·du written correctly</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Chain rule applied</strong><span>Differentiation of first function correct</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
+        <div class="step-row"><div class="step-dot half">◑</div><div class="step-content"><strong>u and dv selection</strong><span>Wrong ILATE order — u=eˣ chosen over u=x. Algebraic functions should be u.</span></div><div class="step-marks" style="color:var(--amber);">1/2</div></div>
+        <div class="step-row"><div class="step-dot zero">✗</div><div class="step-content"><strong>Definite integral evaluation</strong><span>Wrong limits applied — substitution step skipped entirely</span></div><div class="step-marks" style="color:var(--red);">0/2</div></div>
+        <div class="step-row"><div class="step-dot zero">✗</div><div class="step-content"><strong>Final answer + simplification</strong><span>Not reached due to error in previous step</span></div><div class="step-marks" style="color:var(--red);">0/2</div></div>
+        <div class="divider"></div>
+        <div class="feedback-box" style="background:var(--amber-l);">
+          <div class="fb-label" style="color:var(--amber);">⚠️ Weakness</div>
+          ILATE rule not applied — u should always be the Algebraic term (x) not the Exponential (eˣ). This single error cascaded through the entire question.
+        </div>
+        <div class="feedback-box" style="background:var(--blue-l);">
+          <div class="fb-label" style="color:var(--blue);">📖 Model Solution</div>
+          u = x (Algebraic), dv = eˣdx → du = dx, v = eˣ → ∫x·eˣdx = xeˣ − ∫eˣdx = xeˣ − eˣ + C = eˣ(x−1) + C
+        </div>
+        <div class="feedback-box" style="background:var(--green-l);">
+          <div class="fb-label" style="color:var(--green);">💬 Teacher Comment</div>
+          Good start — formula recalled correctly. Remember ILATE: Inverse → Log → Algebraic → Trig → Exponential. Practice 3 more integration by parts problems.
+        </div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-secondary btn-sm">🙋 Dispute this grade</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="q-card">
+      <div class="q-card-head" onclick="toggleQ(this)">
+        <div class="q-num" style="background:var(--green-l);color:var(--green);">Q3</div>
+        <div class="q-title"><h4>Probability — Binomial Distribution</h4><p>7 marks · Section B</p></div>
+        <div class="q-score" style="color:var(--green);">7/7</div>
+        <div class="q-chevron">▼</div>
+      </div>
+      <div class="q-card-body">
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>All steps correct</strong><span>Excellent working throughout — binomial formula correctly applied, all terms computed</span></div><div class="step-marks" style="color:var(--green);">7/7</div></div>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="q-card">
+      <div class="q-card-head" onclick="toggleQ(this)">
+        <div class="q-num" style="background:var(--amber-l);color:var(--amber);">Q4</div>
+        <div class="q-title"><h4>Matrices — Inverse and Determinant</h4><p>8 marks · Section C</p></div>
+        <div class="q-score" style="color:var(--amber);">6/8</div>
+        <div class="q-chevron">▼</div>
+      </div>
+      <div class="q-card-body">
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Determinant calculated correctly</strong><span>All cofactors computed accurately</span></div><div class="step-marks" style="color:var(--green);">2/2</div></div>
+        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Adjoint matrix correct</strong><span>Transpose of cofactor matrix correctly formed</span></div><div class="step-marks" style="color:var(--green);">2/2</div></div>
+        <div class="step-row"><div class="step-dot half">◑</div><div class="step-content"><strong>Inverse computation</strong><span>Sign error in position (2,3) — minor calculation mistake</span></div><div class="step-marks" style="color:var(--amber);">2/4</div></div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;padding:20px;background:var(--bg);border-radius:12px;text-align:center;">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Ready to fix your weak areas?</div>
+      <button class="btn btn-primary" onclick="showPage('page-practice')">📚 Practice Calculus now →</button>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-item" onclick="showPage('page-dashboard')"><div class="bn-icon">🏠</div>Home</button>
+      <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
+      <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
+      <button class="bn-item active" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE 5 — PRACTICE ══ -->
+<div id="page-practice" class="page">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
+      <div class="nav-right">
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-dashboard')">← Dashboard</button>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div style="margin-bottom:24px;">
+      <div class="page-title">Practice Section</div>
+      <div class="page-sub">Timed questions · Instant AI feedback · Builds on your exam weaknesses</div>
+    </div>
+
+    <!-- TABS -->
+    <div class="practice-tabs">
+      <button class="ptab active" onclick="switchTab('today',this)">Today's Queue</button>
+      <button class="ptab" onclick="switchTab('browse',this)">Browse</button>
+      <button class="ptab" onclick="switchTab('simulation',this)">Exam Simulation</button>
+      <button class="ptab" onclick="switchTab('progress',this)">My Progress</button>
+    </div>
+
+    <!-- TODAY'S QUEUE -->
+    <div id="tab-today">
+      <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:24px;">
+        <div class="coaching-ico">🎯</div>
+        <div class="coaching-text">
+          <span class="cl" style="color:var(--blue);">Today's Focus</span>
+          Based on your Unit Test 3 results, focus on Calculus — Integration by Parts. 3 questions ready below. Also 2 spaced repetition topics due today.
+        </div>
+      </div>
+
+      <div class="section-label">AI Recommended — From Your Last Exam</div>
+
+      <!-- ACTIVE PRACTICE QUESTION -->
+      <div class="q-practice-card active" id="practice-q1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="badge badge-red">Calculus</div>
+            <div class="badge badge-amber">Medium</div>
+            <div class="badge badge-muted">5 marks</div>
+          </div>
+          <div style="font-size:12px;color:var(--muted);">⏱️ 12 min total · 10 min attempt + 2 min upload</div>
+        </div>
+
+        <div style="font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px;line-height:1.6;">
+          Find: <strong>∫ x · eˣ dx</strong>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Show all working steps. Identify u and dv using ILATE rule. Evaluate the definite integral.</div>
+
+        <!-- TIMER STRIP -->
+        <div class="timer-strip" id="ts1">
+          <div class="ts-left">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;">Attempt Timer</div>
+              <div class="ts-timer" id="practice-timer">10:00</div>
+            </div>
+            <div>
+              <div class="ts-label"><strong>Allowed</strong>10 min attempt</div>
+              <div class="ts-label">Soft stop — keeps running if you need more time</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="startTimer()" id="start-btn">▶ Start Timer</button>
+            <button class="btn btn-ghost btn-sm" style="display:none;" id="done-btn" onclick="doneWriting()">✋ Done Writing</button>
+          </div>
+        </div>
+
+        <!-- UPLOAD (hidden until done writing) -->
+        <div id="upload-phase" style="display:none;">
+          <div class="timer-strip" style="background:var(--amber-l);">
+            <div class="ts-left">
+              <div>
+                <div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;">Upload Timer</div>
+                <div class="ts-timer" id="upload-timer" style="color:var(--amber);">2:00</div>
+              </div>
+              <div class="ts-label"><strong>Upload your answer now</strong>2 min to photograph and upload</div>
+            </div>
+            <button class="btn btn-sm" style="background:var(--amber);color:#fff;" onclick="showResult()">📸 Upload Answer</button>
+          </div>
+        </div>
+
+        <!-- RESULT (hidden until submitted) -->
+        <div id="practice-result" style="display:none;">
+          <div class="divider"></div>
+          <div class="dual-score">
+            <div class="ds-box" style="background:var(--amber-l);">
+              <div class="ds-label" style="color:var(--amber);">Marks Score</div>
+              <div class="ds-val" style="color:var(--amber);">3<span style="font-size:16px;">/5</span></div>
+              <div class="ds-sub">60% · Good attempt</div>
+            </div>
+            <div class="ds-box" style="background:var(--green-l);">
+              <div class="ds-label" style="color:var(--green);">Time Score</div>
+              <div class="ds-val" style="color:var(--green);">✅</div>
+              <div class="ds-sub">9m 42s / 10m · On time</div>
+            </div>
+          </div>
+
+          <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-top:16px;">
+            <div class="coaching-ico">🧠</div>
+            <div class="coaching-text">
+              <span class="cl" style="color:var(--blue);">AI Coaching</span>
+              You're moving at the right speed but the ILATE selection is still wrong. u should be x (Algebraic) before eˣ (Exponential). Practice 2 more — this pattern needs to be automatic.
+            </div>
+          </div>
+
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="resetPractice()">✓ I understood this</button>
+            <button class="btn btn-secondary btn-sm" onclick="resetPractice()">↺ Try again</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MORE QUESTIONS IN QUEUE -->
+      <div class="section-label" style="margin-top:8px;">Spaced Repetition Due Today</div>
+      <div class="grid-2">
+        <div class="q-practice-card" style="cursor:pointer;" onclick="alert('Start this question')">
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <div class="badge badge-blue">Vectors</div>
+            <div class="badge badge-muted">3 marks</div>
+          </div>
+          <div style="font-size:14px;font-weight:500;color:var(--ink);margin-bottom:6px;">Find the angle between vectors a = 2î + ĵ and b = î − 2ĵ</div>
+          <div style="font-size:12px;color:var(--muted);">Last practiced 7 days ago · Score was 2/3</div>
+          <div style="margin-top:14px;"><button class="btn btn-secondary btn-sm">▶ Start · 8 min</button></div>
+        </div>
+        <div class="q-practice-card" style="cursor:pointer;" onclick="alert('Start this question')">
+          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+            <div class="badge badge-amber">Matrices</div>
+            <div class="badge badge-muted">5 marks</div>
+          </div>
+          <div style="font-size:14px;font-weight:500;color:var(--ink);margin-bottom:6px;">Find the inverse of matrix A = [[2,1],[5,3]] using adjoint method</div>
+          <div style="font-size:12px;color:var(--muted);">Last practiced 3 days ago · Score was 3/5</div>
+          <div style="margin-top:14px;"><button class="btn btn-secondary btn-sm">▶ Start · 12 min</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BROWSE TAB -->
+    <div id="tab-browse" style="display:none;">
+      <div class="grid-2" style="margin-bottom:20px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Subject</label>
+          <select class="form-input">
+            <option>Mathematics</option>
+            <option>Physics</option>
+            <option>Chemistry</option>
+            <option>Biology</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Chapter</label>
+          <select class="form-input">
+            <option>All Chapters</option>
+            <option>Integration</option>
+            <option>Differentiation</option>
+            <option>Matrices</option>
+            <option>Probability</option>
+            <option>Vectors</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Difficulty</label>
+          <select class="form-input">
+            <option>All Levels</option>
+            <option>Easy</option>
+            <option>Medium</option>
+            <option>Hard</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Source</label>
+          <select class="form-input">
+            <option>All Sources</option>
+            <option>CBSE 2015–2024 Past Papers</option>
+            <option>Teacher Created</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:24px;">
+        <button class="btn btn-primary btn-sm">🔍 Search Questions</button>
+        <button class="btn btn-ghost btn-sm">Reset Filters</button>
+      </div>
+      <div class="card" style="text-align:center;padding:48px;">
+        <div style="font-size:32px;margin-bottom:12px;">📚</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">CBSE Past Papers 2015–2024 + Teacher Questions</div>
+        <div style="font-size:13px;color:var(--muted);">Select filters above and search to browse the question bank</div>
+      </div>
+    </div>
+
+    <!-- SIMULATION TAB -->
+    <div id="tab-simulation" style="display:none;">
+      <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:24px;">
+        <div class="coaching-ico">🎯</div>
+        <div class="coaching-text">
+          <span class="cl" style="color:var(--blue);">Exam Simulation</span>
+          Full timed paper under exam conditions. Same timer formula — marks × 2 min per question. Complete the paper, upload once at the end. Get a full time management report.
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card-sm" style="cursor:pointer;border:2px solid var(--border);transition:border-color .2s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:24px;margin-bottom:10px;">📋</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">CBSE 2023 — Mathematics</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Class 12 · 80 marks · 180 min official · 10 questions</div>
+          <button class="btn btn-primary btn-sm">▶ Start Simulation</button>
+        </div>
+        <div class="card-sm" style="cursor:pointer;border:2px solid var(--border);transition:border-color .2s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:24px;margin-bottom:10px;">📋</div>
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">CBSE 2022 — Mathematics</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Class 12 · 80 marks · 180 min official · 10 questions</div>
+          <button class="btn btn-secondary btn-sm">▶ Start Simulation</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROGRESS TAB -->
+    <div id="tab-progress" style="display:none;">
+      <div class="grid-2">
+        <div>
+          <div class="section-label">Practice Streak — March 2026</div>
+          <div class="card-sm" style="margin-bottom:16px;">
+            <div class="streak-grid">
+              <div class="streak-day" style="background:var(--green);color:#fff;">M</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">T</div>
+              <div class="streak-day" style="background:var(--border);color:var(--muted);">W</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">T</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">F</div>
+              <div class="streak-day" style="background:var(--border);color:var(--muted);">S</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">S</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">M</div>
+              <div class="streak-day" style="background:var(--border);color:var(--muted);">T</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">W</div>
+              <div class="streak-day" style="background:var(--green);color:#fff;">T</div>
+              <div class="streak-day" style="background:var(--blue);color:#fff;">F</div>
+              <div class="streak-day" style="background:var(--border);color:var(--muted);">S</div>
+              <div class="streak-day" style="background:var(--border);color:var(--muted);">S</div>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-top:8px;">🔥 6 day streak · 24 questions this week</div>
+          </div>
+
+          <div class="section-label">Time Performance</div>
+          <div class="card-sm">
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Calculus</div><div class="topic-sub">Avg +4m 20s overtime</div></div>
+              <div class="badge badge-red">Slow</div>
+            </div>
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Probability</div><div class="topic-sub">Avg −2m 15s under</div></div>
+              <div class="badge badge-green">Fast</div>
+            </div>
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Matrices</div><div class="topic-sub">Avg +0m 45s overtime</div></div>
+              <div class="badge badge-blue">On time</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Topic Improvement</div>
+          <div class="card-sm">
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Calculus</div><div class="topic-sub">13 questions · avg 52%</div></div>
+              <div style="width:70px;"><div class="progress-track"><div class="progress-fill red" style="width:52%"></div></div></div>
+            </div>
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Vectors</div><div class="topic-sub">8 questions · avg 68%</div></div>
+              <div style="width:70px;"><div class="progress-track"><div class="progress-fill amber" style="width:68%"></div></div></div>
+            </div>
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Probability</div><div class="topic-sub">4 questions · avg 91%</div></div>
+              <div style="width:70px;"><div class="progress-track"><div class="progress-fill green" style="width:91%"></div></div></div>
+            </div>
+            <div class="topic-row">
+              <div style="flex:1;"><div class="topic-name">Matrices</div><div class="topic-sub">6 questions · avg 74%</div></div>
+              <div style="width:70px;"><div class="progress-track"><div class="progress-fill" style="width:74%"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-item" onclick="showPage('page-dashboard')"><div class="bn-icon">🏠</div>Home</button>
+      <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
+      <button class="bn-item active" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
+      <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── PAGE NAVIGATION ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const p = document.getElementById(id);
+  p.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ── LOGIN ──
+function doLogin() {
+  const email = document.getElementById('l-email').value;
+  const pass  = document.getElementById('l-pass').value;
+  const err   = document.getElementById('login-error');
+  if (!email || !pass) { err.style.display='block'; err.textContent='Please enter email and password.'; return; }
+  // Demo — any login works
+  err.style.display='none';
+  showPage('page-dashboard');
+}
+document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+// ── QUESTION TOGGLE ──
+function toggleQ(head) {
+  head.parentElement.classList.toggle('open');
+}
+
+// ── FILE UPLOAD ──
+function triggerUpload() { document.getElementById('file-input').click(); }
+function fileSelected(input) {
+  if (!input.files.length) return;
+  const f = input.files[0];
+  document.getElementById('file-name').textContent = f.name;
+  document.getElementById('file-size').textContent = (f.size/1024/1024).toFixed(1) + ' MB';
+  document.getElementById('file-preview').style.display = 'block';
+  document.getElementById('submit-btn').style.display = 'inline-flex';
+}
+function removeFile() {
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('submit-btn').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+function submitExam() {
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('submit-btn').style.display = 'none';
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('grading-progress').style.display = 'block';
+  animateGrading();
+}
+
+// ── GRADING ANIMATION ──
+const gradingSteps = [
+  'Reading question paper...','Extracting questions and marks...','Analysing answer sheet...',
+  'Grading Question 1 — Probability...','Grading Question 2 — Calculus...','Grading Question 3...',
+  'Grading Question 4 — Matrices...','Generating model solutions...','Calculating final scores...','✅ Grading complete!'
+];
+let gStep = 0;
+function animateGrading() {
+  const bar = document.getElementById('grading-bar');
+  const status = document.getElementById('grading-status');
+  const interval = setInterval(() => {
+    if (gStep >= gradingSteps.length) { clearInterval(interval); return; }
+    status.textContent = gradingSteps[gStep];
+    bar.style.width = ((gStep+1)/gradingSteps.length*100) + '%';
+    gStep++;
+  }, 800);
+}
+
+// ── PRACTICE TIMER ──
+let timerInterval, seconds = 600, uploadSeconds = 120, phase = 'idle';
+function startTimer() {
+  document.getElementById('start-btn').style.display = 'none';
+  document.getElementById('done-btn').style.display = 'inline-flex';
+  phase = 'attempt';
+  seconds = 600;
+  timerInterval = setInterval(() => {
+    if (phase === 'attempt') {
+      seconds--;
+      const m = Math.floor(seconds/60), s = seconds%60;
+      const el = document.getElementById('practice-timer');
+      el.textContent = m + ':' + String(s).padStart(2,'0');
+      if (seconds <= 0) { el.classList.add('red'); }
+    } else if (phase === 'upload') {
+      uploadSeconds--;
+      const m = Math.floor(uploadSeconds/60), s = uploadSeconds%60;
+      const el = document.getElementById('upload-timer');
+      el.textContent = m + ':' + String(s).padStart(2,'0');
+      if (uploadSeconds <= 0) { el.classList.add('red'); }
+    }
+  }, 1000);
+}
+function doneWriting() {
+  phase = 'upload';
+  clearInterval(timerInterval);
+  document.getElementById('done-btn').style.display = 'none';
+  document.getElementById('upload-phase').style.display = 'block';
+  uploadSeconds = 120;
+  timerInterval = setInterval(() => {
+    uploadSeconds--;
+    const m = Math.floor(uploadSeconds/60), s = uploadSeconds%60;
+    const el = document.getElementById('upload-timer');
+    if (el) el.textContent = m + ':' + String(s).padStart(2,'0');
+    if (uploadSeconds <= 0) { el && el.classList.add('red'); clearInterval(timerInterval); }
+  }, 1000);
+}
+function showResult() {
+  clearInterval(timerInterval);
+  document.getElementById('upload-phase').style.display = 'none';
+  document.getElementById('ts1').style.display = 'none';
+  document.getElementById('practice-result').style.display = 'block';
+}
+function resetPractice() {
+  document.getElementById('practice-result').style.display = 'none';
+  document.getElementById('ts1').style.display = 'flex';
+  document.getElementById('start-btn').style.display = 'inline-flex';
+  document.getElementById('done-btn').style.display = 'none';
+  document.getElementById('upload-phase').style.display = 'none';
+  document.getElementById('practice-timer').textContent = '10:00';
+  document.getElementById('practice-timer').classList.remove('red');
+  seconds = 600; phase = 'idle';
+}
+
+// ── PRACTICE TABS ──
+function switchTab(tab, btn) {
+  ['today','browse','simulation','progress'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = 'none';
+  });
+  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+tab).style.display = 'block';
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

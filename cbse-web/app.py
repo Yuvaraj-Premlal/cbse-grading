@@ -284,7 +284,8 @@ def set_role():
         return jsonify({"ok": True, "message": f"Updated {data['email']} to {data['role']}"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
-# ── TEACHER DASHBOARD API ─────────────────────────────@app.route("/api/teacher/dashboard")
+# ── TEACHER DASHBOARD API ─────────────────────────────
+@app.route("/api/teacher/dashboard")
 @require_role("teacher")
 def teacher_dashboard():
     user = get_current_user(request)

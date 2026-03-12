@@ -443,21 +443,22 @@ def save_question():
         # Get teacher_id from teachers table using user email
         with engine.connect() as conn:
             teacher = conn.execute(text(
-                "SELECT teacher_id FROM teachers WHERE email = :email"
-            ), {"email": user["email"]}).fetchone()
-
+                "SELECT teacher_id FROM teachers WHERE name = :name"
+            ), {"name": user["name"]}).fetchone()
+            
         # If teacher not in teachers table yet, insert them
         if not teacher:
             with engine.begin() as conn:
                 conn.execute(text("""
-                    INSERT INTO teachers (name, email)
-                    VALUES (:name, :email)
-                """), {"name": user["name"], "email": user["email"]})
+                    INSERT INTO teachers (name)
+                    VALUES (:name)
+                """), {"name": user["name"]})
+    
             with engine.connect() as conn:
-                teacher = conn.execute(text(
-                    "SELECT teacher_id FROM teachers WHERE email = :email"
-                ), {"email": user["email"]}).fetchone()
-
+                 teacher = conn.execute(text(
+                    "SELECT teacher_id FROM teachers WHERE name = :name"
+                ), {"name": user["name"]}).fetchone()
+                
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO questions

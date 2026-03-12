@@ -377,6 +377,108 @@ def teacher_dashboard():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
+# ── QUESTION BANK ─────────────────────────────────────
+@app.route("/api/teacher/questions", methods=["GET"])
+@require_role("teacher")
+def get_questions():
+    subject    = request.args.get("subject", "")
+    chapter    = request.args.get("chapter", "")
+    difficulty = request.args.get("difficulty", "")
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            query = """
+                SELECT
+                    q.question_id,
+                    q.latex_content,
+                    q.subject,
+                    q.chapter,
+                    q.difficulty,
+                    q.max_marks,
+                    q.source,
+                    q.year,
+                    q.approved,
+                    CONVERT(VARCHAR, q.created_at, 120) as created_at
+                FROM questions q
+                WHERE 1=1
+            """
+            params = {}
+            if subject:
+                query += " AND q.subject = :subject"
+                params["subject"] = subject
+            if chapter:
+                query += " AND q.chapter LIKE :chapter"
+                params["chapter"] = f"%{chapter}%"
+            if difficulty:
+                query += " AND q.difficulty = :difficulty"
+                params["difficulty"] = difficulty
+            query += " ORDER BY q.created_at DESC"
+
+            rows = conn.execute(text(query), params).fetchall()
+            return jsonify({
+                "ok": True,
+                "questions": [dict(r._mapping) for r in rows],
+                "total": len(rows)
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/questions", methods=["POST"])
+@require_role("teacher")
+def save_question():
+    user = get_current_user(request)
+    data = request.json
+    try:
+        required = ["latex_content", "subject", "chapter", "difficulty", "max_marks", "source"]
+        if not all(data.get(f) for f in required):
+            return jsonify({"ok": False, "error": "All fields required"})
+        if data["difficulty"] not in ["easy", "medium", "hard"]:
+            return jsonify({"ok": False, "error": "Invalid difficulty"})
+        if data["source"] not in ["past_paper", "teacher"]:
+            return jsonify({"ok": False, "error": "Invalid source"})
+
+        engine = get_engine()
+
+        # Get teacher_id from teachers table using user email
+        with engine.connect() as conn:
+            teacher = conn.execute(text(
+                "SELECT teacher_id FROM teachers WHERE email = :email"
+            ), {"email": user["email"]}).fetchone()
+
+        # If teacher not in teachers table yet, insert them
+        if not teacher:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    INSERT INTO teachers (name, email)
+                    VALUES (:name, :email)
+                """), {"name": user["name"], "email": user["email"]})
+            with engine.connect() as conn:
+                teacher = conn.execute(text(
+                    "SELECT teacher_id FROM teachers WHERE email = :email"
+                ), {"email": user["email"]}).fetchone()
+
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO questions
+                    (latex_content, subject, chapter, difficulty,
+                     max_marks, source, year, created_by, approved)
+                VALUES
+                    (:content, :subject, :chapter, :difficulty,
+                     :marks, :source, :year, :created_by, 1)
+            """), {
+                "content"    : data["latex_content"],
+                "subject"    : data["subject"],
+                "chapter"    : data["chapter"],
+                "difficulty" : data["difficulty"],
+                "marks"      : int(data["max_marks"]),
+                "source"     : data["source"],
+                "year"       : data.get("year") or None,
+                "created_by" : str(teacher[0])
+            })
+        return jsonify({"ok": True, "message": "Question saved"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

@@ -293,32 +293,32 @@ def teacher_dashboard():
         engine = get_engine()
         with engine.connect() as conn:
 
-            # Pending review count
+            # Pending review — graded_at set but not released
             pending = conn.execute(text("""
                 SELECT COUNT(*) FROM submissions
-                WHERE status = 'ai_graded'
+                WHERE graded_at IS NOT NULL AND final_released = 0
             """)).fetchone()[0]
 
-            # Open disputes count
+            # Open disputes
             disputes = conn.execute(text("""
                 SELECT COUNT(*) FROM disputes WHERE status = 'open'
             """)).fetchone()[0]
 
-            # Urgent disputes (within 48h of creation)
+            # Urgent disputes — raised more than 40h ago
             urgent = conn.execute(text("""
                 SELECT COUNT(*) FROM disputes
                 WHERE status = 'open'
-                AND DATEDIFF(hour, created_at, GETUTCDATE()) >= 40
+                AND DATEDIFF(hour, raised_at, GETUTCDATE()) >= 40
             """)).fetchone()[0]
 
             # Total students assigned this month
             students = conn.execute(text("""
                 SELECT COUNT(DISTINCT student_id) FROM assignments
-                WHERE MONTH(created_at) = MONTH(GETUTCDATE())
-                AND YEAR(created_at) = YEAR(GETUTCDATE())
+                WHERE MONTH(assigned_at) = MONTH(GETUTCDATE())
+                AND YEAR(assigned_at) = YEAR(GETUTCDATE())
             """)).fetchone()[0]
 
-            # Active exams this week
+            # Active exams — due date in future
             active_exams = conn.execute(text("""
                 SELECT COUNT(DISTINCT paper_id) FROM assignments
                 WHERE due_date >= GETUTCDATE()
@@ -327,54 +327,54 @@ def teacher_dashboard():
             # Pending submissions detail
             pending_subs = conn.execute(text("""
                 SELECT TOP 10
-                    u.name as student_name,
-                    p.title as paper_title,
+                    u.name          AS student_name,
+                    p.title         AS paper_title,
                     p.total_marks,
-                    s.ai_total_score as ai_score,
+                    s.total_awarded AS ai_score,
                     s.submission_id
                 FROM submissions s
-                JOIN users u ON s.student_id = u.user_id
-                JOIN papers p ON s.paper_id = p.paper_id
-                WHERE s.status = 'ai_graded'
+                JOIN assignments a ON s.assignment_id = a.assignment_id
+                JOIN users u       ON s.student_id    = u.user_id
+                JOIN papers p      ON a.paper_id      = p.paper_id
+                WHERE s.graded_at IS NOT NULL AND s.final_released = 0
                 ORDER BY s.submitted_at ASC
             """)).fetchall()
 
-            # Active assignments
+            # Active assignments with submission counts
             active_asgn = conn.execute(text("""
                 SELECT
                     p.title,
                     p.total_marks,
-                    a.due_date,
-                    COUNT(DISTINCT a.student_id) as student_count,
-                    SUM(CASE WHEN s.status IS NOT NULL THEN 1 ELSE 0 END) as submitted,
-                    SUM(CASE WHEN s.status IN ('ai_graded','reviewed','released') THEN 1 ELSE 0 END) as graded
+                    MAX(a.due_date)                                          AS due_date,
+                    COUNT(DISTINCT a.student_id)                             AS student_count,
+                    COUNT(DISTINCT s.submission_id)                          AS submitted,
+                    COUNT(DISTINCT CASE WHEN s.graded_at IS NOT NULL
+                                   THEN s.submission_id END)                 AS graded
                 FROM papers p
-                JOIN assignments a ON p.paper_id = a.paper_id
-                LEFT JOIN submissions s ON a.student_id = s.student_id AND a.paper_id = s.paper_id
-                GROUP BY p.paper_id, p.title, p.total_marks, a.due_date
-                ORDER BY a.due_date DESC
+                JOIN assignments a  ON p.paper_id = a.paper_id
+                LEFT JOIN submissions s ON a.assignment_id = s.assignment_id
+                GROUP BY p.paper_id, p.title, p.total_marks
+                ORDER BY due_date DESC
             """)).fetchall()
 
         return jsonify({
             "ok": True,
             "dashboard": {
-                "name"              : user["name"],
-                "pending_review"    : pending,
-                "open_disputes"     : disputes,
-                "urgent_disputes"   : urgent,
-                "total_students"    : students,
-                "active_exams"      : active_exams,
+                "name"               : user["name"],
+                "pending_review"     : pending,
+                "open_disputes"      : disputes,
+                "urgent_disputes"    : urgent,
+                "total_students"     : students,
+                "active_exams"       : active_exams,
                 "pending_submissions": [dict(r._mapping) for r in pending_subs],
                 "active_assignments" : [
-                    {**dict(r._mapping),
-                     "due_date": str(r.due_date)}
+                    {**dict(r._mapping), "due_date": str(r.due_date)}
                     for r in active_asgn
                 ]
             }
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
-
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

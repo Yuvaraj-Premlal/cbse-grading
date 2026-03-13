@@ -500,5 +500,65 @@ def teachers_schema():
         """)).fetchall()
     return jsonify([dict(r._mapping) for r in rows])
 
+# ── UPDATE QUESTION ───────────────────────────────────
+@app.route("/api/teacher/questions/<question_id>", methods=["PUT"])
+@require_role("teacher")
+def update_question(question_id):
+    data = request.json
+    try:
+        required = ["latex_content", "subject", "chapter", "class_num", "difficulty", "type", "max_marks", "source"]
+        if not all(data.get(f) for f in required):
+            return jsonify({"ok": False, "error": "All fields required"})
+        if data["difficulty"] not in ["easy", "medium", "hard"]:
+            return jsonify({"ok": False, "error": "Invalid difficulty"})
+        if data["source"] not in ["past_paper", "teacher"]:
+            return jsonify({"ok": False, "error": "Invalid source"})
+
+        engine = get_engine()
+        with engine.begin() as conn:
+            result = conn.execute(text("""
+                UPDATE questions SET
+                    latex_content  = :content,
+                    subject        = :subject,
+                    chapter        = :chapter,
+                    class          = :class,
+                    difficulty     = :difficulty,
+                    type           = :type,
+                    max_marks      = :marks,
+                    source         = :source,
+                    year           = :year,
+                    model_solution = :model_solution
+                WHERE question_id = :qid
+            """), {
+                "content"        : data["latex_content"],
+                "subject"        : data["subject"],
+                "chapter"        : data["chapter"],
+                "class"          : int(data.get("class_num", 12)),
+                "difficulty"     : data["difficulty"],
+                "type"           : data["type"],
+                "marks"          : int(data["max_marks"]),
+                "source"         : data["source"],
+                "year"           : data.get("year") or None,
+                "model_solution" : data.get("model_solution") or None,
+                "qid"            : question_id
+            })
+        return jsonify({"ok": True, "message": "Question updated"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+# ── DELETE QUESTION ───────────────────────────────────
+@app.route("/api/teacher/questions/<question_id>", methods=["DELETE"])
+@require_role("teacher")
+def delete_question(question_id):
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            conn.execute(text(
+                "DELETE FROM questions WHERE question_id = :qid"
+            ), {"qid": question_id})
+        return jsonify({"ok": True, "message": "Question deleted"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

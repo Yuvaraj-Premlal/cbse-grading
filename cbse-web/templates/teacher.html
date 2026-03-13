@@ -1063,6 +1063,16 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         </select>
       </div>
       <div class="form-group">
+        <label class="form-label">Question Type</label>
+        <select class="form-input" id="q-type">
+          <option value="short_answer">Short Answer</option>
+          <option value="long_answer" selected>Long Answer</option>
+          <option value="very_short_answer">Very Short Answer</option>
+          <option value="case_study">Case Study</option>
+          <option value="mcq">MCQ</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Source</label>
         <select class="form-input" id="q-source">
           <option value="teacher">Teacher Created</option>
@@ -1073,6 +1083,10 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <label class="form-label">Year (if past paper)</label>
         <input class="form-input" id="q-year" type="number" min="2000" max="2026" placeholder="e.g. 2023"/>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Model Solution <span style="color:var(--muted);font-weight:400;">(optional — AI uses this for grading)</span></label>
+      <textarea class="form-input" id="q-solution" rows="3" placeholder="Step 1: ... (1 mark)&#10;Step 2: ... (2 marks)&#10;Final answer: ... (2 marks)"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-question')">Cancel</button>
@@ -1413,14 +1427,16 @@ async function saveQuestion() {
   okBox.style.display  = 'none';
 
   const payload = {
-    latex_content : document.getElementById('q-content').value.trim(),
-    subject       : document.getElementById('q-subject').value,
-    chapter       : document.getElementById('q-chapter').value,
-    class_num     : document.getElementById('q-class').value,
-    difficulty    : document.getElementById('q-difficulty').value,
-    max_marks     : document.getElementById('q-marks').value,
-    source        : document.getElementById('q-source').value,
-    year          : document.getElementById('q-year').value || null
+    latex_content  : document.getElementById('q-content').value.trim(),
+    subject        : document.getElementById('q-subject').value,
+    chapter        : document.getElementById('q-chapter').value,
+    class_num      : document.getElementById('q-class').value,
+    difficulty     : document.getElementById('q-difficulty').value,
+    type           : document.getElementById('q-type').value,
+    max_marks      : document.getElementById('q-marks').value,
+    source         : document.getElementById('q-source').value,
+    year           : document.getElementById('q-year').value || null,
+    model_solution : document.getElementById('q-solution').value.trim() || null
   };
 
   if (!payload.latex_content) { errBox.textContent='Question text is required.'; errBox.style.display='block'; return; }
@@ -1443,9 +1459,10 @@ async function saveQuestion() {
       okBox.textContent = '✅ Question saved successfully!';
       okBox.style.display = 'block';
       // Clear form
-      document.getElementById('q-content').value = '';
-      document.getElementById('q-chapter').value = '';
-      document.getElementById('q-year').value    = '';
+      document.getElementById('q-content').value  = '';
+      document.getElementById('q-chapter').value   = '';
+      document.getElementById('q-year').value      = '';
+      document.getElementById('q-solution').value  = '';
       // Reload question list
       setTimeout(() => { closeModal('modal-add-question'); loadQuestions(); }, 800);
     }

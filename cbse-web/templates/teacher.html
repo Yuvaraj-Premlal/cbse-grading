@@ -1594,12 +1594,13 @@ async function loadPickQuestions() {
     list.innerHTML = data.questions.map(q => {
       const isAdded    = alreadyAdded.has(q.question_id);
       const isSelected = !!pickSelectedMap[q.question_id];
+      const qEncoded   = encodeURIComponent(JSON.stringify(q));
       return `
         <div class="q-bank-item ${isSelected?'q-selected':''}"
              style="cursor:${isAdded?'default':'pointer'};${isAdded?'opacity:0.4;pointer-events:none;':''}"
              onclick="pbTogglePick('${q.question_id}', this)"
              data-id="${q.question_id}"
-             data-q='${JSON.stringify(q).replace(/'/g,"&#39;")}'>
+             data-q="${qEncoded}">
           <div class="q-body">
             <div class="q-text" style="font-size:13px;">${q.latex_content}</div>
             <div class="q-meta">
@@ -1621,7 +1622,7 @@ async function loadPickQuestions() {
 }
 
 function pbTogglePick(qId, el) {
-  const q = JSON.parse(el.dataset.q);
+  const q = JSON.parse(decodeURIComponent(el.dataset.q));
   const chk = document.getElementById(`pick-chk-${qId}`);
   if (pickSelectedMap[qId]) {
     delete pickSelectedMap[qId];

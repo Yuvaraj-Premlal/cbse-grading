@@ -160,6 +160,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 .q-bank-item{background:var(--white);border:1px solid var(--border);border-radius:11px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:grab;transition:box-shadow .15s;}
 .q-bank-item:hover{box-shadow:var(--shadow);border-color:var(--blue-m);}
 .q-bank-item.selected{border-color:var(--blue);background:var(--blue-l);}
+.q-bank-item.q-selected{border-color:var(--blue);background:var(--blue-l);}
 .q-drag-handle{color:var(--border);font-size:16px;cursor:grab;flex-shrink:0;}
 .q-body{flex:1;min-width:0;}
 .q-text{font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -425,134 +426,110 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-      <div class="topbar-title">Paper Builder</div>
+      <div class="topbar-title" id="pb-topbar-title">Paper Builder</div>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-ghost btn-sm" onclick="showPage('page-questions',document.querySelector('[onclick*=page-questions]'))">← Question Bank</button>
-      <button class="btn btn-primary btn-sm" onclick="openModal('modal-save-paper')">💾 Save Paper</button>
+      <button class="btn btn-ghost btn-sm" id="pb-new-btn" onclick="pbNewPaper()">+ New Paper</button>
+      <button class="btn btn-secondary btn-sm" id="pb-draft-btn" onclick="pbSave('draft')" style="display:none;">💾 Save Draft</button>
+      <button class="btn btn-primary btn-sm" id="pb-publish-btn" onclick="pbSave('publish')" style="display:none;">🚀 Publish</button>
     </div>
   </div>
   <div class="content-area">
-    <div class="grid-2" style="align-items:start;gap:24px;">
 
-      <!-- LEFT: PAPER SETTINGS -->
-      <div>
-        <div class="section-label">Paper Details</div>
-        <div class="card" style="margin-bottom:20px;">
-          <div class="form-group">
-            <label class="form-label">Paper Title</label>
-            <input class="form-input" type="text" placeholder="e.g. Mathematics — Unit Test 4" value="Mathematics — Unit Test 4"/>
-          </div>
-          <div class="grid-2">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Subject</label>
-              <select class="form-input"><option>Mathematics</option><option>Physics</option></select>
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Class</label>
-              <select class="form-input"><option>CBSE Grade 12</option><option>CBSE Grade 11</option><option>CBSE Grade 10</option><option>CBSE Grade 9</option></select>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-label">Sections</div>
-        <div class="card">
-          <div style="display:flex;gap:8px;margin-bottom:16px;">
-            <button class="btn btn-secondary btn-sm">+ Add Section</button>
-          </div>
-
-          <!-- SECTION A -->
-          <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">Section A <span style="font-weight:400;color:var(--muted);">· 1 mark each</span></div>
-              <button class="btn btn-ghost btn-sm">+ Add Q</button>
-            </div>
-            <div style="font-size:12px;color:var(--muted);">No questions added yet</div>
-          </div>
-
-          <!-- SECTION B -->
-          <div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:12px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">Section B <span style="font-weight:400;color:var(--muted);">· 3 marks each</span></div>
-              <button class="btn btn-ghost btn-sm" onclick="openModal('modal-pick-question')">+ Add Q</button>
-            </div>
-            <div class="q-bank-item" style="cursor:default;margin-bottom:0;">
-              <div class="q-drag-handle">⋮⋮</div>
-              <div class="q-body">
-                <div class="q-text">Find the angle between vectors a = 2î + ĵ and b = î − 2ĵ</div>
-                <div class="q-meta"><span>3 marks</span><span class="badge badge-blue" style="font-size:10px;">Vectors</span></div>
-              </div>
-              <button class="btn btn-ghost btn-sm" style="color:var(--red);">✕</button>
-            </div>
-          </div>
-
-          <!-- SECTION C -->
-          <div style="background:var(--bg);border-radius:10px;padding:14px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">Section C <span style="font-weight:400;color:var(--muted);">· 5 marks each</span></div>
-              <button class="btn btn-ghost btn-sm" onclick="openModal('modal-pick-question')">+ Add Q</button>
-            </div>
-            <div class="q-bank-item" style="cursor:default;margin-bottom:8px;">
-              <div class="q-drag-handle">⋮⋮</div>
-              <div class="q-body">
-                <div class="q-text">Find ∫ x · eˣ dx using integration by parts</div>
-                <div class="q-meta"><span>5 marks</span><span class="badge badge-red" style="font-size:10px;">Calculus</span></div>
-              </div>
-              <button class="btn btn-ghost btn-sm" style="color:var(--red);">✕</button>
-            </div>
-            <div class="q-bank-item" style="cursor:default;margin-bottom:0;">
-              <div class="q-drag-handle">⋮⋮</div>
-              <div class="q-body">
-                <div class="q-text">Find the inverse of matrix A = [[2,1],[5,3]] using adjoint method</div>
-                <div class="q-meta"><span>5 marks</span><span class="badge badge-purple" style="font-size:10px;">Matrices</span></div>
-              </div>
-              <button class="btn btn-ghost btn-sm" style="color:var(--red);">✕</button>
-            </div>
-          </div>
-        </div>
+    <!-- PAPER LIST VIEW (shown when no paper is open) -->
+    <div id="pb-list-view">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="section-label" style="margin-bottom:0;" id="pb-papers-count">Loading papers...</div>
       </div>
+      <div id="pb-papers-list">
+        <div style="text-align:center;padding:40px;color:var(--muted);">Loading...</div>
+      </div>
+    </div>
 
-      <!-- RIGHT: PAPER SUMMARY -->
-      <div style="position:sticky;top:80px;">
-        <div class="section-label">Paper Summary</div>
-        <div class="card" style="margin-bottom:16px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
-            <div>
-              <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);">13</div>
-              <div style="font-size:12px;color:var(--muted);">Total Marks</div>
+    <!-- PAPER EDIT VIEW (shown when editing/creating a paper) -->
+    <div id="pb-edit-view" style="display:none;">
+      <div class="grid-2" style="align-items:start;gap:24px;">
+
+        <!-- LEFT: PAPER DETAILS + QUESTIONS -->
+        <div>
+          <div class="section-label">Paper Details</div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="form-group">
+              <label class="form-label">Paper Title</label>
+              <input class="form-input" type="text" id="pb-title" placeholder="e.g. Mathematics — Unit Test 4"/>
             </div>
-            <div>
-              <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);">3</div>
-              <div style="font-size:12px;color:var(--muted);">Questions</div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Subject</label>
+                <select class="form-input" id="pb-subject">
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="Physics">Physics</option>
+                  <option value="Chemistry">Chemistry</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Class</label>
+                <select class="form-input" id="pb-class">
+                  <option value="9">Class 9</option>
+                  <option value="10">Class 10</option>
+                  <option value="11">Class 11</option>
+                  <option value="12" selected>Class 12</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Duration (minutes)</label>
+                <input class="form-input" type="number" id="pb-duration" value="180" min="10" max="360"/>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Sections</label>
+                <select class="form-input" id="pb-sections-count" onchange="pbRenderSections()">
+                  <option value="1">1 Section</option>
+                  <option value="2">2 Sections (A, B)</option>
+                  <option value="3" selected>3 Sections (A, B, C)</option>
+                  <option value="4">4 Sections (A, B, C, D)</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);">30m</div>
-              <div style="font-size:12px;color:var(--muted);">Est. Duration</div>
+            <div class="form-group" style="margin-bottom:0;margin-top:4px;">
+              <label class="form-label">Instructions for Students</label>
+              <textarea class="form-input" id="pb-instructions" rows="2" placeholder="e.g. All questions are compulsory. Draw diagrams where necessary."></textarea>
             </div>
           </div>
-          <div style="background:var(--blue-l);border-radius:9px;padding:12px;font-size:12.5px;color:var(--blue);line-height:1.6;">
-            ⏱️ Timer formula: each question gets marks × 2 minutes. Students get soft stop — timer turns red but keeps running.
+
+          <div class="section-label">Questions</div>
+          <div id="pb-sections-container"></div>
+        </div>
+
+        <!-- RIGHT: PAPER SUMMARY -->
+        <div style="position:sticky;top:80px;">
+          <div class="section-label">Paper Summary</div>
+          <div class="card" style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);" id="pb-total-marks">0</div>
+                <div style="font-size:12px;color:var(--muted);">Total Marks</div>
+              </div>
+              <div>
+                <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);" id="pb-total-questions">0</div>
+                <div style="font-size:12px;color:var(--muted);">Questions</div>
+              </div>
+              <div>
+                <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--ink);" id="pb-duration-display">—</div>
+                <div style="font-size:12px;color:var(--muted);">Minutes</div>
+              </div>
+            </div>
+            <div id="pb-status-badge" style="background:var(--amber-l);border-radius:9px;padding:10px 14px;font-size:12.5px;color:var(--amber);font-weight:600;">
+              📝 Draft — not yet published
+            </div>
+          </div>
+
+          <!-- Section breakdown -->
+          <div class="section-label">Section Breakdown</div>
+          <div class="card" id="pb-breakdown">
+            <div style="font-size:13px;color:var(--muted);">Add questions to see breakdown.</div>
           </div>
         </div>
 
-        <div class="section-label">Model Solutions</div>
-        <div class="card">
-          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Add model solutions so the AI can grade accurately. If left blank, the AI will generate its own.</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg);border-radius:8px;">
-              <div style="font-size:13px;font-weight:500;">Q1 — Vectors</div>
-              <button class="btn btn-secondary btn-sm" onclick="openModal('modal-model-solution')">+ Add Solution</button>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--green-l);border-radius:8px;">
-              <div style="font-size:13px;font-weight:500;color:var(--green);">✓ Q2 — Calculus</div>
-              <button class="btn btn-ghost btn-sm">Edit</button>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg);border-radius:8px;">
-              <div style="font-size:13px;font-weight:500;">Q3 — Matrices</div>
-              <button class="btn btn-secondary btn-sm" onclick="openModal('modal-model-solution')">+ Add Solution</button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -1126,6 +1103,37 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 </div>
 
 <!-- Model Solution -->
+<!-- Pick Question Modal -->
+<div class="modal-overlay" id="modal-pick-question">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-title">Pick Questions</div>
+    <div class="modal-sub" id="pick-q-section-label">Adding to Section A</div>
+    <!-- Filters -->
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <select class="form-input" id="pick-filter-subject" style="flex:1;min-width:130px;" onchange="loadPickQuestions()">
+        <option value="">All Subjects</option>
+        <option value="Mathematics">Mathematics</option>
+        <option value="Physics">Physics</option>
+        <option value="Chemistry">Chemistry</option>
+      </select>
+      <select class="form-input" id="pick-filter-difficulty" style="flex:1;min-width:120px;" onchange="loadPickQuestions()">
+        <option value="">All Levels</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <input class="form-input" id="pick-filter-chapter" style="flex:2;min-width:160px;" placeholder="Search chapter..." oninput="debouncePickFilter()"/>
+    </div>
+    <div id="pick-q-list" style="max-height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
+      <div style="text-align:center;padding:30px;color:var(--muted);">Loading questions...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-pick-question')">Cancel</button>
+      <button class="btn btn-primary" id="pick-q-add-btn" onclick="addPickedQuestions()">Add Selected →</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-model-solution">
   <div class="modal">
     <div class="modal-title">Add Model Solution</div>
@@ -1134,13 +1142,9 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <label class="form-label">Steps + Marks Breakdown</label>
       <textarea class="form-input" style="min-height:140px;" placeholder="Step 1: Identify vectors — (1 mark)&#10;Step 2: Apply dot product formula — (1 mark)&#10;Step 3: Calculate angle — (1 mark)"></textarea>
     </div>
-    <div class="form-group">
+    <div class="form-group" style="margin-bottom:0;">
       <label class="form-label">Common Errors to Watch For</label>
       <textarea class="form-input" placeholder="e.g. Students often forget to normalise before taking arccos..."></textarea>
-    </div>
-    <div class="form-group" style="margin-bottom:0;">
-      <label class="form-label">Alternate Methods Accepted</label>
-      <input class="form-input" type="text" placeholder="e.g. Cross product method also acceptable"/>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-model-solution')">Cancel</button>
@@ -1241,6 +1245,7 @@ function showPage(id, navBtn) {
   if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
   // Auto-load data for pages that need it
   if(id === 'page-questions') loadQuestions();
+  if(id === 'page-papers')    loadPapers();
 }
 
 // ── SIDEBAR TOGGLE (mobile) ──
@@ -1433,6 +1438,338 @@ async function deleteQuestion(questionId, btn) {
     btn.disabled = false;
     btn.textContent = 'Delete';
   }
+}
+
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
+}
+
+// ── PAPER BUILDER ─────────────────────────────────────
+const SECTION_NAMES = ['A','B','C','D'];
+let pbState = { editingId: null, isPublished: false, questions: {} };
+
+function pbReset() {
+  pbState = { editingId: null, isPublished: false, questions: {} };
+  document.getElementById('pb-title').value        = '';
+  document.getElementById('pb-subject').value      = 'Mathematics';
+  document.getElementById('pb-class').value        = '12';
+  document.getElementById('pb-duration').value     = '180';
+  document.getElementById('pb-instructions').value = '';
+  document.getElementById('pb-sections-count').value = '3';
+  pbRenderSections();
+  pbUpdateSummary();
+}
+
+function pbNewPaper() {
+  pbReset();
+  document.getElementById('pb-list-view').style.display  = 'none';
+  document.getElementById('pb-edit-view').style.display  = 'block';
+  document.getElementById('pb-topbar-title').textContent = 'New Paper';
+  document.getElementById('pb-draft-btn').style.display  = '';
+  document.getElementById('pb-publish-btn').style.display = '';
+  document.getElementById('pb-new-btn').style.display    = 'none';
+}
+
+function pbBackToList() {
+  document.getElementById('pb-list-view').style.display  = 'block';
+  document.getElementById('pb-edit-view').style.display  = 'none';
+  document.getElementById('pb-topbar-title').textContent = 'Paper Builder';
+  document.getElementById('pb-draft-btn').style.display  = 'none';
+  document.getElementById('pb-publish-btn').style.display = 'none';
+  document.getElementById('pb-new-btn').style.display    = '';
+  loadPapers();
+}
+
+function pbRenderSections() {
+  const n   = parseInt(document.getElementById('pb-sections-count').value);
+  const con = document.getElementById('pb-sections-container');
+  const prev = pbState.questions;
+  pbState.questions = {};
+  for (let i = 0; i < n; i++) {
+    const s = SECTION_NAMES[i];
+    pbState.questions[s] = prev[s] || [];
+  }
+  con.innerHTML = SECTION_NAMES.slice(0, n).map(s => `
+    <div class="card" style="margin-bottom:14px;" id="pb-section-${s}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">Section ${s}</div>
+        <button class="btn btn-secondary btn-sm" onclick="pbOpenPicker('${s}')">+ Add Questions</button>
+      </div>
+      <div id="pb-qs-${s}"></div>
+    </div>`).join('');
+  SECTION_NAMES.slice(0, n).forEach(s => pbRenderSectionQuestions(s));
+  pbUpdateSummary();
+}
+
+function pbRenderSectionQuestions(section) {
+  const qs = pbState.questions[section] || [];
+  const el = document.getElementById(`pb-qs-${section}`);
+  if (!el) return;
+  if (qs.length === 0) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:8px 0;">No questions added yet</div>`;
+    return;
+  }
+  el.innerHTML = qs.map((q, idx) => `
+    <div class="q-bank-item" style="cursor:default;margin-bottom:8px;">
+      <div class="q-drag-handle">⋮⋮</div>
+      <div class="q-body">
+        <div class="q-text" style="font-size:13px;">${q.latex_content}</div>
+        <div class="q-meta">
+          <span class="badge badge-blue" style="font-size:10px;">${q.chapter}</span>
+          <span>${q.max_marks} marks</span>
+          <span style="color:var(--muted);">${q.difficulty}</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);flex-shrink:0;" onclick="pbRemoveQuestion('${section}',${idx})">✕</button>
+    </div>`).join('');
+  renderMath(el);
+  pbUpdateSummary();
+}
+
+function pbRemoveQuestion(section, idx) {
+  pbState.questions[section].splice(idx, 1);
+  pbRenderSectionQuestions(section);
+}
+
+function pbUpdateSummary() {
+  let totalMarks = 0, totalQ = 0;
+  const breakdown = [];
+  Object.entries(pbState.questions).forEach(([s, qs]) => {
+    const sMarks = qs.reduce((sum, q) => sum + (q.max_marks || 0), 0);
+    totalMarks += sMarks; totalQ += qs.length;
+    if (qs.length > 0) breakdown.push(`Section ${s}: ${qs.length} Q · ${sMarks} marks`);
+  });
+  document.getElementById('pb-total-marks').textContent     = totalMarks;
+  document.getElementById('pb-total-questions').textContent = totalQ;
+  document.getElementById('pb-duration-display').textContent = document.getElementById('pb-duration')?.value || '—';
+  const bd = document.getElementById('pb-breakdown');
+  if (bd) bd.innerHTML = breakdown.length
+    ? breakdown.map(b=>`<div style="font-size:13px;color:var(--text);padding:6px 0;border-bottom:1px solid var(--border);">${b}</div>`).join('')
+    : `<div style="font-size:13px;color:var(--muted);">Add questions to see breakdown.</div>`;
+  const badge = document.getElementById('pb-status-badge');
+  if (!badge) return;
+  if (pbState.isPublished) {
+    badge.style.background='var(--green-l)'; badge.style.color='var(--green)'; badge.textContent='✅ Published';
+  } else {
+    badge.style.background='var(--amber-l)'; badge.style.color='var(--amber)'; badge.textContent='📝 Draft — not yet published';
+  }
+}
+
+// ── QUESTION PICKER ───────────────────────────────────
+let pickTargetSection = 'A';
+let pickSelectedMap   = {};  // id -> questionObj
+let pickDebounceTimer = null;
+
+function pbOpenPicker(section) {
+  pickTargetSection = section;
+  pickSelectedMap   = {};
+  document.getElementById('pick-q-section-label').textContent = `Adding to Section ${section}`;
+  document.getElementById('pick-filter-subject').value    = '';
+  document.getElementById('pick-filter-difficulty').value = '';
+  document.getElementById('pick-filter-chapter').value   = '';
+  document.getElementById('pick-q-add-btn').textContent   = 'Add Selected →';
+  openModal('modal-pick-question');
+  loadPickQuestions();
+}
+
+function debouncePickFilter() {
+  clearTimeout(pickDebounceTimer);
+  pickDebounceTimer = setTimeout(loadPickQuestions, 400);
+}
+
+async function loadPickQuestions() {
+  const subject    = document.getElementById('pick-filter-subject').value;
+  const difficulty = document.getElementById('pick-filter-difficulty').value;
+  const chapter    = document.getElementById('pick-filter-chapter').value;
+  const list       = document.getElementById('pick-q-list');
+  list.innerHTML   = '<div style="text-align:center;padding:20px;color:var(--muted);">Loading...</div>';
+  const alreadyAdded = new Set((pbState.questions[pickTargetSection]||[]).map(q=>q.question_id));
+  const params = new URLSearchParams();
+  if (subject)    params.append('subject', subject);
+  if (difficulty) params.append('difficulty', difficulty);
+  if (chapter)    params.append('chapter', chapter);
+  try {
+    const res  = await fetch('/api/teacher/questions?' + params.toString());
+    const data = await res.json();
+    if (!data.ok || !data.questions.length) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);">No questions found.</div>';
+      return;
+    }
+    list.innerHTML = data.questions.map(q => {
+      const isAdded    = alreadyAdded.has(q.question_id);
+      const isSelected = !!pickSelectedMap[q.question_id];
+      return `
+        <div class="q-bank-item ${isSelected?'q-selected':''}"
+             style="cursor:${isAdded?'default':'pointer'};${isAdded?'opacity:0.4;pointer-events:none;':''}"
+             onclick="pbTogglePick('${q.question_id}', this)"
+             data-id="${q.question_id}"
+             data-q='${JSON.stringify(q).replace(/'/g,"&#39;")}'>
+          <div class="q-body">
+            <div class="q-text" style="font-size:13px;">${q.latex_content}</div>
+            <div class="q-meta">
+              <span class="badge badge-blue" style="font-size:10px;">${q.chapter}</span>
+              <span>${q.max_marks} marks</span>
+              <span style="color:var(--muted);">${q.difficulty}</span>
+              ${isAdded?'<span style="color:var(--muted);">Already added</span>':''}
+            </div>
+          </div>
+          <div id="pick-chk-${q.question_id}" style="flex-shrink:0;width:22px;height:22px;border-radius:50%;border:2px solid ${isSelected?'var(--blue)':'var(--border)'};background:${isSelected?'var(--blue)':'transparent'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;">
+            ${isSelected?'✓':''}
+          </div>
+        </div>`;
+    }).join('');
+    renderMath(list);
+  } catch(e) {
+    list.innerHTML = '<div style="color:var(--red);padding:16px;">Failed to load.</div>';
+  }
+}
+
+function pbTogglePick(qId, el) {
+  const q = JSON.parse(el.dataset.q);
+  const chk = document.getElementById(`pick-chk-${qId}`);
+  if (pickSelectedMap[qId]) {
+    delete pickSelectedMap[qId];
+    el.classList.remove('q-selected');
+    chk.innerHTML = ''; chk.style.borderColor='var(--border)'; chk.style.background='transparent';
+  } else {
+    pickSelectedMap[qId] = q;
+    el.classList.add('q-selected');
+    chk.innerHTML = '✓'; chk.style.borderColor='var(--blue)'; chk.style.background='var(--blue)';
+  }
+  const count = Object.keys(pickSelectedMap).length;
+  document.getElementById('pick-q-add-btn').textContent = count ? `Add ${count} Question${count>1?'s':''} →` : 'Add Selected →';
+}
+
+function addPickedQuestions() {
+  Object.values(pickSelectedMap).forEach(q => {
+    pbState.questions[pickTargetSection].push(q);
+  });
+  pbRenderSectionQuestions(pickTargetSection);
+  closeModal('modal-pick-question');
+}
+
+// ── SAVE / LOAD PAPERS ────────────────────────────────
+async function pbSave(mode) {
+  const title    = document.getElementById('pb-title').value.trim();
+  const subject  = document.getElementById('pb-subject').value;
+  const cls      = document.getElementById('pb-class').value;
+  const duration = document.getElementById('pb-duration').value;
+  const instruct = document.getElementById('pb-instructions').value.trim();
+  if (!title) { alert('Please enter a paper title.'); return; }
+  const allQuestions = [];
+  Object.entries(pbState.questions).forEach(([section, qs]) => {
+    qs.forEach((q, idx) => allQuestions.push({
+      question_id: q.question_id, section, order_num: idx+1, marks: q.max_marks
+    }));
+  });
+  if (!allQuestions.length) { alert('Add at least one question before saving.'); return; }
+  const totalMarks = allQuestions.reduce((s,q) => s+q.marks, 0);
+  const isPublish  = mode === 'publish';
+  const btn = document.getElementById(isPublish ? 'pb-publish-btn' : 'pb-draft-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const url    = pbState.editingId ? `/api/teacher/papers/${pbState.editingId}` : '/api/teacher/papers';
+    const method = pbState.editingId ? 'PUT' : 'POST';
+    const res    = await fetch(url, {
+      method, headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ title, subject, class_num:parseInt(cls), duration_minutes:parseInt(duration),
+        instructions:instruct, total_marks:totalMarks, is_active:isPublish?1:0, questions:allQuestions })
+    });
+    const data = await res.json();
+    if (!data.ok) { alert('Error: ' + data.error); }
+    else {
+      pbState.editingId   = data.paper_id || pbState.editingId;
+      pbState.isPublished = isPublish;
+      pbUpdateSummary();
+      alert(isPublish ? '🚀 Paper published!' : '💾 Draft saved!');
+      if (isPublish) pbBackToList();
+    }
+  } catch(e) { alert('Failed to save. Try again.'); }
+  finally { btn.disabled=false; btn.textContent=isPublish?'🚀 Publish':'💾 Save Draft'; }
+}
+
+async function loadPapers() {
+  const list  = document.getElementById('pb-papers-list');
+  const label = document.getElementById('pb-papers-count');
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Loading...</div>';
+  try {
+    const res  = await fetch('/api/teacher/papers');
+    const data = await res.json();
+    if (!data.ok) { list.innerHTML=`<div style="color:var(--red);padding:20px;">${data.error}</div>`; return; }
+    label.textContent = `${data.papers.length} Paper${data.papers.length!==1?'s':''}`;
+    if (!data.papers.length) {
+      list.innerHTML=`<div style="text-align:center;padding:60px;color:var(--muted);">
+        <div style="font-size:32px;margin-bottom:8px;">📋</div>
+        <div style="margin-bottom:16px;">No papers yet — create your first paper</div>
+        <button class="btn btn-primary" onclick="pbNewPaper()">+ New Paper</button></div>`;
+      return;
+    }
+    list.innerHTML = data.papers.map(p => `
+      <div class="card" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <div style="font-size:15px;font-weight:600;color:var(--ink);">${p.title}</div>
+            <span class="badge ${p.is_active?'badge-green':'badge-amber'}" style="font-size:10px;">${p.is_active?'Published':'Draft'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);">${p.subject} · Class ${p.class} · ${p.total_marks} marks · ${p.duration_minutes} min · ${p.question_count||0} questions</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn btn-secondary btn-sm" onclick="pbEditPaper('${p.paper_id}')">Edit</button>
+          <button class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid #FCCACA;" onclick="pbDeletePaper('${p.paper_id}',this)">Delete</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { list.innerHTML='<div style="color:var(--red);padding:20px;">Failed to load papers.</div>'; }
+}
+
+async function pbEditPaper(paperId) {
+  try {
+    const res  = await fetch(`/api/teacher/papers/${paperId}`);
+    const data = await res.json();
+    if (!data.ok) { alert(data.error); return; }
+    const p = data.paper;
+    pbReset();
+    pbState.editingId   = paperId;
+    pbState.isPublished = !!p.is_active;
+    document.getElementById('pb-title').value        = p.title;
+    document.getElementById('pb-subject').value      = p.subject;
+    document.getElementById('pb-class').value        = p.class;
+    document.getElementById('pb-duration').value     = p.duration_minutes;
+    document.getElementById('pb-instructions').value = p.marking_scheme || '';
+    const sections = [...new Set((p.questions||[]).map(q=>q.section))].sort();
+    const sCount   = Math.max(sections.length, 1);
+    document.getElementById('pb-sections-count').value = sCount;
+    pbState.questions = {};
+    SECTION_NAMES.slice(0, sCount).forEach(s => pbState.questions[s]=[]);
+    (p.questions||[]).sort((a,b)=>a.order_num-b.order_num).forEach(q => {
+      const s = q.section||'A';
+      if (pbState.questions[s]) pbState.questions[s].push(q);
+    });
+    pbRenderSections();
+    document.getElementById('pb-list-view').style.display  = 'none';
+    document.getElementById('pb-edit-view').style.display  = 'block';
+    document.getElementById('pb-topbar-title').textContent = 'Edit Paper';
+    document.getElementById('pb-draft-btn').style.display  = '';
+    document.getElementById('pb-publish-btn').style.display = '';
+    document.getElementById('pb-new-btn').style.display    = 'none';
+    pbUpdateSummary();
+  } catch(e) { alert('Failed to load paper.'); }
+}
+
+async function pbDeletePaper(paperId, btn) {
+  if (!btn.dataset.confirming) {
+    btn.dataset.confirming='1'; btn.textContent='Confirm?';
+    btn.style.background='var(--red)'; btn.style.color='#fff';
+    setTimeout(()=>{ if(btn.dataset.confirming){ delete btn.dataset.confirming;
+      btn.textContent='Delete'; btn.style.background='var(--red-l)'; btn.style.color='var(--red)'; }}, 3000);
+    return;
+  }
+  btn.disabled=true; btn.textContent='Deleting...';
+  try {
+    const res=await fetch(`/api/teacher/papers/${paperId}`,{method:'DELETE'});
+    const data=await res.json();
+    if(data.ok) loadPapers(); else alert('Delete failed: '+data.error);
+  } catch(e){ alert('Delete failed.'); btn.disabled=false; btn.textContent='Delete'; }
 }
 
 // ── MATHJAX HELPERS ──

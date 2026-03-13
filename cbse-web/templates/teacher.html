@@ -1255,24 +1255,23 @@ function toggleSidebar(){
 
 // ── MODALS ──
 function openModal(id){
-  document.getElementById(id).classList.add('open');
-  if (id === 'modal-add-question') {
+  document.getElementById(id).style.display='flex';
+  if(id==='modal-add-question'){
     updateChapters();
-    // Reset to Add mode if not coming from editQuestion
-    if (!document.getElementById('q-editing-id').value) {
-      document.getElementById('q-modal-title').textContent = 'Add Question';
-      document.getElementById('q-save-btn').textContent    = 'Save Question →';
+    if(!document.getElementById('q-editing-id').value){
+      document.getElementById('q-modal-title').textContent='Add Question';
+      document.getElementById('q-save-btn').textContent='Save Question →';
     }
   }
 }
 function closeModal(id){
-  document.getElementById(id).classList.remove('open');
-  if (id === 'modal-add-question') {
-    document.getElementById('q-editing-id').value        = '';
-    document.getElementById('q-modal-title').textContent = 'Add Question';
-    document.getElementById('q-save-btn').textContent    = 'Save Question →';
-    document.getElementById('q-save-error').style.display   = 'none';
-    document.getElementById('q-save-success').style.display = 'none';
+  document.getElementById(id).style.display='none';
+  if(id==='modal-add-question'){
+    document.getElementById('q-editing-id').value='';
+    document.getElementById('q-modal-title').textContent='Add Question';
+    document.getElementById('q-save-btn').textContent='Save Question →';
+    document.getElementById('q-save-error').style.display='none';
+    document.getElementById('q-save-success').style.display='none';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{

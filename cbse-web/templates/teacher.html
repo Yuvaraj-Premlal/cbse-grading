@@ -1013,10 +1013,11 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 <!-- Add Question -->
 <div class="modal-overlay" id="modal-add-question">
   <div class="modal">
-    <div class="modal-title">Add Question</div>
+    <div class="modal-title" id="q-modal-title">Add Question</div>
     <div class="modal-sub">Add to the question bank · Can be used in any paper</div>
     <div id="q-save-error" style="display:none;background:var(--red-l);border:1px solid #FCCACA;color:var(--red);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
     <div id="q-save-success" style="display:none;background:var(--green-l);border:1px solid #A7F3D0;color:var(--green);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
+    <input type="hidden" id="q-editing-id" value=""/>
     <div class="form-group">
       <label class="form-label">Question Text (LaTeX supported)</label>
       <textarea class="form-input" id="q-content" placeholder="Type question here... Use $ $ for inline math, e.g. Find $\int x \cdot e^x dx$" oninput="updatePreview()" rows="4"></textarea>
@@ -1091,7 +1092,6 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-question')">Cancel</button>
       <button class="btn btn-primary" id="q-save-btn" onclick="saveQuestion()">Save Question →</button>
-    </div>
   </div>
 </div>
 
@@ -1251,9 +1251,25 @@ function toggleSidebar(){
 // ── MODALS ──
 function openModal(id){
   document.getElementById(id).classList.add('open');
-  if (id === 'modal-add-question') updateChapters();
+  if (id === 'modal-add-question') {
+    updateChapters();
+    // Reset to Add mode if not coming from editQuestion
+    if (!document.getElementById('q-editing-id').value) {
+      document.getElementById('q-modal-title').textContent = 'Add Question';
+      document.getElementById('q-save-btn').textContent    = 'Save Question →';
+    }
+  }
 }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+  if (id === 'modal-add-question') {
+    document.getElementById('q-editing-id').value        = '';
+    document.getElementById('q-modal-title').textContent = 'Add Question';
+    document.getElementById('q-save-btn').textContent    = 'Save Question →';
+    document.getElementById('q-save-error').style.display   = 'none';
+    document.getElementById('q-save-success').style.display = 'none';
+  }
+}
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
 });
@@ -1351,6 +1367,74 @@ function viewQuestion(q) {
   openModal('modal-view-question');
 }
 
+function editQuestion(q) {
+  // Switch modal to edit mode
+  document.getElementById('q-modal-title').textContent = 'Edit Question';
+  document.getElementById('q-save-btn').textContent    = 'Update Question →';
+  document.getElementById('q-editing-id').value        = q.question_id;
+
+  // Pre-fill fields
+  document.getElementById('q-content').value    = q.latex_content || '';
+  document.getElementById('q-subject').value    = q.subject || 'Mathematics';
+  document.getElementById('q-class').value      = q.class || 12;
+  updateChapters();
+  // Set chapter after updateChapters populates the dropdown
+  setTimeout(() => {
+    document.getElementById('q-chapter').value  = q.chapter || '';
+  }, 50);
+  document.getElementById('q-difficulty').value = q.difficulty || 'medium';
+  document.getElementById('q-type').value       = q.type || 'long_answer';
+  document.getElementById('q-marks').value      = q.max_marks || 5;
+  document.getElementById('q-source').value     = q.source || 'teacher';
+  document.getElementById('q-year').value       = q.year || '';
+  document.getElementById('q-solution').value   = q.model_solution || '';
+
+  // Update preview
+  updatePreview();
+  openModal('modal-add-question');
+}
+
+async function confirmDelete(questionId, btn) {
+  // Inline confirm — change button to confirm state
+  if (btn.dataset.confirming) {
+    await deleteQuestion(questionId, btn);
+  } else {
+    btn.dataset.confirming = '1';
+    btn.textContent = 'Confirm?';
+    btn.style.background = 'var(--red)';
+    btn.style.color = '#fff';
+    // Auto-reset after 3s
+    setTimeout(() => {
+      if (btn.dataset.confirming) {
+        delete btn.dataset.confirming;
+        btn.textContent = 'Delete';
+        btn.style.background = 'var(--red-l)';
+        btn.style.color = 'var(--red)';
+      }
+    }, 3000);
+  }
+}
+
+async function deleteQuestion(questionId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  try {
+    const res  = await fetch(`/api/teacher/questions/${questionId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      loadQuestions();
+    } else {
+      alert('Delete failed: ' + data.error);
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
+  } catch(e) {
+    alert('Delete failed. Try again.');
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
+}
+
 // ── MATHJAX HELPERS ──
 function renderMath(el) {
   if (window.MathJax && MathJax.typesetPromise) {
@@ -1425,6 +1509,8 @@ async function loadQuestions() {
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewQuestion(JSON.parse(decodeURIComponent('${qJson}')))">View</button>
+            <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editQuestion(JSON.parse(decodeURIComponent('${qJson}')))">Edit</button>
+            <button class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid #FCCACA;" onclick="event.stopPropagation();confirmDelete('${q.question_id}', this)">Delete</button>
           </div>
         </div>`;
     }).join('');
@@ -1466,12 +1552,17 @@ async function saveQuestion() {
 
   if (!payload.latex_content) { errBox.textContent='Question text is required.'; errBox.style.display='block'; return; }
 
+  const editingId = document.getElementById('q-editing-id').value;
+  const isEdit    = !!editingId;
+  const url       = isEdit ? `/api/teacher/questions/${editingId}` : '/api/teacher/questions';
+  const method    = isEdit ? 'PUT' : 'POST';
+
   btn.disabled = true;
-  btn.textContent = 'Saving...';
+  btn.textContent = isEdit ? 'Updating...' : 'Saving...';
 
   try {
-    const res  = await fetch('/api/teacher/questions', {
-      method  : 'POST',
+    const res  = await fetch(url, {
+      method  : method,
       headers : { 'Content-Type':'application/json' },
       body    : JSON.stringify(payload)
     });
@@ -1481,22 +1572,20 @@ async function saveQuestion() {
       errBox.textContent = data.error;
       errBox.style.display = 'block';
     } else {
-      okBox.textContent = '✅ Question saved successfully!';
+      okBox.textContent = isEdit ? '✅ Question updated!' : '✅ Question saved!';
       okBox.style.display = 'block';
-      // Clear form
-      document.getElementById('q-content').value  = '';
-      document.getElementById('q-chapter').value   = '';
-      document.getElementById('q-year').value      = '';
-      document.getElementById('q-solution').value  = '';
-      // Reload question list
+      document.getElementById('q-content').value   = '';
+      document.getElementById('q-year').value       = '';
+      document.getElementById('q-solution').value   = '';
+      document.getElementById('q-editing-id').value = '';
       setTimeout(() => { closeModal('modal-add-question'); loadQuestions(); }, 800);
     }
   } catch(err) {
-    errBox.textContent = 'Failed to save. Try again.';
+    errBox.textContent = 'Failed. Try again.';
     errBox.style.display = 'block';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save Question →';
+    btn.textContent = isEdit ? 'Update Question →' : 'Save Question →';
   }
 }
 

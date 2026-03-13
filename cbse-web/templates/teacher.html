@@ -1099,25 +1099,28 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 <div class="modal-overlay" id="modal-view-question">
   <div class="modal">
     <div class="modal-title">Question Preview</div>
-    <div class="modal-sub">CBSE 2022 · Mathematics · Calculus</div>
-    <div style="background:var(--bg);border-radius:11px;padding:16px;margin-bottom:16px;font-size:14px;line-height:1.7;color:var(--ink);">
-      Find ∫ x · eˣ dx using integration by parts. Show all working steps using the ILATE rule. Evaluate the definite integral from 0 to 1.
-    </div>
+    <div class="modal-sub" id="vq-sub"></div>
+    <div id="vq-text" style="background:var(--bg);border-radius:11px;padding:16px;margin-bottom:16px;font-size:14px;line-height:1.8;color:var(--ink);"></div>
     <div class="grid-3" style="margin-bottom:16px;">
-      <div style="text-align:center;background:var(--blue-l);border-radius:9px;padding:10px;"><div style="font-weight:700;color:var(--blue);">5</div><div style="font-size:11px;color:var(--muted);">Marks</div></div>
-      <div style="text-align:center;background:var(--amber-l);border-radius:9px;padding:10px;"><div style="font-weight:700;color:var(--amber);">Medium</div><div style="font-size:11px;color:var(--muted);">Difficulty</div></div>
-      <div style="text-align:center;background:var(--green-l);border-radius:9px;padding:10px;"><div style="font-weight:700;color:var(--green);">10 min</div><div style="font-size:11px;color:var(--muted);">Est. Time</div></div>
+      <div style="text-align:center;background:var(--blue-l);border-radius:9px;padding:10px;">
+        <div id="vq-marks" style="font-weight:700;color:var(--blue);"></div>
+        <div style="font-size:11px;color:var(--muted);">Marks</div>
+      </div>
+      <div style="text-align:center;background:var(--amber-l);border-radius:9px;padding:10px;">
+        <div id="vq-difficulty" style="font-weight:700;color:var(--amber);"></div>
+        <div style="font-size:11px;color:var(--muted);">Difficulty</div>
+      </div>
+      <div style="text-align:center;background:var(--green-l);border-radius:9px;padding:10px;">
+        <div id="vq-type" style="font-weight:700;color:var(--green);font-size:12px;"></div>
+        <div style="font-size:11px;color:var(--muted);">Type</div>
+      </div>
     </div>
-    <div class="section-label">Model Solution</div>
-    <div style="background:var(--bg);border-radius:11px;padding:14px;font-size:13px;line-height:1.8;color:var(--text);">
-      Step 1: Apply ILATE — u = x (Algebraic), dv = eˣdx → du = dx, v = eˣ (1 mark)<br/>
-      Step 2: Apply formula ∫u·dv = uv − ∫v·du → x·eˣ − ∫eˣdx (2 marks)<br/>
-      Step 3: Simplify → xeˣ − eˣ + C = eˣ(x−1) + C (1 mark)<br/>
-      Step 4: Evaluate [eˣ(x−1)]₀¹ = e⁰·0 − e⁰·(−1) = 0 + 1 = 1 (1 mark)
+    <div id="vq-solution-section" style="display:none;">
+      <div class="section-label">Model Solution</div>
+      <div id="vq-solution" style="background:var(--bg);border-radius:11px;padding:14px;font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-view-question')">Close</button>
-      <button class="btn btn-primary" onclick="closeModal('modal-view-question')">Add to Paper →</button>
     </div>
   </div>
 </div>
@@ -1327,6 +1330,27 @@ function updateChapters() {
 // Also update chapters when class changes
 function onClassChange() { updateChapters(); }
 
+function viewQuestion(q) {
+  const source = q.source === 'past_paper' ? `CBSE ${q.year || ''}` : 'Teacher Created';
+  document.getElementById('vq-sub').textContent    = `${source} · ${q.subject} · ${q.chapter}`;
+  document.getElementById('vq-marks').textContent  = q.max_marks;
+  document.getElementById('vq-difficulty').textContent = q.difficulty.charAt(0).toUpperCase() + q.difficulty.slice(1);
+  document.getElementById('vq-type').textContent   = (q.type || '').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+  const textEl = document.getElementById('vq-text');
+  textEl.textContent = q.latex_content;
+  renderMath(textEl);
+
+  const solSection = document.getElementById('vq-solution-section');
+  if (q.model_solution) {
+    document.getElementById('vq-solution').textContent = q.model_solution;
+    solSection.style.display = 'block';
+  } else {
+    solSection.style.display = 'none';
+  }
+  openModal('modal-view-question');
+}
+
 // ── MATHJAX HELPERS ──
 function renderMath(el) {
   if (window.MathJax && MathJax.typesetPromise) {
@@ -1386,6 +1410,7 @@ async function loadQuestions() {
       const diffBadge = DIFF_BADGE[q.difficulty] || 'badge-muted';
       const subjBadge = SUBJ_BADGE[q.subject]    || 'badge-blue';
       const source    = q.source === 'past_paper' ? `CBSE ${q.year || ''}` : 'Teacher Created';
+      const qJson     = encodeURIComponent(JSON.stringify(q));
       return `
         <div class="q-bank-item" onclick="toggleSelect(this)" data-id="${q.question_id}">
           <div class="q-drag-handle">⋮⋮</div>
@@ -1399,7 +1424,7 @@ async function loadQuestions() {
             </div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();">View</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewQuestion(JSON.parse(decodeURIComponent('${qJson}')))">View</button>
           </div>
         </div>`;
     }).join('');

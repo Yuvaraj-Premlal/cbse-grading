@@ -1557,6 +1557,7 @@ let pickSelectedMap   = {};  // id -> questionObj
 let pickDebounceTimer = null;
 
 function pbOpenPicker(section) {
+  alert('pbOpenPicker called: ' + section);
   pickTargetSection = section;
   pickSelectedMap   = {};
   document.getElementById('pick-q-section-label').textContent = `Adding to Section ${section}`;

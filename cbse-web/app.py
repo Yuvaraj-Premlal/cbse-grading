@@ -421,7 +421,7 @@ def save_question():
     user = get_current_user(request)
     data = request.json
     try:
-        required = ["latex_content", "subject", "chapter", "class_num", "difficulty", "max_marks", "source"]
+        required = ["latex_content", "subject", "chapter", "class_num", "difficulty", "type", "max_marks", "source"]
         if not all(data.get(f) for f in required):
             return jsonify({"ok": False, "error": "All fields required"})
         if data["difficulty"] not in ["easy", "medium", "hard"]:
@@ -465,20 +465,24 @@ def save_question():
             conn.execute(text("""
                 INSERT INTO questions
                     (latex_content, subject, chapter, class, difficulty,
-                     max_marks, source, year, created_by, approved)
+                     type, max_marks, source, year, created_by, approved,
+                     model_solution)
                 VALUES
                     (:content, :subject, :chapter, :class, :difficulty,
-                     :marks, :source, :year, :created_by, 1)
+                     :type, :marks, :source, :year, :created_by, 1,
+                     :model_solution)
             """), {
-                "content"    : data["latex_content"],
-                "subject"    : data["subject"],
-                "chapter"    : data["chapter"],
-                "class"      : int(data.get("class_num", 12)),
-                "difficulty" : data["difficulty"],
-                "marks"      : int(data["max_marks"]),
-                "source"     : data["source"],
-                "year"       : data.get("year") or None,
-                "created_by" : str(teacher[0])
+                "content"        : data["latex_content"],
+                "subject"        : data["subject"],
+                "chapter"        : data["chapter"],
+                "class"          : int(data.get("class_num", 12)),
+                "difficulty"     : data["difficulty"],
+                "type"           : data["type"],
+                "marks"          : int(data["max_marks"]),
+                "source"         : data["source"],
+                "year"           : data.get("year") or None,
+                "created_by"     : str(teacher[0]),
+                "model_solution" : data.get("model_solution") or None
             })
         return jsonify({"ok": True, "message": "Question saved"})
     except Exception as e:

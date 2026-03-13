@@ -77,7 +77,6 @@ def get_current_user(req) -> dict | None:
 
 # ── AUTH GUARD ────────────────────────────────────────
 def require_role(*roles):
-    """Decorator — checks JWT cookie, redirects to login if missing or wrong role."""
     def decorator(f):
         from functools import wraps
         @wraps(f)
@@ -159,15 +158,13 @@ def login():
                     "role"  : user.role
                 }
             }))
-
-            # Set JWT as httpOnly cookie — 7 days
             resp.set_cookie(
                 "skooltest_token",
                 token,
                 max_age   = 60 * 60 * 24 * 7,
                 httponly  = True,
                 samesite  = "Lax",
-                secure    = True   # HTTPS only in production
+                secure    = True
             )
             return resp
 
@@ -284,6 +281,7 @@ def set_role():
         return jsonify({"ok": True, "message": f"Updated {data['email']} to {data['role']}"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
 # ── TEACHER DASHBOARD API ─────────────────────────────
 @app.route("/api/teacher/dashboard")
 @require_role("teacher")
@@ -293,39 +291,32 @@ def teacher_dashboard():
         engine = get_engine()
         with engine.connect() as conn:
 
-            # Pending review — submitted but not released
             pending = conn.execute(text("""
-                SELECT COUNT(*) FROM assignments
-                WHERE status = 'graded'
+                SELECT COUNT(*) FROM assignments WHERE status = 'graded'
             """)).fetchone()[0]
 
-            # Open disputes
             disputes = conn.execute(text("""
                 SELECT COUNT(*) FROM disputes WHERE status = 'open'
             """)).fetchone()[0]
 
-            # Urgent disputes — raised more than 40h ago
             urgent = conn.execute(text("""
                 SELECT COUNT(*) FROM disputes
                 WHERE status = 'open'
                 AND DATEDIFF(hour, raised_at, GETUTCDATE()) >= 40
             """)).fetchone()[0]
 
-            # Total students assigned this month
             students = conn.execute(text("""
                 SELECT COUNT(DISTINCT student_id) FROM assignments
                 WHERE MONTH(created_at) = MONTH(GETUTCDATE())
                 AND YEAR(created_at) = YEAR(GETUTCDATE())
             """)).fetchone()[0]
 
-            # Active exams — due date in future
             active_exams = conn.execute(text("""
                 SELECT COUNT(DISTINCT paper_id) FROM assignments
                 WHERE due_date >= GETUTCDATE()
                 AND status NOT IN ('released')
             """)).fetchone()[0]
 
-            # Pending submissions detail
             pending_subs = conn.execute(text("""
                 SELECT TOP 10
                     u.name     AS student_name,
@@ -341,7 +332,6 @@ def teacher_dashboard():
                 ORDER BY a.created_at ASC
             """)).fetchall()
 
-            # Active assignments with counts
             active_asgn = conn.execute(text("""
                 SELECT
                     p.title,
@@ -377,6 +367,7 @@ def teacher_dashboard():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
+
 # ── QUESTION BANK ─────────────────────────────────────
 @app.route("/api/teacher/questions", methods=["GET"])
 @require_role("teacher")
@@ -440,25 +431,36 @@ def save_question():
 
         engine = get_engine()
 
-        # Get teacher_id from teachers table using user email
+        # Step 1 — get user_id from users table using email from JWT
+        with engine.connect() as conn:
+            user_row = conn.execute(text(
+                "SELECT user_id FROM users WHERE email = :email"
+            ), {"email": user["email"]}).fetchone()
+
+        if not user_row:
+            return jsonify({"ok": False, "error": "User not found in DB"})
+
+        user_uuid = user_row[0]
+
+        # Step 2 — find teacher profile by user_id
         with engine.connect() as conn:
             teacher = conn.execute(text(
-                "SELECT teacher_id FROM teachers WHERE name = :name"
-            ), {"name": user["name"]}).fetchone()
-            
-        # If teacher not in teachers table yet, insert them
+                "SELECT teacher_id FROM teachers WHERE user_id = :uid"
+            ), {"uid": user_uuid}).fetchone()
+
+        # Step 3 — auto-create teacher profile if missing
         if not teacher:
             with engine.begin() as conn:
                 conn.execute(text("""
-                    INSERT INTO teachers (name)
-                    VALUES (:name)
-                """), {"name": user["name"]})
-    
+                    INSERT INTO teachers (user_id, subject)
+                    VALUES (:uid, :subject)
+                """), {"uid": user_uuid, "subject": data["subject"]})
             with engine.connect() as conn:
-                 teacher = conn.execute(text(
-                    "SELECT teacher_id FROM teachers WHERE name = :name"
-                ), {"name": user["name"]}).fetchone()
-                
+                teacher = conn.execute(text(
+                    "SELECT teacher_id FROM teachers WHERE user_id = :uid"
+                ), {"uid": user_uuid}).fetchone()
+
+        # Step 4 — insert question
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO questions
@@ -480,6 +482,18 @@ def save_question():
         return jsonify({"ok": True, "message": "Question saved"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
+
+# ── DEBUG (remove after confirming) ───────────────────
+@app.route("/admin/teachers-schema")
+def teachers_schema():
+    engine = get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT COLUMN_NAME, DATA_TYPE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'teachers'
+        """)).fetchall()
+    return jsonify([dict(r._mapping) for r in rows])
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

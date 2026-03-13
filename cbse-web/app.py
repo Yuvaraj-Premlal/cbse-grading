@@ -421,7 +421,7 @@ def save_question():
     user = get_current_user(request)
     data = request.json
     try:
-        required = ["latex_content", "subject", "chapter", "difficulty", "max_marks", "source"]
+        required = ["latex_content", "subject", "chapter", "class_num", "difficulty", "max_marks", "source"]
         if not all(data.get(f) for f in required):
             return jsonify({"ok": False, "error": "All fields required"})
         if data["difficulty"] not in ["easy", "medium", "hard"]:
@@ -464,15 +464,16 @@ def save_question():
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO questions
-                    (latex_content, subject, chapter, difficulty,
+                    (latex_content, subject, chapter, class, difficulty,
                      max_marks, source, year, created_by, approved)
                 VALUES
-                    (:content, :subject, :chapter, :difficulty,
+                    (:content, :subject, :chapter, :class, :difficulty,
                      :marks, :source, :year, :created_by, 1)
             """), {
                 "content"    : data["latex_content"],
                 "subject"    : data["subject"],
                 "chapter"    : data["chapter"],
+                "class"      : int(data.get("class_num", 12)),
                 "difficulty" : data["difficulty"],
                 "marks"      : int(data["max_marks"]),
                 "source"     : data["source"],

@@ -411,7 +411,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <div style="text-align:center;padding:40px;color:var(--muted);">Loading questions...</div>
     </div>
 
-    <div id="selected-bar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:14px 24px;border-radius:14px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-lg);z-index:200;">
+    <div id="selected-bar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:14px 24px;border-radius:14px;align-items:center;gap:16px;box-shadow:var(--shadow-lg);z-index:200;">
       <span id="selected-count" style="font-size:13.5px;font-weight:600;">0 questions selected</span>
       <button class="btn btn-primary btn-sm" onclick="showPage('page-papers',document.querySelector('[onclick*=page-papers]'))">Add to Paper →</button>
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;" onclick="clearSelection()">✕ Clear</button>
@@ -1069,6 +1069,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-question')">Cancel</button>
       <button class="btn btn-primary" id="q-save-btn" onclick="saveQuestion()">Save Question →</button>
+    </div>
   </div>
 </div>
 
@@ -1583,8 +1584,11 @@ async function loadPickQuestions() {
   if (subject)    params.append('subject', subject);
   if (difficulty) params.append('difficulty', difficulty);
   if (chapter)    params.append('chapter', chapter);
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), 8000);
   try {
-    const res  = await fetch('/api/teacher/questions?' + params.toString());
+    const res  = await fetch('/api/teacher/questions?' + params.toString(), { signal: controller.signal });
+    clearTimeout(timeoutId);
     const data = await res.json();
     if (!data.ok || !data.questions.length) {
       list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);">No questions found.</div>';
@@ -1616,7 +1620,12 @@ async function loadPickQuestions() {
     }).join('');
     renderMath(list);
   } catch(e) {
-    list.innerHTML = '<div style="color:var(--red);padding:16px;">Failed to load.</div>';
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') {
+      list.innerHTML = '<div style="color:var(--red);padding:16px;">⏱ Request timed out. Check your server connection.</div>';
+    } else {
+      list.innerHTML = '<div style="color:var(--red);padding:16px;">Failed to load. Check your server connection.</div>';
+    }
   }
 }
 

@@ -32,8 +32,8 @@ html{scroll-behavior:smooth;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
 /* ── PAGE SYSTEM ── */
-.page{position:fixed;top:0;left:0;width:100%;height:100%;overflow-y:auto;background:var(--bg);visibility:hidden;opacity:0;pointer-events:none;transition:opacity .25s ease;}
-.page.active{visibility:visible;opacity:1;pointer-events:all;position:relative;height:auto;min-height:100vh;}
+.page{display:none;}
+.page.active{display:block;min-height:100vh;}
 @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 
 /* ── LAYOUT ── */
@@ -1557,7 +1557,6 @@ let pickSelectedMap   = {};  // id -> questionObj
 let pickDebounceTimer = null;
 
 function pbOpenPicker(section) {
-  alert('pbOpenPicker called: ' + section);
   pickTargetSection = section;
   pickSelectedMap   = {};
   document.getElementById('pick-q-section-label').textContent = `Adding to Section ${section}`;

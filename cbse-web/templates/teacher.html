@@ -1031,15 +1031,24 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="grid-2">
       <div class="form-group">
         <label class="form-label">Subject</label>
-        <select class="form-input" id="q-subject">
+        <select class="form-input" id="q-subject" onchange="updateChapters()">
           <option value="Mathematics">Mathematics</option>
           <option value="Physics">Physics</option>
           <option value="Chemistry">Chemistry</option>
         </select>
       </div>
       <div class="form-group">
+        <label class="form-label">Class</label>
+        <select class="form-input" id="q-class" onchange="updateChapters()">
+          <option value="9">Class 9</option>
+          <option value="10">Class 10</option>
+          <option value="11">Class 11</option>
+          <option value="12" selected>Class 12</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Chapter / Topic</label>
-        <input class="form-input" id="q-chapter" type="text" placeholder="e.g. Calculus — Integration"/>
+        <select class="form-input" id="q-chapter"></select>
       </div>
       <div class="form-group">
         <label class="form-label">Marks</label>
@@ -1223,7 +1232,10 @@ function toggleSidebar(){
 }
 
 // ── MODALS ──
-function openModal(id){ document.getElementById(id).classList.add('open'); }
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  if (id === 'modal-add-question') updateChapters();
+}
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
@@ -1266,6 +1278,40 @@ function switchReview(student,btn){
   document.querySelectorAll('#page-review .tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
 }
+
+// ── CHAPTER DATA (CBSE) ──
+const CHAPTERS = {
+  Mathematics: {
+    9:  ['Number Systems','Polynomials','Coordinate Geometry','Linear Equations in Two Variables','Introduction to Euclid Geometry','Lines and Angles','Triangles','Quadrilaterals','Circles','Heron\'s Formula','Surface Areas and Volumes','Statistics','Probability'],
+    10: ['Real Numbers','Polynomials','Pair of Linear Equations','Quadratic Equations','Arithmetic Progressions','Triangles','Coordinate Geometry','Introduction to Trigonometry','Some Applications of Trigonometry','Circles','Areas Related to Circles','Surface Areas and Volumes','Statistics','Probability'],
+    11: ['Sets','Relations and Functions','Trigonometric Functions','Principle of Mathematical Induction','Complex Numbers','Linear Inequalities','Permutations and Combinations','Binomial Theorem','Sequences and Series','Straight Lines','Conic Sections','Introduction to 3D Geometry','Limits and Derivatives','Statistics','Probability'],
+    12: ['Relations and Functions','Inverse Trigonometric Functions','Matrices','Determinants','Continuity and Differentiability','Application of Derivatives','Integrals — Integration by Parts','Integrals — Definite Integrals','Application of Integrals','Differential Equations','Vector Algebra','Three Dimensional Geometry','Linear Programming','Probability']
+  },
+  Physics: {
+    9:  ['Motion','Force and Laws of Motion','Gravitation','Work and Energy','Sound','Matter in Our Surroundings','Is Matter Around Us Pure','Atoms and Molecules','Structure of the Atom','Cell — Fundamental Unit of Life','Tissues','Diversity in Living Organisms','Why Do We Fall Ill','Natural Resources'],
+    10: ['Light — Reflection and Refraction','Human Eye and Colourful World','Electricity','Magnetic Effects of Electric Current','Sources of Energy','Chemical Reactions','Acids Bases and Salts','Metals and Non-metals','Carbon and its Compounds','Periodic Classification'],
+    11: ['Physical World','Units and Measurements','Motion in a Straight Line','Motion in a Plane','Laws of Motion','Work Energy and Power','System of Particles and Rotational Motion','Gravitation','Mechanical Properties of Solids','Mechanical Properties of Fluids','Thermal Properties of Matter','Thermodynamics','Kinetic Theory','Oscillations','Waves'],
+    12: ['Electric Charges and Fields','Electrostatic Potential and Capacitance','Current Electricity','Moving Charges and Magnetism','Magnetism and Matter','Electromagnetic Induction','Alternating Current','Electromagnetic Waves','Ray Optics and Optical Instruments','Wave Optics','Dual Nature of Radiation','Atoms','Nuclei','Semiconductor Electronics']
+  },
+  Chemistry: {
+    9:  ['Matter in Our Surroundings','Is Matter Around Us Pure','Atoms and Molecules','Structure of the Atom'],
+    10: ['Chemical Reactions and Equations','Acids Bases and Salts','Metals and Non-metals','Carbon and its Compounds','Periodic Classification of Elements'],
+    11: ['Some Basic Concepts of Chemistry','Structure of Atom','Classification of Elements','Chemical Bonding','States of Matter','Thermodynamics','Equilibrium','Redox Reactions','Hydrogen','The s-Block Elements','The p-Block Elements','Organic Chemistry','Hydrocarbons','Environmental Chemistry'],
+    12: ['The Solid State','Solutions','Electrochemistry','Chemical Kinetics','Surface Chemistry','General Principles of Isolation','The p-Block Elements','The d and f Block Elements','Coordination Compounds','Haloalkanes and Haloarenes','Alcohols Phenols and Ethers','Aldehydes Ketones and Carboxylic Acids','Amines','Biomolecules','Polymers','Chemistry in Everyday Life']
+  }
+};
+
+function updateChapters() {
+  const subject  = document.getElementById('q-subject').value;
+  const classNum = parseInt(document.getElementById('q-class')?.value || 12);
+  const sel      = document.getElementById('q-chapter');
+  if (!sel) return;
+  const chapters = (CHAPTERS[subject] || {})[classNum] || [];
+  sel.innerHTML  = chapters.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+// Also update chapters when class changes
+function onClassChange() { updateChapters(); }
 
 // ── MATHJAX HELPERS ──
 function renderMath(el) {
@@ -1369,7 +1415,8 @@ async function saveQuestion() {
   const payload = {
     latex_content : document.getElementById('q-content').value.trim(),
     subject       : document.getElementById('q-subject').value,
-    chapter       : document.getElementById('q-chapter').value.trim(),
+    chapter       : document.getElementById('q-chapter').value,
+    class_num     : document.getElementById('q-class').value,
     difficulty    : document.getElementById('q-difficulty').value,
     max_marks     : document.getElementById('q-marks').value,
     source        : document.getElementById('q-source').value,
@@ -1377,7 +1424,6 @@ async function saveQuestion() {
   };
 
   if (!payload.latex_content) { errBox.textContent='Question text is required.'; errBox.style.display='block'; return; }
-  if (!payload.chapter)       { errBox.textContent='Chapter/Topic is required.'; errBox.style.display='block'; return; }
 
   btn.disabled = true;
   btn.textContent = 'Saving...';

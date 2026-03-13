@@ -488,7 +488,207 @@ def save_question():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
 
-# ── DEBUG (remove after confirming) ───────────────────
+# ── PAPERS API ────────────────────────────────────────
+@app.route("/api/teacher/papers", methods=["GET"])
+@require_role("teacher")
+def get_papers():
+    user = get_current_user(request)
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Get teacher's user_id
+            user_row = conn.execute(text(
+                "SELECT user_id FROM users WHERE email = :email"
+            ), {"email": user["email"]}).fetchone()
+            if not user_row:
+                return jsonify({"ok": False, "error": "User not found"})
+
+            rows = conn.execute(text("""
+                SELECT
+                    p.paper_id, p.title, p.subject, p.class,
+                    p.total_marks, p.duration_minutes, p.is_active,
+                    CONVERT(VARCHAR, p.created_at, 120) as created_at,
+                    COUNT(pq.question_id) as question_count
+                FROM papers p
+                LEFT JOIN paper_questions pq ON p.paper_id = pq.paper_id
+                WHERE p.created_by = :uid
+                GROUP BY p.paper_id, p.title, p.subject, p.class,
+                         p.total_marks, p.duration_minutes, p.is_active, p.created_at
+                ORDER BY p.created_at DESC
+            """), {"uid": str(user_row[0])}).fetchall()
+
+        return jsonify({"ok": True, "papers": [dict(r._mapping) for r in rows]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/papers/<paper_id>", methods=["GET"])
+@require_role("teacher")
+def get_paper(paper_id):
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            paper = conn.execute(text("""
+                SELECT paper_id, title, subject, class, total_marks,
+                       duration_minutes, marking_scheme, is_active
+                FROM papers WHERE paper_id = :pid
+            """), {"pid": paper_id}).fetchone()
+
+            if not paper:
+                return jsonify({"ok": False, "error": "Paper not found"})
+
+            questions = conn.execute(text("""
+                SELECT
+                    pq.question_id, pq.section, pq.order_num, pq.marks_override,
+                    q.latex_content, q.subject, q.chapter, q.difficulty,
+                    q.max_marks, q.type, q.model_solution
+                FROM paper_questions pq
+                JOIN questions q ON pq.question_id = q.question_id
+                WHERE pq.paper_id = :pid
+                ORDER BY pq.section, pq.order_num
+            """), {"pid": paper_id}).fetchall()
+
+        result = dict(paper._mapping)
+        result["questions"] = [dict(q._mapping) for q in questions]
+        return jsonify({"ok": True, "paper": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/papers", methods=["POST"])
+@require_role("teacher")
+def create_paper():
+    user = get_current_user(request)
+    data = request.json
+    try:
+        required = ["title", "subject", "class_num", "duration_minutes", "total_marks"]
+        if not all(data.get(f) for f in required):
+            return jsonify({"ok": False, "error": "Required fields missing"})
+
+        engine = get_engine()
+
+        with engine.connect() as conn:
+            user_row = conn.execute(text(
+                "SELECT user_id FROM users WHERE email = :email"
+            ), {"email": user["email"]}).fetchone()
+        if not user_row:
+            return jsonify({"ok": False, "error": "User not found"})
+
+        with engine.begin() as conn:
+            # Insert paper and get generated ID
+            conn.execute(text("""
+                INSERT INTO papers
+                    (title, subject, class, total_marks, duration_minutes,
+                     marking_scheme, created_by, is_active, is_locked)
+                VALUES
+                    (:title, :subject, :class, :marks, :duration,
+                     :scheme, :uid, :active, 0)
+            """), {
+                "title"    : data["title"],
+                "subject"  : data["subject"],
+                "class"    : data["class_num"],
+                "marks"    : data["total_marks"],
+                "duration" : data["duration_minutes"],
+                "scheme"   : data.get("instructions") or None,
+                "uid"      : str(user_row[0]),
+                "active"   : data.get("is_active", 0)
+            })
+
+            paper_id = conn.execute(text("""
+                SELECT TOP 1 paper_id FROM papers
+                WHERE created_by = :uid ORDER BY created_at DESC
+            """), {"uid": str(user_row[0])}).fetchone()[0]
+
+            # Insert paper_questions
+            for q in data.get("questions", []):
+                conn.execute(text("""
+                    INSERT INTO paper_questions
+                        (paper_id, question_id, order_num, section)
+                    VALUES (:pid, :qid, :order, :section)
+                """), {
+                    "pid"     : str(paper_id),
+                    "qid"     : q["question_id"],
+                    "order"   : q["order_num"],
+                    "section" : q["section"]
+                })
+
+        return jsonify({"ok": True, "paper_id": str(paper_id)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/papers/<paper_id>", methods=["PUT"])
+@require_role("teacher")
+def update_paper(paper_id):
+    data = request.json
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE papers SET
+                    title            = :title,
+                    subject          = :subject,
+                    class            = :class,
+                    total_marks      = :marks,
+                    duration_minutes = :duration,
+                    marking_scheme   = :scheme,
+                    is_active        = :active
+                WHERE paper_id = :pid
+            """), {
+                "title"    : data["title"],
+                "subject"  : data["subject"],
+                "class"    : data["class_num"],
+                "marks"    : data["total_marks"],
+                "duration" : data["duration_minutes"],
+                "scheme"   : data.get("instructions") or None,
+                "active"   : data.get("is_active", 0),
+                "pid"      : paper_id
+            })
+
+            # Replace all questions
+            conn.execute(text("DELETE FROM paper_questions WHERE paper_id = :pid"), {"pid": paper_id})
+            for q in data.get("questions", []):
+                conn.execute(text("""
+                    INSERT INTO paper_questions
+                        (paper_id, question_id, order_num, section)
+                    VALUES (:pid, :qid, :order, :section)
+                """), {
+                    "pid"     : paper_id,
+                    "qid"     : q["question_id"],
+                    "order"   : q["order_num"],
+                    "section" : q["section"]
+                })
+
+        return jsonify({"ok": True, "paper_id": paper_id})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/papers/<paper_id>", methods=["DELETE"])
+@require_role("teacher")
+def delete_paper(paper_id):
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM paper_questions WHERE paper_id = :pid"), {"pid": paper_id})
+            conn.execute(text("DELETE FROM papers WHERE paper_id = :pid"), {"pid": paper_id})
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+# ── DEBUG ─────────────────────────────────────────────
+@app.route("/admin/papers-schema")
+def papers_schema():
+    engine = get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'papers'
+            ORDER BY ORDINAL_POSITION
+        """)).fetchall()
+    return jsonify([dict(r._mapping) for r in rows])
+
 @app.route("/admin/teachers-schema")
 def teachers_schema():
     engine = get_engine()

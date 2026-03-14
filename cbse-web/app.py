@@ -870,6 +870,13 @@ def create_assignment():
         if not teacher_user:
             return jsonify({"ok": False, "error": "Teacher not found"})
 
+        with engine.connect() as conn:
+            teacher_row = conn.execute(text(
+                "SELECT teacher_id FROM teachers WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)"
+            ), {"uid": str(teacher_user[0])}).fetchone()
+        if not teacher_row:
+            return jsonify({"ok": False, "error": "Teacher profile not found"})
+
         assigned_count = 0
         skipped_count  = 0
         with engine.begin() as conn:
@@ -897,7 +904,7 @@ def create_assignment():
                 """), {
                     "pid"         : str(paper_id),
                     "sid"         : str(sid),
-                    "assigned_by" : str(teacher_user[0]),
+                    "assigned_by" : str(teacher_row[0]),
                     "due_date"    : due_date,
                     "token"       : str(uuid.uuid4())
                 })

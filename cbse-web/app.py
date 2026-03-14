@@ -503,6 +503,12 @@ def get_papers():
             if not user_row:
                 return jsonify({"ok": False, "error": "User not found"})
 
+            teacher_row = conn.execute(text(
+                "SELECT teacher_id FROM teachers WHERE user_id = :uid"
+            ), {"uid": str(user_row[0])}).fetchone()
+            if not teacher_row:
+                return jsonify({"ok": False, "error": "Teacher profile not found"})
+
             rows = conn.execute(text("""
                 SELECT
                     p.paper_id, p.title, p.subject, p.class,
@@ -511,11 +517,11 @@ def get_papers():
                     COUNT(pq.question_id) as question_count
                 FROM papers p
                 LEFT JOIN paper_questions pq ON p.paper_id = pq.paper_id
-                WHERE p.created_by = :uid
+                WHERE p.created_by = :tid
                 GROUP BY p.paper_id, p.title, p.subject, p.class,
                          p.total_marks, p.duration_minutes, p.is_active, p.created_at
                 ORDER BY p.created_at DESC
-            """), {"uid": str(user_row[0])}).fetchall()
+            """), {"tid": str(teacher_row[0])}).fetchall()
 
         return jsonify({"ok": True, "papers": [dict(r._mapping) for r in rows]})
     except Exception as e:

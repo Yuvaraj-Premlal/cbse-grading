@@ -2,12 +2,19 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, m
 from sqlalchemy import create_engine, text
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import urllib, os, hashlib, hmac, uuid, json, base64, threading
 from jose import jwt, JWTError
-from openai import AzureOpenAI
+
+# Lazy imports — only loaded when needed so app starts even if not yet installed
+def _get_blob_service_client():
+    from azure.storage.blob import BlobServiceClient
+    return BlobServiceClient
+
+def _get_azure_openai():
+    from openai import AzureOpenAI
+    return AzureOpenAI
 
 load_dotenv()
 app = Flask(__name__)
@@ -56,6 +63,7 @@ def get_engine():
 BLOB_CONTAINER = "answer-sheets"
 
 def get_blob_client():
+    BlobServiceClient = _get_blob_service_client()
     return BlobServiceClient.from_connection_string(secrets["storage"])
 
 def upload_answer_sheet(file_bytes, filename, content_type):
@@ -97,6 +105,7 @@ def get_sas_url(blob_url, expiry_hours=2):
 
 # ── OPENAI ────────────────────────────────────────────
 def get_openai_client():
+    AzureOpenAI = _get_azure_openai()
     return AzureOpenAI(
         azure_endpoint = secrets["oai_endpoint"],
         api_key        = secrets["oai_key"],

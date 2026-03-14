@@ -613,6 +613,7 @@ def create_paper():
             """), {"tid": str(teacher_row[0])}).fetchone()[0]
 
             # Insert paper_questions
+            print("DEBUG questions:", data.get("questions", []), flush=True)
             for q in data.get("questions", []):
                 conn.execute(text("""
                     INSERT INTO paper_questions

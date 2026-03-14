@@ -59,14 +59,41 @@ def get_blob_client():
     return BlobServiceClient.from_connection_string(secrets["storage"])
 
 def upload_answer_sheet(file_bytes, filename, content_type):
-    """Upload file to Azure Blob, return public URL."""
-    blob_client = get_blob_client()
-    container   = blob_client.get_container_client(BLOB_CONTAINER)
-    blob_name   = f"{uuid.uuid4()}_{filename}"
-    container.upload_blob(blob_name, file_bytes, content_settings=
-        __import__('azure.storage.blob', fromlist=['ContentSettings']).ContentSettings(content_type=content_type))
-    account_name = blob_client.account_name
+    """Upload file to Azure Blob, return blob name (not URL — use get_sas_url to read)."""
+    from azure.storage.blob import ContentSettings
+    blob_service  = get_blob_client()
+    container     = blob_service.get_container_client(BLOB_CONTAINER)
+    blob_name     = f"{uuid.uuid4()}_{filename}"
+    container.upload_blob(
+        blob_name, file_bytes,
+        content_settings=ContentSettings(content_type=content_type)
+    )
+    # Return internal URL — not publicly accessible
+    account_name = blob_service.account_name
     return f"https://{account_name}.blob.core.windows.net/{BLOB_CONTAINER}/{blob_name}"
+
+def get_sas_url(blob_url, expiry_hours=2):
+    """Generate a time-limited SAS URL for a private blob."""
+    from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+    from datetime import timezone
+    # Parse blob name from URL
+    # URL format: https://<account>.blob.core.windows.net/<container>/<blob_name>
+    parts     = blob_url.split(f".blob.core.windows.net/{BLOB_CONTAINER}/")
+    blob_name = parts[1] if len(parts) > 1 else blob_url
+    blob_service = get_blob_client()
+    # Get account key from connection string
+    conn_str = secrets["storage"]
+    key = dict(part.split("=", 1) for part in conn_str.split(";") if "=" in part).get("AccountKey", "")
+    account_name = blob_service.account_name
+    sas_token = generate_blob_sas(
+        account_name   = account_name,
+        container_name = BLOB_CONTAINER,
+        blob_name      = blob_name,
+        account_key    = key,
+        permission     = BlobSasPermissions(read=True),
+        expiry         = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
+    )
+    return f"{blob_url}?{sas_token}"
 
 # ── OPENAI ────────────────────────────────────────────
 def get_openai_client():
@@ -126,7 +153,7 @@ Return ONLY the JSON array, nothing else."""
     response = client.chat.completions.create(
         model       = secrets["oai_deploy"],
         messages    = messages,
-        max_tokens  = 3000,
+        max_tokens  = 4000,
         temperature = 0.1
     )
 
@@ -152,8 +179,12 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
     try:
         engine = get_engine()
 
+        # Generate SAS URL so GPT-4o can read the private blob
+        sas_url = get_sas_url(answer_sheet_url, expiry_hours=1)
+        print(f"Grading with SAS URL: {sas_url[:80]}...", flush=True)
+
         # Grade with GPT-4o
-        results = grade_submission(questions, answer_sheet_url)
+        results = grade_submission(questions, sas_url)
 
         total_awarded = 0
         total_max     = sum(q['max_marks'] for q in questions)

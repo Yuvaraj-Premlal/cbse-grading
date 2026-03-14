@@ -574,6 +574,13 @@ def create_paper():
         if not user_row:
             return jsonify({"ok": False, "error": "User not found"})
 
+        with engine.connect() as conn:
+            teacher_row = conn.execute(text(
+                "SELECT teacher_id FROM teachers WHERE user_id = :uid"
+            ), {"uid": str(user_row[0])}).fetchone()
+        if not teacher_row:
+            return jsonify({"ok": False, "error": "Teacher profile not found"})
+
         with engine.begin() as conn:
             # Insert paper and get generated ID
             conn.execute(text("""
@@ -582,7 +589,7 @@ def create_paper():
                      marking_scheme, created_by, is_active, is_locked)
                 VALUES
                     (:title, :subject, :class, :marks, :duration,
-                     :scheme, :uid, :active, 0)
+                     :scheme, :tid, :active, 0)
             """), {
                 "title"    : data["title"],
                 "subject"  : data["subject"],
@@ -590,14 +597,14 @@ def create_paper():
                 "marks"    : data["total_marks"],
                 "duration" : data["duration_minutes"],
                 "scheme"   : data.get("instructions") or None,
-                "uid"      : str(user_row[0]),
+                "tid"      : str(teacher_row[0]),
                 "active"   : data.get("is_active", 0)
             })
 
             paper_id = conn.execute(text("""
                 SELECT TOP 1 paper_id FROM papers
-                WHERE created_by = :uid ORDER BY created_at DESC
-            """), {"uid": str(user_row[0])}).fetchone()[0]
+                WHERE created_by = :tid ORDER BY created_at DESC
+            """), {"tid": str(teacher_row[0])}).fetchone()[0]
 
             # Insert paper_questions
             for q in data.get("questions", []):

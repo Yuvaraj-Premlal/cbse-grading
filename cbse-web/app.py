@@ -784,6 +784,19 @@ if __name__ == "__main__":
 def get_students():
     try:
         engine = get_engine()
+        # Auto-create missing student records for users with role='student'
+        with engine.begin() as conn:
+            missing = conn.execute(text("""
+                SELECT u.user_id FROM users u
+                WHERE u.role = 'student' AND u.is_active = 1
+                AND NOT EXISTS (SELECT 1 FROM students s WHERE s.user_id = u.user_id)
+            """)).fetchall()
+            for row in missing:
+                conn.execute(text("""
+                    INSERT INTO students (student_id, user_id)
+                    VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER))
+                """), {"uid": str(row[0])})
+
         with engine.connect() as conn:
             rows = conn.execute(text("""
                 SELECT s.student_id, u.name, u.email

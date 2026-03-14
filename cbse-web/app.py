@@ -2,10 +2,12 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, m
 from sqlalchemy import create_engine, text
 from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import urllib, os, hashlib, hmac
+import urllib, os, hashlib, hmac, uuid, json, base64, threading
 from jose import jwt, JWTError
+from openai import AzureOpenAI
 
 load_dotenv()
 app = Flask(__name__)
@@ -19,14 +21,22 @@ def get_secrets():
             credential=credential
         )
         return {
-            "db":  client.get_secret("DB-CONNECTION-STRING").value,
-            "jwt": client.get_secret("JWT-SECRET").value,
+            "db"      : client.get_secret("DB-CONNECTION-STRING").value,
+            "jwt"     : client.get_secret("JWT-SECRET").value,
+            "storage" : client.get_secret("AZURE-STORAGE-CONNECTION-STRING").value,
+            "oai_endpoint" : client.get_secret("AZURE-OPENAI-ENDPOINT").value,
+            "oai_key"      : client.get_secret("AZURE-OPENAI-KEY").value,
+            "oai_deploy"   : client.get_secret("AZURE-OPENAI-DEPLOYMENT").value,
         }
     except Exception as e:
         print(f"Key Vault fallback: {e}")
         return {
-            "db":  os.getenv("DB_CONNECTION_STRING"),
-            "jwt": os.getenv("JWT_SECRET"),
+            "db"      : os.getenv("DB_CONNECTION_STRING"),
+            "jwt"     : os.getenv("JWT_SECRET"),
+            "storage" : os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+            "oai_endpoint" : os.getenv("AZURE_OPENAI_ENDPOINT"),
+            "oai_key"      : os.getenv("AZURE_OPENAI_KEY"),
+            "oai_deploy"   : os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         }
 
 secrets = get_secrets()
@@ -41,6 +51,192 @@ def get_engine():
         f"mssql+pyodbc:///?odbc_connect={params}",
         pool_pre_ping=True
     )
+
+# ── BLOB STORAGE ─────────────────────────────────────
+BLOB_CONTAINER = "answer-sheets"
+
+def get_blob_client():
+    return BlobServiceClient.from_connection_string(secrets["storage"])
+
+def upload_answer_sheet(file_bytes, filename, content_type):
+    """Upload file to Azure Blob, return public URL."""
+    blob_client = get_blob_client()
+    container   = blob_client.get_container_client(BLOB_CONTAINER)
+    blob_name   = f"{uuid.uuid4()}_{filename}"
+    container.upload_blob(blob_name, file_bytes, content_settings=
+        __import__('azure.storage.blob', fromlist=['ContentSettings']).ContentSettings(content_type=content_type))
+    account_name = blob_client.account_name
+    return f"https://{account_name}.blob.core.windows.net/{BLOB_CONTAINER}/{blob_name}"
+
+# ── OPENAI ────────────────────────────────────────────
+def get_openai_client():
+    return AzureOpenAI(
+        azure_endpoint = secrets["oai_endpoint"],
+        api_key        = secrets["oai_key"],
+        api_version    = "2024-02-01"
+    )
+
+def grade_submission(questions, answer_sheet_url):
+    """
+    Grade student answer sheet using GPT-4o vision.
+    Returns list of per-question results.
+    """
+    client = get_openai_client()
+
+    # Build question list for prompt
+    q_text = ""
+    for i, q in enumerate(questions, 1):
+        q_text += f"""
+Q{i}. [{q['chapter']} · {q['max_marks']} marks]
+{q['latex_content']}
+Model Solution: {q.get('model_solution') or 'Grade based on standard CBSE marking scheme'}
+---"""
+
+    system_prompt = """You are an expert CBSE Mathematics and Science examiner.
+You will be given a question paper and a student's handwritten answer sheet image.
+Grade each question strictly according to CBSE marking scheme — award marks for correct steps even if final answer is wrong.
+Respond ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
+
+    user_prompt = f"""Grade this student's answer sheet for the following questions:
+
+{q_text}
+
+For each question return a JSON object with these exact fields:
+- question_number: "Q1", "Q2" etc
+- max_marks: integer
+- ai_marks_awarded: integer (0 to max_marks)
+- ai_step_breakdown: string explaining marks per step
+- ai_strength: string (what student did well)
+- ai_weakness: string (what student missed or got wrong)
+- ai_model_solution: string (brief ideal solution)
+- ai_coaching_tip: string (one actionable tip for improvement)
+- ai_confidence: float between 0 and 1 (your confidence in this grade)
+- ai_flag_review: boolean (true if teacher should review)
+
+Return ONLY the JSON array, nothing else."""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": [
+            {"type": "text", "text": user_prompt},
+            {"type": "image_url", "image_url": {"url": answer_sheet_url, "detail": "high"}}
+        ]}
+    ]
+
+    response = client.chat.completions.create(
+        model       = secrets["oai_deploy"],
+        messages    = messages,
+        max_tokens  = 3000,
+        temperature = 0.1
+    )
+
+    raw = response.choices[0].message.content.strip()
+    # Strip markdown if present
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return json.loads(raw.strip())
+
+def calculate_grade(percentage):
+    if percentage >= 90: return 'A+'
+    if percentage >= 75: return 'A'
+    if percentage >= 60: return 'B+'
+    if percentage >= 50: return 'B'
+    if percentage >= 40: return 'C'
+    if percentage >= 33: return 'D'
+    return 'F'
+
+def run_grading_async(submission_id, assignment_id, student_id, questions, answer_sheet_url):
+    """Run AI grading in background thread."""
+    try:
+        engine = get_engine()
+
+        # Grade with GPT-4o
+        results = grade_submission(questions, answer_sheet_url)
+
+        total_awarded = 0
+        total_max     = sum(q['max_marks'] for q in questions)
+
+        with engine.begin() as conn:
+            for r in results:
+                # Find matching question
+                q_match = next((q for q in questions
+                    if q['question_number'] == r.get('question_number')), None)
+                question_id = q_match['question_id'] if q_match else None
+
+                marks = min(r.get('ai_marks_awarded', 0), r.get('max_marks', 0))
+                total_awarded += marks
+
+                conn.execute(text("""
+                    INSERT INTO submission_questions
+                        (sq_id, submission_id, question_id, question_number,
+                         max_marks, ai_marks_awarded, ai_step_breakdown,
+                         ai_strength, ai_weakness, ai_model_solution,
+                         ai_coaching_tip, ai_confidence, ai_flag_review)
+                    VALUES
+                        (NEWID(),
+                         CAST(:sid AS UNIQUEIDENTIFIER),
+                         CAST(:qid AS UNIQUEIDENTIFIER),
+                         :qnum, :max_marks, :awarded,
+                         :breakdown, :strength, :weakness,
+                         :model_sol, :tip,
+                         :confidence, :flag)
+                """), {
+                    "sid"       : str(submission_id),
+                    "qid"       : str(question_id) if question_id else str(uuid.uuid4()),
+                    "qnum"      : r.get('question_number'),
+                    "max_marks" : r.get('max_marks', 0),
+                    "awarded"   : marks,
+                    "breakdown" : r.get('ai_step_breakdown', ''),
+                    "strength"  : r.get('ai_strength', ''),
+                    "weakness"  : r.get('ai_weakness', ''),
+                    "model_sol" : r.get('ai_model_solution', ''),
+                    "tip"       : r.get('ai_coaching_tip', ''),
+                    "confidence": float(r.get('ai_confidence', 0.8)),
+                    "flag"      : bool(r.get('ai_flag_review', False))
+                })
+
+            pct   = round((total_awarded / total_max * 100), 2) if total_max > 0 else 0
+            grade = calculate_grade(pct)
+
+            # Update submission
+            conn.execute(text("""
+                UPDATE submissions SET
+                    total_awarded = :awarded,
+                    total_max     = :total_max,
+                    percentage    = :pct,
+                    grade         = :grade,
+                    graded_at     = GETUTCDATE()
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {
+                "awarded"  : total_awarded,
+                "total_max": total_max,
+                "pct"      : pct,
+                "grade"    : grade,
+                "sid"      : str(submission_id)
+            })
+
+            # Update assignment status
+            conn.execute(text("""
+                UPDATE assignments SET status = 'graded'
+                WHERE assignment_id = CAST(:aid AS UNIQUEIDENTIFIER)
+            """), {"aid": str(assignment_id)})
+
+        print(f"✅ Grading complete: submission {submission_id} — {total_awarded}/{total_max} ({pct}%)")
+
+    except Exception as e:
+        print(f"❌ Grading failed for submission {submission_id}: {e}")
+        try:
+            engine = get_engine()
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    UPDATE submissions SET
+                        ai_results = :err
+                    WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                """), {"err": f"Grading failed: {str(e)[:200]}", "sid": str(submission_id)})
+        except:
+            pass
 
 # ── PASSWORD ──────────────────────────────────────────
 def hash_password(password: str) -> str:
@@ -937,6 +1133,151 @@ def get_student_paper(paper_id):
         result = dict(paper._mapping)
         result["questions"] = [dict(q._mapping) for q in questions]
         return jsonify({"ok": True, "paper": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── UPLOAD ANSWER SHEET ───────────────────────────────
+@app.route("/api/student/upload", methods=["POST"])
+@require_role("student")
+def upload_answer():
+    user = get_current_user(request)
+    try:
+        if 'file' not in request.files:
+            return jsonify({"ok": False, "error": "No file provided"})
+
+        file = request.files['file']
+        if not file.filename:
+            return jsonify({"ok": False, "error": "No file selected"})
+
+        # Validate file type
+        allowed = {'pdf', 'jpg', 'jpeg', 'png'}
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in allowed:
+            return jsonify({"ok": False, "error": "Only PDF, JPG, PNG accepted"})
+
+        # Validate file size (20MB max)
+        file_bytes = file.read()
+        if len(file_bytes) > 20 * 1024 * 1024:
+            return jsonify({"ok": False, "error": "File too large — max 20MB"})
+
+        content_type = file.content_type or f"image/{ext}"
+        url = upload_answer_sheet(file_bytes, file.filename, content_type)
+
+        return jsonify({"ok": True, "url": url, "filename": file.filename,
+                        "size_mb": round(len(file_bytes) / 1024 / 1024, 2)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── SUBMIT EXAM ───────────────────────────────────────
+@app.route("/api/student/submit", methods=["POST"])
+@require_role("student")
+def submit_exam():
+    user = get_current_user(request)
+    data = request.json
+    try:
+        assignment_id    = data.get("assignment_id")
+        answer_sheet_url = data.get("answer_sheet_url")
+
+        if not assignment_id or not answer_sheet_url:
+            return jsonify({"ok": False, "error": "assignment_id and answer_sheet_url required"})
+
+        engine = get_engine()
+        with engine.connect() as conn:
+            user_id, student_id = get_student_id(conn, user)
+            if not student_id:
+                return jsonify({"ok": False, "error": "Student profile not found"})
+
+            # Verify assignment belongs to this student and is still pending
+            assignment = conn.execute(text("""
+                SELECT a.assignment_id, a.paper_id, a.status, a.due_date
+                FROM assignments a
+                WHERE a.assignment_id = CAST(:aid AS UNIQUEIDENTIFIER)
+                AND a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"aid": assignment_id, "sid": student_id}).fetchone()
+
+            if not assignment:
+                return jsonify({"ok": False, "error": "Assignment not found"})
+            if assignment.status != 'assigned':
+                return jsonify({"ok": False, "error": "Already submitted"})
+
+            # Get questions for grading
+            questions = conn.execute(text("""
+                SELECT pq.order_num, pq.section,
+                       q.question_id, q.latex_content, q.chapter,
+                       q.max_marks, q.type, q.model_solution,
+                       CONCAT('Q', pq.order_num) as question_number
+                FROM paper_questions pq
+                JOIN questions q ON pq.question_id = q.question_id
+                WHERE pq.paper_id = CAST(:pid AS UNIQUEIDENTIFIER)
+                ORDER BY pq.section, pq.order_num
+            """), {"pid": str(assignment.paper_id)}).fetchall()
+
+        questions_list = [dict(q._mapping) for q in questions]
+
+        submission_id = str(uuid.uuid4())
+
+        with engine.begin() as conn:
+            # Create submission
+            conn.execute(text("""
+                INSERT INTO submissions
+                    (submission_id, assignment_id, student_id,
+                     answer_sheet_url, submitted_at)
+                VALUES
+                    (CAST(:sub_id AS UNIQUEIDENTIFIER),
+                     CAST(:aid AS UNIQUEIDENTIFIER),
+                     CAST(:sid AS UNIQUEIDENTIFIER),
+                     :url, GETUTCDATE())
+            """), {
+                "sub_id" : submission_id,
+                "aid"    : assignment_id,
+                "sid"    : student_id,
+                "url"    : answer_sheet_url
+            })
+
+            # Update assignment status
+            conn.execute(text("""
+                UPDATE assignments SET status = 'submitted'
+                WHERE assignment_id = CAST(:aid AS UNIQUEIDENTIFIER)
+            """), {"aid": assignment_id})
+
+        # Run AI grading in background thread
+        thread = threading.Thread(
+            target=run_grading_async,
+            args=(submission_id, assignment_id, student_id,
+                  questions_list, answer_sheet_url),
+            daemon=True
+        )
+        thread.start()
+
+        return jsonify({
+            "ok"           : True,
+            "submission_id": submission_id,
+            "message"      : "Submitted successfully. AI grading has started and will complete in 1–2 minutes."
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── CHECK GRADING STATUS ──────────────────────────────
+@app.route("/api/student/submission-status/<submission_id>")
+@require_role("student")
+def submission_status(submission_id):
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            sub = conn.execute(text("""
+                SELECT total_awarded, total_max, percentage, grade,
+                       graded_at, ai_results
+                FROM submissions
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"sid": submission_id}).fetchone()
+            if not sub:
+                return jsonify({"ok": False, "error": "Not found"})
+            result = dict(sub._mapping)
+            result["graded"] = sub.graded_at is not None
+        return jsonify({"ok": True, "submission": result})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
 

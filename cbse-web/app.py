@@ -810,6 +810,20 @@ def get_students():
         return jsonify({"ok": False, "error": str(e)[:300]})
 
 
+# ── DEBUG SCHEMA ─────────────────────────────────────
+@app.route("/admin/debug-schema")
+def debug_schema():
+    engine = get_engine()
+    with engine.connect() as conn:
+        tables = ['assignments','submissions','students','disputes','submission_questions']
+        result = {}
+        for t in tables:
+            cols = conn.execute(text(
+                "SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=:t ORDER BY ORDINAL_POSITION"
+            ), {"t": t}).fetchall()
+            result[t] = [dict(r._mapping) for r in cols]
+    return jsonify(result)
+
 # ── DEBUG STUDENTS ───────────────────────────────────
 @app.route("/admin/debug-students")
 def debug_students():

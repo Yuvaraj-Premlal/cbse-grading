@@ -144,8 +144,8 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 .divider{height:1px;background:var(--border);margin:20px 0;}
 
 /* ── MODAL OVERLAY ── */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,14,26,.4);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;}
-.modal-overlay.open{display:flex;}
+.modal-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(10,14,26,.4);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;}
+
 .modal{background:var(--white);border-radius:18px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:fadein .2s ease;}
 .modal-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;}
 .modal-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
@@ -411,7 +411,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <div style="text-align:center;padding:40px;color:var(--muted);">Loading questions...</div>
     </div>
 
-    <div id="selected-bar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:14px 24px;border-radius:14px;align-items:center;gap:16px;box-shadow:var(--shadow-lg);z-index:200;">
+    <div id="selected-bar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:14px 24px;border-radius:14px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-lg);z-index:200;">
       <span id="selected-count" style="font-size:13.5px;font-weight:600;">0 questions selected</span>
       <button class="btn btn-primary btn-sm" onclick="showPage('page-papers',document.querySelector('[onclick*=page-papers]'))">Add to Paper →</button>
       <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;" onclick="clearSelection()">✕ Clear</button>
@@ -546,65 +546,26 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     </div>
   </div>
   <div class="content-area">
-    <div style="max-width:680px;">
+    <div style="max-width:700px;">
       <div class="page-title">Assign a Paper</div>
-      <div class="page-sub">Select a paper, choose students, set a due date. Students are notified immediately.</div>
+      <div class="page-sub">Select a published paper, choose students, set a due date.</div>
 
       <div class="card" style="margin-bottom:20px;">
         <div class="section-label">Step 1 — Select Paper</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:0;">
-          <label style="display:flex;align-items:center;gap:14px;padding:14px;border:2px solid var(--blue);border-radius:11px;background:var(--blue-l);cursor:pointer;">
-            <input type="radio" name="paper" checked style="accent-color:var(--blue);"/>
-            <div style="flex:1;">
-              <div style="font-size:14px;font-weight:600;color:var(--text);">Mathematics — Unit Test 4</div>
-              <div style="font-size:12px;color:var(--muted);">3 questions · 13 marks · Calculus, Vectors, Matrices</div>
-            </div>
-            <span class="badge badge-green">Ready</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;">
-            <input type="radio" name="paper" style="accent-color:var(--blue);"/>
-            <div style="flex:1;">
-              <div style="font-size:14px;font-weight:600;color:var(--text);">Mathematics — Half Yearly Practice</div>
-              <div style="font-size:12px;color:var(--muted);">8 questions · 40 marks · All topics</div>
-            </div>
-            <span class="badge badge-amber">Draft</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid var(--border);border-radius:11px;cursor:pointer;">
-            <input type="radio" name="paper" style="accent-color:var(--blue);"/>
-            <div style="flex:1;">
-              <div style="font-size:14px;font-weight:600;color:var(--text);">Physics — Electrostatics Unit Test</div>
-              <div style="font-size:12px;color:var(--muted);">5 questions · 25 marks · Ch 1–3</div>
-            </div>
-            <span class="badge badge-green">Ready</span>
-          </label>
+        <div id="assign-paper-list">
+          <div style="text-align:center;padding:24px;color:var(--muted);">Loading papers...</div>
         </div>
       </div>
 
       <div class="card" style="margin-bottom:20px;">
         <div class="section-label">Step 2 — Select Students</div>
         <div style="display:flex;gap:10px;margin-bottom:14px;">
-          <button class="btn btn-secondary btn-sm" onclick="selectAll()">Select All (28)</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearAll()">Clear All</button>
+          <button class="btn btn-secondary btn-sm" onclick="assignSelectAll()">Select All</button>
+          <button class="btn btn-ghost btn-sm" onclick="assignClearAll()">Clear All</button>
+          <span id="assign-student-count" style="font-size:13px;color:var(--muted);line-height:36px;margin-left:4px;"></span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;" id="student-grid">
-          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" checked style="accent-color:var(--blue);"/>Aryan Mehta
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" checked style="accent-color:var(--blue);"/>Sneha Iyer
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" checked style="accent-color:var(--blue);"/>Rahul Das
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" style="accent-color:var(--blue);"/>Priya Nair
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" style="accent-color:var(--blue);"/>Vikram Singh
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" style="accent-color:var(--blue);"/>Ananya Roy
-          </label>
+        <div id="assign-student-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
+          <div style="color:var(--muted);font-size:13px;padding:8px;">Loading students...</div>
         </div>
       </div>
 
@@ -613,33 +574,25 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="grid-2">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Due Date</label>
-            <input class="form-input" type="date" value="2026-03-14"/>
+            <input class="form-input" type="date" id="assign-due-date"/>
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Due Time</label>
-            <input class="form-input" type="time" value="23:59"/>
+            <input class="form-input" type="time" id="assign-due-time" value="23:59"/>
           </div>
         </div>
       </div>
 
-      <!-- REPEAT WARNING -->
-      <div style="background:var(--amber-l);border:1.5px solid #F59E0B;border-radius:12px;padding:16px;margin-bottom:20px;">
-        <div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">⚠️ Repeat Question Warning</div>
-        <div style="font-size:13px;color:var(--text);line-height:1.6;">1 question in this paper was seen by 3 students in a previous exam. <strong>Aryan Mehta, Sneha Iyer, Rahul Das</strong> attempted Q2 (Calculus) on Feb 12.</div>
-        <div style="margin-top:12px;display:flex;gap:8px;">
-          <button class="btn btn-primary btn-sm">✓ Confirm Anyway</button>
-          <button class="btn btn-ghost btn-sm">← Change Paper</button>
-        </div>
-      </div>
+      <div id="assign-error" style="display:none;background:var(--red-l);border:1px solid #FCCACA;color:var(--red);border-radius:9px;padding:12px 16px;font-size:13px;margin-bottom:16px;"></div>
+      <div id="assign-success" style="display:none;background:var(--green-l);border:1px solid #A7F3D0;color:var(--green);border-radius:9px;padding:12px 16px;font-size:13px;margin-bottom:16px;"></div>
 
       <div style="display:flex;gap:12px;">
-        <button class="btn btn-primary" onclick="openModal('modal-assign-confirm')">📤 Assign to 3 Students →</button>
-        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary" id="assign-submit-btn" onclick="submitAssignment()">📤 Assign →</button>
+        <button class="btn btn-ghost" onclick="assignClearAll()">Clear</button>
       </div>
     </div>
   </div>
 </div>
-
 <!-- ══════════════════════════════════════
      PAGE 5 — REVIEW QUEUE
 ══════════════════════════════════════ -->
@@ -1069,7 +1022,6 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-question')">Cancel</button>
       <button class="btn btn-primary" id="q-save-btn" onclick="saveQuestion()">Save Question →</button>
-    </div>
   </div>
 </div>
 
@@ -1247,6 +1199,7 @@ function showPage(id, navBtn) {
   // Auto-load data for pages that need it
   if(id === 'page-questions') loadQuestions();
   if(id === 'page-papers')    loadPapers();
+  if(id === 'page-assign')    loadAssignPage();
 }
 
 // ── SIDEBAR TOGGLE (mobile) ──
@@ -1256,23 +1209,24 @@ function toggleSidebar(){
 
 // ── MODALS ──
 function openModal(id){
-  document.getElementById(id).style.display='flex';
-  if(id==='modal-add-question'){
+  const el = document.getElementById(id);
+  el.style.display = 'flex';
+  if (id === 'modal-add-question') {
     updateChapters();
-    if(!document.getElementById('q-editing-id').value){
-      document.getElementById('q-modal-title').textContent='Add Question';
-      document.getElementById('q-save-btn').textContent='Save Question →';
+    if (!document.getElementById('q-editing-id').value) {
+      document.getElementById('q-modal-title').textContent = 'Add Question';
+      document.getElementById('q-save-btn').textContent    = 'Save Question →';
     }
   }
 }
 function closeModal(id){
-  document.getElementById(id).style.display='none';
-  if(id==='modal-add-question'){
-    document.getElementById('q-editing-id').value='';
-    document.getElementById('q-modal-title').textContent='Add Question';
-    document.getElementById('q-save-btn').textContent='Save Question →';
-    document.getElementById('q-save-error').style.display='none';
-    document.getElementById('q-save-success').style.display='none';
+  document.getElementById(id).style.display = 'none';
+  if (id === 'modal-add-question') {
+    document.getElementById('q-editing-id').value        = '';
+    document.getElementById('q-modal-title').textContent = 'Add Question';
+    document.getElementById('q-save-btn').textContent    = 'Save Question →';
+    document.getElementById('q-save-error').style.display   = 'none';
+    document.getElementById('q-save-success').style.display = 'none';
   }
 }
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
@@ -1584,11 +1538,8 @@ async function loadPickQuestions() {
   if (subject)    params.append('subject', subject);
   if (difficulty) params.append('difficulty', difficulty);
   if (chapter)    params.append('chapter', chapter);
-  const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), 8000);
   try {
-    const res  = await fetch('/api/teacher/questions?' + params.toString(), { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res  = await fetch('/api/teacher/questions?' + params.toString());
     const data = await res.json();
     if (!data.ok || !data.questions.length) {
       list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);">No questions found.</div>';
@@ -1620,12 +1571,7 @@ async function loadPickQuestions() {
     }).join('');
     renderMath(list);
   } catch(e) {
-    clearTimeout(timeoutId);
-    if (e.name === 'AbortError') {
-      list.innerHTML = '<div style="color:var(--red);padding:16px;">⏱ Request timed out. Check your server connection.</div>';
-    } else {
-      list.innerHTML = '<div style="color:var(--red);padding:16px;">Failed to load. Check your server connection.</div>';
-    }
+    list.innerHTML = '<div style="color:var(--red);padding:16px;">Failed to load.</div>';
   }
 }
 
@@ -1927,6 +1873,131 @@ async function saveQuestion() {
   } finally {
     btn.disabled = false;
     btn.textContent = isEdit ? 'Update Question →' : 'Save Question →';
+  }
+}
+
+// ── ASSIGN EXAM ──────────────────────────────────────
+let assignPapers   = [];
+let assignStudents = [];
+
+async function loadAssignPage() {
+  // Set default due date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('assign-due-date').value = tomorrow.toISOString().split('T')[0];
+
+  // Load papers and students in parallel
+  try {
+    const [papersRes, studentsRes] = await Promise.all([
+      fetch('/api/teacher/published-papers'),
+      fetch('/api/teacher/students')
+    ]);
+    const papersData   = await papersRes.json();
+    const studentsData = await studentsRes.json();
+
+    // Render papers
+    assignPapers = papersData.ok ? papersData.papers : [];
+    const paperList = document.getElementById('assign-paper-list');
+    if (!assignPapers.length) {
+      paperList.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No published papers yet. Publish a paper from Paper Builder first.</div>';
+    } else {
+      paperList.innerHTML = assignPapers.map((p, i) => `
+        <label onclick="assignHighlightPaper(this)" style="display:flex;align-items:center;gap:14px;padding:14px;border:${i===0?'2px solid var(--blue)':'1.5px solid var(--border)'};border-radius:11px;${i===0?'background:var(--blue-l);':''}cursor:pointer;margin-bottom:8px;">
+          <input type="radio" name="assign-paper" value="${p.paper_id}" ${i===0?'checked':''} style="accent-color:var(--blue);"/>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:var(--text);">${p.title}</div>
+            <div style="font-size:12px;color:var(--muted);">${p.question_count} questions · ${p.total_marks} marks · ${p.subject} · Class ${p.class}</div>
+          </div>
+          <span class="badge badge-green">Published</span>
+        </label>`).join('');
+    }
+
+    // Render students
+    assignStudents = studentsData.ok ? studentsData.students : [];
+    const grid = document.getElementById('assign-student-grid');
+    if (!assignStudents.length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No students found.</div>';
+    } else {
+      grid.innerHTML = assignStudents.map(s => `
+        <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" onchange="updateAssignCount()">
+          <input type="checkbox" value="${s.user_id}" style="accent-color:var(--blue);"/>
+          ${s.name}
+        </label>`).join('');
+      updateAssignCount();
+    }
+  } catch(e) {
+    document.getElementById('assign-paper-list').innerHTML = '<div style="color:var(--red);font-size:13px;">Failed to load. Try again.</div>';
+  }
+}
+
+function assignHighlightPaper(label) {
+  document.querySelectorAll('#assign-paper-list label').forEach(l => {
+    l.style.border = '1.5px solid var(--border)';
+    l.style.background = '';
+  });
+  label.style.border = '2px solid var(--blue)';
+  label.style.background = 'var(--blue-l)';
+}
+
+function updateAssignCount() {
+  const checked = document.querySelectorAll('#assign-student-grid input:checked').length;
+  const total   = document.querySelectorAll('#assign-student-grid input').length;
+  document.getElementById('assign-student-count').textContent = checked ? `${checked} of ${total} selected` : '';
+}
+
+function assignSelectAll() {
+  document.querySelectorAll('#assign-student-grid input').forEach(c => c.checked = true);
+  updateAssignCount();
+}
+
+function assignClearAll() {
+  document.querySelectorAll('#assign-student-grid input').forEach(c => c.checked = false);
+  updateAssignCount();
+}
+
+async function submitAssignment() {
+  const errBox = document.getElementById('assign-error');
+  const okBox  = document.getElementById('assign-success');
+  errBox.style.display = 'none';
+  okBox.style.display  = 'none';
+
+  const paperRadio = document.querySelector('input[name="assign-paper"]:checked');
+  if (!paperRadio) { errBox.textContent = 'Please select a paper.'; errBox.style.display = 'block'; return; }
+
+  const studentIds = [...document.querySelectorAll('#assign-student-grid input:checked')].map(c => c.value);
+  if (!studentIds.length) { errBox.textContent = 'Please select at least one student.'; errBox.style.display = 'block'; return; }
+
+  const dueDate = document.getElementById('assign-due-date').value;
+  const dueTime = document.getElementById('assign-due-time').value;
+  if (!dueDate) { errBox.textContent = 'Please set a due date.'; errBox.style.display = 'block'; return; }
+
+  const btn = document.getElementById('assign-submit-btn');
+  btn.disabled = true; btn.textContent = 'Assigning...';
+
+  try {
+    const res  = await fetch('/api/teacher/assignments', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        paper_id    : paperRadio.value,
+        student_ids : studentIds,
+        due_date    : `${dueDate}T${dueTime}:00`
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      errBox.textContent = data.error;
+      errBox.style.display = 'block';
+    } else {
+      okBox.textContent = `✅ ${data.message}`;
+      okBox.style.display = 'block';
+      assignClearAll();
+    }
+  } catch(e) {
+    errBox.textContent = 'Failed to assign. Try again.';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = '📤 Assign →';
   }
 }
 

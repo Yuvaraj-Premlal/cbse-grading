@@ -786,8 +786,9 @@ def get_students():
         engine = get_engine()
         with engine.connect() as conn:
             rows = conn.execute(text("""
-                SELECT u.user_id, u.name, u.email
+                SELECT s.student_id, u.name, u.email
                 FROM users u
+                JOIN students s ON s.user_id = u.user_id
                 WHERE u.role = 'student' AND u.is_active = 1
                 ORDER BY u.name
             """)).fetchall()

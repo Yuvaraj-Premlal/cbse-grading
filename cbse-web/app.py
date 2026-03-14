@@ -793,8 +793,8 @@ def get_students():
             """)).fetchall()
             for row in missing:
                 conn.execute(text("""
-                    INSERT INTO students (student_id, user_id)
-                    VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER))
+                    INSERT INTO students (student_id, user_id, class)
+                    VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER), 12)
                 """), {"uid": str(row[0])})
 
         with engine.connect() as conn:

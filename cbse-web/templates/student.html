@@ -409,13 +409,13 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
   <div class="exam-header">
     <div class="exam-header-inner">
       <div class="exam-title-block">
-        <h2>Mathematics — Unit Test 4</h2>
-        <p>Mathematics · 28 marks · Due March 14, 2026</p>
+        <h2 id="exam-title">Loading...</h2>
+        <p id="exam-meta"></p>
       </div>
       <div class="exam-timer">
         <div class="timer-box">
           <div class="timer-label">Due In</div>
-          <div class="timer-val" id="exam-countdown">2d 14h</div>
+          <div class="timer-val" id="exam-countdown">—</div>
         </div>
       </div>
     </div>
@@ -1027,7 +1027,42 @@ function toggleQ(head) {
 }
 
 // ── FILE UPLOAD ──
+// ── EXAM SUBMIT ──────────────────────────────────────
+let currentExamAssignmentId = null;
+let currentSubmissionId     = null;
+let gradingPollInterval     = null;
+
+function openExamSubmit(assignmentId, title, meta, dueDate) {
+  currentExamAssignmentId = assignmentId;
+  document.getElementById('exam-title').textContent = title;
+  document.getElementById('exam-meta').textContent  = meta;
+
+  // Countdown
+  const due = new Date(dueDate);
+  const diffMs = due - new Date();
+  if (diffMs > 0) {
+    const days = Math.floor(diffMs / 86400000);
+    const hrs  = Math.floor((diffMs % 86400000) / 3600000);
+    document.getElementById('exam-countdown').textContent =
+      days > 0 ? days + 'd ' + hrs + 'h' : hrs + 'h';
+  } else {
+    document.getElementById('exam-countdown').textContent = 'Overdue';
+    document.getElementById('exam-countdown').style.color = 'var(--red)';
+  }
+
+  // Reset form
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('submit-btn').style.display = 'none';
+  document.getElementById('grading-progress').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('exam-error') && (document.getElementById('exam-error').style.display = 'none');
+
+  showPage('page-exam');
+}
+
 function triggerUpload() { document.getElementById('file-input').click(); }
+
 function fileSelected(input) {
   if (!input.files.length) return;
   const f = input.files[0];
@@ -1036,35 +1071,115 @@ function fileSelected(input) {
   document.getElementById('file-preview').style.display = 'block';
   document.getElementById('submit-btn').style.display = 'inline-flex';
 }
+
 function removeFile() {
   document.getElementById('file-preview').style.display = 'none';
   document.getElementById('submit-btn').style.display = 'none';
   document.getElementById('file-input').value = '';
 }
-function submitExam() {
-  document.getElementById('file-preview').style.display = 'none';
-  document.getElementById('submit-btn').style.display = 'none';
-  document.getElementById('upload-zone').style.display = 'none';
-  document.getElementById('grading-progress').style.display = 'block';
-  animateGrading();
+
+async function submitExam() {
+  const btn   = document.getElementById('submit-btn');
+  const files = document.getElementById('file-input').files;
+  if (!files.length) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Uploading...';
+
+  try {
+    // Step 1 — Upload file to blob
+    const formData = new FormData();
+    formData.append('file', files[0]);
+
+    const uploadRes  = await fetch('/api/student/upload', { method: 'POST', body: formData });
+    const uploadData = await uploadRes.json();
+
+    if (!uploadData.ok) {
+      btn.disabled = false; btn.textContent = '📤 Submit for Grading →';
+      alert('Upload failed: ' + uploadData.error);
+      return;
+    }
+
+    btn.textContent = 'Submitting...';
+
+    // Step 2 — Create submission
+    const submitRes  = await fetch('/api/student/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        assignment_id    : currentExamAssignmentId,
+        answer_sheet_url : uploadData.url
+      })
+    });
+    const submitData = await submitRes.json();
+
+    if (!submitData.ok) {
+      btn.disabled = false; btn.textContent = '📤 Submit for Grading →';
+      alert('Submit failed: ' + submitData.error);
+      return;
+    }
+
+    currentSubmissionId = submitData.submission_id;
+
+    // Step 3 — Show grading progress
+    document.getElementById('file-preview').style.display  = 'none';
+    document.getElementById('submit-btn').style.display    = 'none';
+    document.getElementById('upload-zone').style.display   = 'none';
+    document.getElementById('grading-progress').style.display = 'block';
+    document.getElementById('grading-status').textContent  = 'Answer sheet uploaded. AI grading started...';
+    document.getElementById('grading-bar').style.width     = '10%';
+
+    pollGradingStatus();
+
+  } catch(e) {
+    btn.disabled = false; btn.textContent = '📤 Submit for Grading →';
+    alert('An error occurred. Please try again.');
+  }
 }
 
-// ── GRADING ANIMATION ──
-const gradingSteps = [
-  'Reading question paper...','Extracting questions and marks...','Analysing answer sheet...',
-  'Grading Question 1 — Probability...','Grading Question 2 — Calculus...','Grading Question 3...',
-  'Grading Question 4 — Matrices...','Generating model solutions...','Calculating final scores...','✅ Grading complete!'
-];
-let gStep = 0;
-function animateGrading() {
-  const bar = document.getElementById('grading-bar');
-  const status = document.getElementById('grading-status');
-  const interval = setInterval(() => {
-    if (gStep >= gradingSteps.length) { clearInterval(interval); return; }
-    status.textContent = gradingSteps[gStep];
-    bar.style.width = ((gStep+1)/gradingSteps.length*100) + '%';
-    gStep++;
-  }, 800);
+function pollGradingStatus() {
+  let elapsed = 0;
+  const messages = [
+    'Reading question paper...',
+    'Extracting questions and marks...',
+    'Analysing your handwriting...',
+    'Grading each question step by step...',
+    'Generating model solutions...',
+    'Calculating final score...',
+    'Almost done...'
+  ];
+  let msgIdx = 0;
+
+  gradingPollInterval = setInterval(async () => {
+    elapsed += 10;
+    // Rotate status messages
+    msgIdx = Math.min(Math.floor(elapsed / 15), messages.length - 1);
+    document.getElementById('grading-status').textContent = messages[msgIdx];
+    document.getElementById('grading-bar').style.width = Math.min(elapsed * 1.2, 90) + '%';
+
+    // Poll API
+    try {
+      const res  = await fetch('/api/student/submission-status/' + currentSubmissionId);
+      const data = await res.json();
+      if (data.ok && data.submission.graded) {
+        clearInterval(gradingPollInterval);
+        document.getElementById('grading-bar').style.width = '100%';
+        document.getElementById('grading-status').textContent = '✅ Grading complete!';
+        setTimeout(() => {
+          // Reload dashboard to show "Under Review"
+          loadDashboard();
+          showPage('page-dashboard');
+        }, 2000);
+      }
+    } catch(e) { /* keep polling */ }
+
+    // Timeout after 5 mins
+    if (elapsed >= 300) {
+      clearInterval(gradingPollInterval);
+      document.getElementById('grading-status').textContent =
+        'Grading is taking longer than usual. Check back in a few minutes.';
+    }
+  }, 10000); // poll every 10s
 }
 
 // ── PRACTICE TIMER ──
@@ -1198,7 +1313,7 @@ async function loadDashboard() {
             <span>Class ${e.class}</span>
           </div>
           <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="showPage('page-exam')">📤 Submit Answer Sheet</button>
+            <button class="btn btn-primary btn-sm" onclick="openExamSubmit('${e.assignment_id}','${e.title}','${e.subject} · ${e.total_marks} marks · ${e.duration_minutes} min','${e.due_date_str}')">📤 Submit Answer Sheet</button>
             <button class="btn btn-ghost btn-sm" onclick="viewPaper('${e.paper_id}','${e.assignment_id}')">👁 View Paper</button>
           </div>
         </div>`;

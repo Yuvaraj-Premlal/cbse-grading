@@ -112,7 +112,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
 /* ══════════════════════════════════════
    PAGE 1 — LOGIN
 ══════════════════════════════════════ */
-#page-login{background:var(--white);display:flex;min-height:100vh;}
+#page-login{display:none !important;}
 .login-left{flex:1;background:linear-gradient(145deg,var(--blue-d) 0%,var(--blue) 60%,#0094FF 100%);padding:60px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}
 .login-left::before{content:'';position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,.06);}
 .login-left::after{content:'';position:absolute;bottom:-60px;left:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.04);}
@@ -280,39 +280,6 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
 <body>
 
 <!-- ══ PAGE 1 — LOGIN ══ -->
-<div id="page-login" class="page">
-  <div class="login-left">
-    <div>
-      <div class="login-brand">CBSE<br/><em>AI Grading</em></div>
-      <div class="login-tagline">Step-by-step feedback. Personalised practice. Board exam preparation that actually works.</div>
-    </div>
-    <ul class="login-features">
-      <li>AI grading with step-by-step breakdown</li>
-      <li>Timed practice — exam conditions, every time</li>
-      <li>Spaced repetition — never forget a topic again</li>
-      <li>Predicted board score from your trajectory</li>
-    </ul>
-    <div style="font-size:12px;color:rgba(255,255,255,.4);">Class 9–12 · Mathematics · Science</div>
-  </div>
-  <div class="login-right">
-    <div class="login-welcome">Welcome back</div>
-    <div class="login-sub">Sign in to your student account</div>
-    <div class="login-error" id="login-error">Incorrect email or password. Please try again.</div>
-    <div class="form-group">
-      <label class="form-label">Email address</label>
-      <input class="form-input" type="email" id="l-email" placeholder="you@example.com"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Password</label>
-      <input class="form-input" type="password" id="l-pass" placeholder="Enter your password"/>
-    </div>
-    <button class="btn btn-primary btn-full" onclick="doLogin()" style="margin-top:4px;">Sign in →</button>
-    <div class="login-footer">
-      Don't have an account? <a href="#" style="color:var(--blue);font-weight:600;" onclick="showPage('page-dashboard');return false;">Demo access</a>
-    </div>
-  </div>
-</div>
-
 <!-- ══ PAGE 2 — DASHBOARD ══ -->
 <div id="page-dashboard" class="page active">
   <nav>

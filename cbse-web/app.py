@@ -810,6 +810,18 @@ def get_students():
         return jsonify({"ok": False, "error": str(e)[:300]})
 
 
+# ── DEBUG STUDENTS ───────────────────────────────────
+@app.route("/admin/debug-students")
+def debug_students():
+    engine = get_engine()
+    with engine.connect() as conn:
+        users = conn.execute(text("SELECT user_id, name, email, role, is_active FROM users WHERE role='student'")).fetchall()
+        students = conn.execute(text("SELECT student_id, user_id FROM students")).fetchall()
+    return jsonify({
+        "student_users": [dict(r._mapping) for r in users],
+        "students_table": [dict(r._mapping) for r in students]
+    })
+
 # ── GET PUBLISHED PAPERS FOR ASSIGN ───────────────────
 @app.route("/api/teacher/published-papers", methods=["GET"])
 @require_role("teacher")

@@ -1921,7 +1921,7 @@ async function loadAssignPage() {
     } else {
       grid.innerHTML = assignStudents.map(s => `
         <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" onchange="updateAssignCount()">
-          <input type="checkbox" value="${s.user_id}" style="accent-color:var(--blue);"/>
+          <input type="checkbox" value="${s.student_id}" style="accent-color:var(--blue);"/>
           ${s.name}
         </label>`).join('');
       updateAssignCount();

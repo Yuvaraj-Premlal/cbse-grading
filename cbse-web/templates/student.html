@@ -280,7 +280,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
 <body>
 
 <!-- ══ PAGE 1 — LOGIN ══ -->
-<div id="page-login" class="page active">
+<div id="page-login" class="page">
   <div class="login-left">
     <div>
       <div class="login-brand">CBSE<br/><em>AI Grading</em></div>
@@ -314,7 +314,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
 </div>
 
 <!-- ══ PAGE 2 — DASHBOARD ══ -->
-<div id="page-dashboard" class="page">
+<div id="page-dashboard" class="page active">
   <nav>
     <div class="nav-inner">
       <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
@@ -1182,7 +1182,10 @@ async function loadDashboard() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', loadDashboard);
+document.addEventListener('DOMContentLoaded', () => {
+  showPage('page-dashboard');
+  loadDashboard();
+});
 </script>
 </body>
 </html>

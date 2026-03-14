@@ -32,9 +32,8 @@ html{scroll-behavior:smooth;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
 /* ── PAGE SYSTEM ── */
-.page{position:fixed;top:0;left:0;width:100%;height:100%;overflow-y:auto;background:var(--bg);visibility:hidden;opacity:0;pointer-events:none;transition:opacity .25s ease;}
-.page.active{visibility:visible;opacity:1;pointer-events:all;position:relative;height:auto;min-height:100vh;}
-#page-login.active{position:fixed;top:0;left:0;width:100%;height:100%;overflow-y:auto;}
+.page{display:none;}
+.page.active{display:block;min-height:100vh;}
 @keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 
 /* ── NAV ── */
@@ -321,8 +320,8 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
       <div class="nav-right">
         <div class="nav-user">
-          <div class="nav-avatar">A</div>
-          <span style="font-weight:600;color:var(--text);">Aryan Mehta</span>
+          <div class="nav-avatar" id="nav-avatar">?</div>
+          <span style="font-weight:600;color:var(--text);" id="nav-name">Loading...</span>
         </div>
         <button class="nav-logout" onclick="window.location.href='/logout'">Sign out</button>
       </div>
@@ -330,153 +329,54 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
   </nav>
   <div class="wrap">
     <div style="margin-bottom:28px;">
-      <div class="page-title">Good morning, Aryan 👋</div>
-      <div class="page-sub">Here's where you stand today — March 11, 2026</div>
+      <div class="page-title" id="dash-greeting">Good morning 👋</div>
+      <div class="page-sub" id="dash-sub">Loading your dashboard...</div>
     </div>
 
     <!-- STATS -->
     <div class="grid-4" style="margin-bottom:28px;">
       <div class="stat-card">
         <div class="sc-icon">📝</div>
-        <div class="sc-label">Exams Taken</div>
-        <div class="sc-val">4</div>
-        <div class="sc-sub">This semester</div>
+        <div class="sc-label">Exams Assigned</div>
+        <div class="sc-val" id="stat-assigned">—</div>
+        <div class="sc-sub">Total this year</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-icon">✅</div>
+        <div class="sc-label">Submitted</div>
+        <div class="sc-val" id="stat-submitted">—</div>
+        <div class="sc-sub">Answered so far</div>
       </div>
       <div class="stat-card">
         <div class="sc-icon">📈</div>
         <div class="sc-label">Avg Score</div>
-        <div class="sc-val">73%</div>
-        <div class="sc-sub">Up from 58% last month</div>
+        <div class="sc-val" id="stat-avg">—</div>
+        <div class="sc-sub">From released results</div>
       </div>
       <div class="stat-card">
-        <div class="sc-icon">🔥</div>
-        <div class="sc-label">Practice Streak</div>
-        <div class="sc-val">6</div>
-        <div class="sc-sub">days in a row</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-icon">🎯</div>
-        <div class="sc-label">Predicted Score</div>
-        <div class="sc-val">78%</div>
-        <div class="sc-sub">Board exam trajectory</div>
+        <div class="sc-icon">⚖️</div>
+        <div class="sc-label">Open Disputes</div>
+        <div class="sc-val" id="stat-disputes" style="color:var(--red);">—</div>
+        <div class="sc-sub">Awaiting resolution</div>
       </div>
     </div>
 
-    <div class="grid-2" style="margin-bottom:28px;">
-      <!-- ACTIVE EXAM -->
-      <div>
-        <div class="section-label">Active Exam</div>
-        <div class="exam-card">
-          <div class="exam-card-title">Mathematics — Unit Test 4</div>
-          <div class="exam-card-meta">
-            <span>📚 Mathematics</span>
-            <span>⏰ Due Mar 14</span>
-            <span>📊 28 marks</span>
-          </div>
-          <div style="margin-bottom:16px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:7px;">
-              <span>Calculus · Integration · Vectors</span>
-              <span>3 days left</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill amber" style="width:0%"></div></div>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="showPage('page-exam')">📤 Submit Answer Sheet</button>
-            <button class="btn btn-ghost btn-sm">👁️ View Paper</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- TOPIC HEATMAP -->
-      <div>
-        <div class="section-label">Topic Performance</div>
-        <div class="card">
-          <div class="topic-row">
-            <div style="flex:1;">
-              <div class="topic-name">Probability</div>
-              <div class="topic-sub">Last exam: 95%</div>
-            </div>
-            <div class="topic-bar-wrap">
-              <div class="progress-track"><div class="progress-fill green" style="width:95%"></div></div>
-            </div>
-            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--green);">95%</div>
-          </div>
-          <div class="topic-row">
-            <div style="flex:1;">
-              <div class="topic-name">Algebra</div>
-              <div class="topic-sub">Last exam: 80%</div>
-            </div>
-            <div class="topic-bar-wrap">
-              <div class="progress-track"><div class="progress-fill" style="width:80%"></div></div>
-            </div>
-            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--blue);">80%</div>
-          </div>
-          <div class="topic-row">
-            <div style="flex:1;">
-              <div class="topic-name">Matrices</div>
-              <div class="topic-sub">Last exam: 62%</div>
-            </div>
-            <div class="topic-bar-wrap">
-              <div class="progress-track"><div class="progress-fill amber" style="width:62%"></div></div>
-            </div>
-            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--amber);">62%</div>
-          </div>
-          <div class="topic-row">
-            <div style="flex:1;">
-              <div class="topic-name">Calculus</div>
-              <div class="topic-sub">Last exam: 38%</div>
-            </div>
-            <div class="topic-bar-wrap">
-              <div class="progress-track"><div class="progress-fill red" style="width:38%"></div></div>
-            </div>
-            <div style="width:36px;text-align:right;font-size:12px;font-weight:700;color:var(--red);">38%</div>
-          </div>
-          <div style="margin-top:16px;">
-            <button class="btn btn-secondary btn-sm btn-full" onclick="showPage('page-practice')">📚 Practice weak topics →</button>
-          </div>
-        </div>
-      </div>
+    <!-- PENDING EXAMS -->
+    <div class="section-label">Pending Exams</div>
+    <div id="dash-pending">
+      <div style="text-align:center;padding:32px;color:var(--muted);">Loading...</div>
     </div>
 
-    <!-- EXAM HISTORY -->
-    <div class="section-label">Exam History</div>
-    <div class="card">
-      <div class="history-row">
-        <div class="hr-icon" style="background:var(--green-l);">📊</div>
-        <div class="hr-body">
-          <div class="hr-title">Mathematics — Unit Test 3</div>
-          <div class="hr-sub">Released Mar 5 · Grade A</div>
-        </div>
-        <div class="hr-score">
-          <div class="hr-marks">21/28</div>
-          <div class="hr-pct">75%</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
-      </div>
-      <div class="history-row">
-        <div class="hr-icon" style="background:var(--blue-l);">📊</div>
-        <div class="hr-body">
-          <div class="hr-title">Physics — Electrostatics Test</div>
-          <div class="hr-sub">Released Feb 22 · Grade B+</div>
-        </div>
-        <div class="hr-score">
-          <div class="hr-marks">18/25</div>
-          <div class="hr-pct">72%</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
-      </div>
-      <div class="history-row">
-        <div class="hr-icon" style="background:var(--amber-l);">📊</div>
-        <div class="hr-body">
-          <div class="hr-title">Mathematics — Unit Test 2</div>
-          <div class="hr-sub">Released Feb 10 · Grade B</div>
-        </div>
-        <div class="hr-score">
-          <div class="hr-marks">16/28</div>
-          <div class="hr-pct">57%</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
-      </div>
+    <!-- UNDER REVIEW -->
+    <div id="dash-review-section" style="display:none;">
+      <div class="section-label" style="margin-top:24px;">Submitted — Under Review</div>
+      <div id="dash-review"></div>
+    </div>
+
+    <!-- RELEASED RESULTS -->
+    <div id="dash-results-section" style="display:none;">
+      <div class="section-label" style="margin-top:24px;">Released Results</div>
+      <div class="card" style="padding:0;overflow:hidden;" id="dash-results"></div>
     </div>
   </div>
 
@@ -1163,6 +1063,126 @@ function switchTab(tab, btn) {
   document.getElementById('tab-'+tab).style.display = 'block';
   btn.classList.add('active');
 }
+
+// ── STUDENT DASHBOARD ─────────────────────────────────
+function daysUntil(dateStr) {
+  const diff = new Date(dateStr) - new Date();
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  if (days < 0) return 'Overdue';
+  if (days === 0) return 'Due today';
+  if (days === 1) return '1 day left';
+  return days + ' days left';
+}
+
+function gradeColor(pct) {
+  if (pct >= 75) return 'var(--green)';
+  if (pct >= 45) return 'var(--blue)';
+  return 'var(--red)';
+}
+
+async function loadDashboard() {
+  try {
+    const res  = await fetch('/api/student/dashboard');
+    const data = await res.json();
+    if (!data.ok) {
+      document.getElementById('dash-sub').textContent = 'Could not load dashboard: ' + data.error;
+      return;
+    }
+    const d = data.dashboard;
+
+    // Greeting + name
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('dash-greeting').textContent = greeting + ', ' + d.name + ' 👋';
+    document.getElementById('dash-sub').textContent =
+      new Date().toLocaleDateString('en-IN', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+    document.getElementById('nav-name').textContent = d.name;
+    document.getElementById('nav-avatar').textContent = d.name.charAt(0).toUpperCase();
+
+    // Stats
+    document.getElementById('stat-assigned').textContent  = d.stats.total_assigned;
+    document.getElementById('stat-submitted').textContent = d.stats.total_submitted;
+    document.getElementById('stat-avg').textContent       = d.stats.avg_score ? d.stats.avg_score + '%' : '—';
+    document.getElementById('stat-disputes').textContent  = d.stats.open_disputes;
+
+    // Pending exams
+    const pendingEl = document.getElementById('dash-pending');
+    if (!d.pending_exams.length) {
+      pendingEl.innerHTML = `<div class="card" style="text-align:center;padding:32px;color:var(--muted);">
+        <div style="font-size:28px;margin-bottom:8px;">🎉</div>
+        <div style="font-weight:600;margin-bottom:4px;">No pending exams</div>
+        <div style="font-size:13px;">You're all caught up!</div>
+      </div>`;
+    } else {
+      pendingEl.innerHTML = d.pending_exams.map(e => {
+        const urgency = daysUntil(e.due_date);
+        const isOverdue = urgency === 'Overdue';
+        const isDueToday = urgency === 'Due today';
+        const badgeColor = isOverdue ? 'badge-red' : isDueToday ? 'badge-amber' : 'badge-blue';
+        return `<div class="exam-card" style="margin-bottom:14px;">
+          <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:10px;">
+            <div class="exam-card-title">${e.title}</div>
+            <span class="badge ${badgeColor}">${urgency}</span>
+          </div>
+          <div class="exam-card-meta">
+            <span>📚 ${e.subject}</span>
+            <span>📊 ${e.total_marks} marks</span>
+            <span>⏱ ${e.duration_minutes} min</span>
+            <span>Class ${e.class}</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="showPage('page-exam')">📤 Submit Answer Sheet</button>
+            <button class="btn btn-ghost btn-sm">👁 View Paper</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // Under review
+    const reviewSection = document.getElementById('dash-review-section');
+    const reviewEl = document.getElementById('dash-review');
+    if (d.under_review.length) {
+      reviewSection.style.display = 'block';
+      reviewEl.innerHTML = d.under_review.map(e => `
+        <div class="card" style="margin-bottom:10px;display:flex;align-items:center;gap:14px;">
+          <div style="font-size:24px;">🔍</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:600;color:var(--text);">${e.title}</div>
+            <div style="font-size:12px;color:var(--muted);">Submitted ${e.submitted_at ? new Date(e.submitted_at).toLocaleDateString('en-IN') : '—'} · ${e.total_marks} marks</div>
+          </div>
+          <span class="badge badge-amber">Under Review</span>
+        </div>`).join('');
+    }
+
+    // Released results
+    const resultsSection = document.getElementById('dash-results-section');
+    const resultsEl = document.getElementById('dash-results');
+    if (d.released.length) {
+      resultsSection.style.display = 'block';
+      resultsEl.innerHTML = d.released.map(e => {
+        const pct = e.percentage ? Math.round(e.percentage) : 0;
+        return `<div class="history-row">
+          <div class="hr-icon" style="background:var(--green-l);">📊</div>
+          <div class="hr-body">
+            <div class="hr-title">${e.title}</div>
+            <div class="hr-sub">Released ${e.released_at ? new Date(e.released_at).toLocaleDateString('en-IN') : '—'} · Grade ${e.grade || '—'}</div>
+          </div>
+          <div class="hr-score">
+            <div class="hr-marks">${e.total_awarded}/${e.total_marks}</div>
+            <div class="hr-pct" style="color:${gradeColor(pct)};">${pct}%</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
+        </div>`;
+      }).join('');
+    }
+
+  } catch(err) {
+    document.getElementById('dash-sub').textContent = 'Could not load dashboard data.';
+    console.error(err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadDashboard);
 </script>
 </body>
 </html>

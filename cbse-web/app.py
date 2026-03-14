@@ -817,9 +817,11 @@ def debug_students():
     with engine.connect() as conn:
         users = conn.execute(text("SELECT user_id, name, email, role, is_active FROM users WHERE role='student'")).fetchall()
         students = conn.execute(text("SELECT student_id, user_id FROM students")).fetchall()
+        schema = conn.execute(text("SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='students'")).fetchall()
     return jsonify({
         "student_users": [dict(r._mapping) for r in users],
-        "students_table": [dict(r._mapping) for r in students]
+        "students_table": [dict(r._mapping) for r in students],
+        "students_schema": [dict(r._mapping) for r in schema]
     })
 
 # ── GET PUBLISHED PAPERS FOR ASSIGN ───────────────────

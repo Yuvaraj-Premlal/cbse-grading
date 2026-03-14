@@ -774,6 +774,140 @@ def delete_question(question_id):
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
 
+# ══════════════════════════════════════════════════════
+# STUDENT API
+# ══════════════════════════════════════════════════════
+
+def get_student_id(conn, user):
+    """Resolve user email -> user_id -> student_id. Auto-creates student record if missing."""
+    user_row = conn.execute(text(
+        "SELECT user_id FROM users WHERE email = :email"
+    ), {"email": user["email"]}).fetchone()
+    if not user_row:
+        return None, None
+
+    student_row = conn.execute(text(
+        "SELECT student_id FROM students WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)"
+    ), {"uid": str(user_row[0])}).fetchone()
+
+    return str(user_row[0]), str(student_row[0]) if student_row else None
+
+
+@app.route("/api/student/dashboard")
+@require_role("student")
+def student_dashboard():
+    user = get_current_user(request)
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            user_id, student_id = get_student_id(conn, user)
+            if not student_id:
+                return jsonify({"ok": False, "error": "Student profile not found"})
+
+            # 1. Pending exams — assigned, not yet submitted, not overdue
+            pending = conn.execute(text("""
+                SELECT
+                    a.assignment_id,
+                    a.due_date,
+                    a.status,
+                    p.paper_id,
+                    p.title,
+                    p.subject,
+                    p.class,
+                    p.total_marks,
+                    p.duration_minutes,
+                    CONVERT(VARCHAR, a.due_date, 120) as due_date_str
+                FROM assignments a
+                JOIN papers p ON a.paper_id = p.paper_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND a.status = 'assigned'
+                ORDER BY a.due_date ASC
+            """), {"sid": student_id}).fetchall()
+
+            # 2. Submitted — awaiting review/grading
+            under_review = conn.execute(text("""
+                SELECT
+                    a.assignment_id,
+                    a.status,
+                    p.title,
+                    p.subject,
+                    p.total_marks,
+                    CONVERT(VARCHAR, s.submitted_at, 120) as submitted_at
+                FROM assignments a
+                JOIN papers p ON a.paper_id = p.paper_id
+                LEFT JOIN submissions s ON a.assignment_id = s.assignment_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND a.status IN ('submitted', 'graded')
+                ORDER BY s.submitted_at DESC
+            """), {"sid": student_id}).fetchall()
+
+            # 3. Released results
+            released = conn.execute(text("""
+                SELECT
+                    a.assignment_id,
+                    p.title,
+                    p.subject,
+                    p.total_marks,
+                    s.total_awarded,
+                    s.percentage,
+                    s.grade,
+                    s.submission_id,
+                    CONVERT(VARCHAR, s.released_at, 120) as released_at
+                FROM assignments a
+                JOIN papers p ON a.paper_id = p.paper_id
+                JOIN submissions s ON a.assignment_id = s.assignment_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND a.status = 'released'
+                AND s.final_released = 1
+                ORDER BY s.released_at DESC
+            """), {"sid": student_id}).fetchall()
+
+            # 4. Stats
+            total_assigned = conn.execute(text("""
+                SELECT COUNT(*) FROM assignments
+                WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"sid": student_id}).fetchone()[0]
+
+            total_submitted = conn.execute(text("""
+                SELECT COUNT(*) FROM assignments
+                WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND status IN ('submitted', 'graded', 'released')
+            """), {"sid": student_id}).fetchone()[0]
+
+            avg_score = conn.execute(text("""
+                SELECT AVG(CAST(s.percentage AS FLOAT))
+                FROM submissions s
+                JOIN assignments a ON s.assignment_id = a.assignment_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND s.final_released = 1
+            """), {"sid": student_id}).fetchone()[0]
+
+            open_disputes = conn.execute(text("""
+                SELECT COUNT(*) FROM disputes
+                WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND status = 'open'
+            """), {"sid": student_id}).fetchone()[0]
+
+        return jsonify({
+            "ok": True,
+            "dashboard": {
+                "name"           : user["name"],
+                "student_id"     : student_id,
+                "pending_exams"  : [dict(r._mapping) for r in pending],
+                "under_review"   : [dict(r._mapping) for r in under_review],
+                "released"       : [dict(r._mapping) for r in released],
+                "stats": {
+                    "total_assigned"  : total_assigned,
+                    "total_submitted" : total_submitted,
+                    "avg_score"       : round(float(avg_score), 1) if avg_score else None,
+                    "open_disputes"   : open_disputes
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
 

@@ -7,3 +7,5 @@ azure-keyvault-secrets
 azure-identity
 python-dotenv
 gunicorn
+azure-storage-blob
+openai

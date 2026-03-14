@@ -908,6 +908,39 @@ def student_dashboard():
         return jsonify({"ok": False, "error": str(e)[:300]})
 
 
+@app.route("/api/student/paper/<paper_id>")
+@require_role("student")
+def get_student_paper(paper_id):
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            paper = conn.execute(text("""
+                SELECT paper_id, title, subject, class, total_marks,
+                       duration_minutes, marking_scheme
+                FROM papers WHERE paper_id = CAST(:pid AS UNIQUEIDENTIFIER)
+                AND is_active = 1
+            """), {"pid": paper_id}).fetchone()
+
+            if not paper:
+                return jsonify({"ok": False, "error": "Paper not found"})
+
+            questions = conn.execute(text("""
+                SELECT pq.order_num, pq.section,
+                       q.question_id, q.latex_content, q.chapter,
+                       q.difficulty, q.type, q.max_marks
+                FROM paper_questions pq
+                JOIN questions q ON pq.question_id = q.question_id
+                WHERE pq.paper_id = CAST(:pid AS UNIQUEIDENTIFIER)
+                ORDER BY pq.section, pq.order_num
+            """), {"pid": paper_id}).fetchall()
+
+        result = dict(paper._mapping)
+        result["questions"] = [dict(q._mapping) for q in questions]
+        return jsonify({"ok": True, "paper": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
 

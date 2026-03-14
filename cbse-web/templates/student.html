@@ -358,6 +358,36 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
   </div>
 </div>
 
+<!-- ══ PAGE — VIEW PAPER ══ -->
+<div id="page-view-paper" class="page">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
+      <div class="nav-right">
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-dashboard')">← Dashboard</button>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap-md">
+    <div id="vp-loading" style="text-align:center;padding:48px;color:var(--muted);">Loading paper...</div>
+    <div id="vp-content" style="display:none;">
+      <div style="margin-bottom:24px;">
+        <div class="page-title" id="vp-title"></div>
+        <div class="page-sub" id="vp-meta"></div>
+      </div>
+      <div class="card" style="margin-bottom:20px;background:var(--blue-l);border-color:var(--blue-m);">
+        <div class="section-label" style="color:var(--blue);">Instructions</div>
+        <div id="vp-instructions" style="font-size:13.5px;color:var(--text);line-height:1.7;"></div>
+      </div>
+      <div id="vp-sections"></div>
+      <div style="margin-top:24px;">
+        <button class="btn btn-primary" id="vp-submit-btn" onclick="showPage('page-exam')">📤 Submit Answer Sheet →</button>
+      </div>
+    </div>
+    <div id="vp-error" style="display:none;color:var(--red);padding:20px;"></div>
+  </div>
+</div>
+
 <!-- ══ PAGE 3 — ACTIVE EXAM ══ -->
 <div id="page-exam" class="page">
   <nav>
@@ -911,6 +941,78 @@ function showPage(id) {
 
 // ── LOGIN handled by Flask /login route ──
 
+// ── VIEW PAPER ────────────────────────────────────────
+let currentPaperId = null;
+let currentAssignmentId = null;
+
+function viewPaper(paperId, assignmentId) {
+  currentPaperId = paperId;
+  currentAssignmentId = assignmentId;
+  showPage('page-view-paper');
+  loadViewPaper(paperId);
+}
+
+async function loadViewPaper(paperId) {
+  const loading = document.getElementById('vp-loading');
+  const contentEl = document.getElementById('vp-content');
+  const errorEl = document.getElementById('vp-error');
+  loading.style.display = 'block';
+  contentEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/student/paper/' + paperId);
+    const data = await res.json();
+    if (!data.ok) {
+      loading.style.display = 'none';
+      errorEl.textContent = 'Failed to load paper: ' + data.error;
+      errorEl.style.display = 'block';
+      return;
+    }
+    const p = data.paper;
+    document.getElementById('vp-title').textContent = p.title;
+    document.getElementById('vp-meta').textContent =
+      p.subject + ' · Class ' + p.class + ' · ' + p.total_marks + ' marks · ' + p.duration_minutes + ' minutes';
+    document.getElementById('vp-instructions').textContent =
+      p.marking_scheme || 'Attempt all questions. Show all working steps.';
+
+    // Group questions by section
+    const sections = {};
+    (p.questions || []).forEach(q => {
+      const s = q.section || 'A';
+      if (!sections[s]) sections[s] = [];
+      sections[s].push(q);
+    });
+
+    const sectionsEl = document.getElementById('vp-sections');
+    sectionsEl.innerHTML = Object.entries(sections).sort().map(([sec, qs]) => `
+      <div style="margin-bottom:24px;">
+        <div class="section-label">Section ${sec}</div>
+        ${qs.map((q, i) => `
+          <div class="card" style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+              <div style="font-size:12px;font-weight:700;color:var(--muted);">Q${q.order_num || i+1} · ${q.chapter}</div>
+              <span class="badge badge-blue">${q.max_marks} marks</span>
+            </div>
+            <div style="font-size:14px;color:var(--text);line-height:1.8;">${q.latex_content}</div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:8px;">${q.difficulty} · ${(q.type||'').replace(/_/g,' ')}</div>
+          </div>`).join('')}
+      </div>`).join('');
+
+    // Render MathJax if available
+    if (window.MathJax && MathJax.typesetPromise) {
+      MathJax.typesetPromise([sectionsEl]);
+    }
+
+    loading.style.display = 'none';
+    contentEl.style.display = 'block';
+  } catch(e) {
+    loading.style.display = 'none';
+    errorEl.textContent = 'Failed to load paper. Please try again.';
+    errorEl.style.display = 'block';
+  }
+}
+
 // ── QUESTION TOGGLE ──
 function toggleQ(head) {
   head.parentElement.classList.toggle('open');
@@ -1089,7 +1191,7 @@ async function loadDashboard() {
           </div>
           <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" onclick="showPage('page-exam')">📤 Submit Answer Sheet</button>
-            <button class="btn btn-ghost btn-sm">👁 View Paper</button>
+            <button class="btn btn-ghost btn-sm" onclick="viewPaper('${e.paper_id}','${e.assignment_id}')">👁 View Paper</button>
           </div>
         </div>`;
       }).join('');

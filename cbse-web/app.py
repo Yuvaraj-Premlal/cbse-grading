@@ -617,10 +617,10 @@ def create_paper():
                 conn.execute(text("""
                     INSERT INTO paper_questions
                         (paper_id, question_id, order_num, section)
-                    VALUES (:pid, :qid, :order, :section)
+                    VALUES (CAST(:pid AS UNIQUEIDENTIFIER), CAST(:qid AS UNIQUEIDENTIFIER), :order, :section)
                 """), {
                     "pid"     : str(paper_id),
-                    "qid"     : q["question_id"],
+                    "qid"     : str(q["question_id"]),
                     "order"   : q["order_num"],
                     "section" : q["section"]
                 })
@@ -659,15 +659,15 @@ def update_paper(paper_id):
             })
 
             # Replace all questions
-            conn.execute(text("DELETE FROM paper_questions WHERE paper_id = :pid"), {"pid": paper_id})
+            conn.execute(text("DELETE FROM paper_questions WHERE paper_id = CAST(:pid AS UNIQUEIDENTIFIER)"), {"pid": str(paper_id)})
             for q in data.get("questions", []):
                 conn.execute(text("""
                     INSERT INTO paper_questions
                         (paper_id, question_id, order_num, section)
-                    VALUES (:pid, :qid, :order, :section)
+                    VALUES (CAST(:pid AS UNIQUEIDENTIFIER), CAST(:qid AS UNIQUEIDENTIFIER), :order, :section)
                 """), {
-                    "pid"     : paper_id,
-                    "qid"     : q["question_id"],
+                    "pid"     : str(paper_id),
+                    "qid"     : str(q["question_id"]),
                     "order"   : q["order_num"],
                     "section" : q["section"]
                 })

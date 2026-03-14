@@ -776,3 +776,108 @@ def delete_question(question_id):
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+
+# ── GET STUDENTS LIST ─────────────────────────────────
+@app.route("/api/teacher/students", methods=["GET"])
+@require_role("teacher")
+def get_students():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT u.user_id, u.name, u.email
+                FROM users u
+                WHERE u.role = 'student' AND u.is_active = 1
+                ORDER BY u.name
+            """)).fetchall()
+        return jsonify({"ok": True, "students": [dict(r._mapping) for r in rows]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── GET PUBLISHED PAPERS FOR ASSIGN ───────────────────
+@app.route("/api/teacher/published-papers", methods=["GET"])
+@require_role("teacher")
+def get_published_papers():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT p.paper_id, p.title, p.subject, p.class,
+                       p.total_marks, p.duration_minutes,
+                       COUNT(pq.question_id) as question_count
+                FROM papers p
+                LEFT JOIN paper_questions pq ON p.paper_id = pq.paper_id
+                WHERE p.is_active = 1
+                GROUP BY p.paper_id, p.title, p.subject, p.class,
+                         p.total_marks, p.duration_minutes
+                ORDER BY p.title
+            """)).fetchall()
+        return jsonify({"ok": True, "papers": [dict(r._mapping) for r in rows]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── CREATE ASSIGNMENT ─────────────────────────────────
+@app.route("/api/teacher/assignments", methods=["POST"])
+@require_role("teacher")
+def create_assignment():
+    import uuid
+    user = get_current_user(request)
+    data = request.json
+    try:
+        paper_id    = data.get("paper_id")
+        student_ids = data.get("student_ids", [])
+        due_date    = data.get("due_date")
+
+        if not paper_id or not student_ids or not due_date:
+            return jsonify({"ok": False, "error": "paper_id, student_ids and due_date are required"})
+
+        engine = get_engine()
+        with engine.connect() as conn:
+            teacher_user = conn.execute(text(
+                "SELECT user_id FROM users WHERE email = :email"
+            ), {"email": user["email"]}).fetchone()
+        if not teacher_user:
+            return jsonify({"ok": False, "error": "Teacher not found"})
+
+        assigned_count = 0
+        skipped_count  = 0
+        with engine.begin() as conn:
+            for sid in student_ids:
+                existing = conn.execute(text("""
+                    SELECT assignment_id FROM assignments
+                    WHERE paper_id = CAST(:pid AS UNIQUEIDENTIFIER)
+                    AND student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                """), {"pid": str(paper_id), "sid": str(sid)}).fetchone()
+
+                if existing:
+                    skipped_count += 1
+                    continue
+
+                conn.execute(text("""
+                    INSERT INTO assignments
+                        (assignment_id, paper_id, student_id, assigned_by,
+                         due_date, watermark_token, status)
+                    VALUES
+                        (NEWID(),
+                         CAST(:pid AS UNIQUEIDENTIFIER),
+                         CAST(:sid AS UNIQUEIDENTIFIER),
+                         CAST(:assigned_by AS UNIQUEIDENTIFIER),
+                         :due_date, :token, 'assigned')
+                """), {
+                    "pid"         : str(paper_id),
+                    "sid"         : str(sid),
+                    "assigned_by" : str(teacher_user[0]),
+                    "due_date"    : due_date,
+                    "token"       : str(uuid.uuid4())
+                })
+                assigned_count += 1
+
+        msg = f"Assigned to {assigned_count} student(s)."
+        if skipped_count:
+            msg += f" {skipped_count} already assigned (skipped)."
+        return jsonify({"ok": True, "message": msg, "assigned": assigned_count, "skipped": skipped_count})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})

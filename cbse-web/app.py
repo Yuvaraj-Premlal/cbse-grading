@@ -1041,11 +1041,25 @@ def get_student_id(conn, user):
     if not user_row:
         return None, None
 
+    user_id = str(user_row[0])
+
     student_row = conn.execute(text(
         "SELECT student_id FROM students WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)"
-    ), {"uid": str(user_row[0])}).fetchone()
+    ), {"uid": user_id}).fetchone()
 
-    return str(user_row[0]), str(student_row[0]) if student_row else None
+    if not student_row:
+        # Auto-create student record using a new write connection
+        engine = get_engine()
+        with engine.begin() as write_conn:
+            write_conn.execute(text("""
+                INSERT INTO students (student_id, user_id, class)
+                VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER), 12)
+            """), {"uid": user_id})
+        student_row = conn.execute(text(
+            "SELECT student_id FROM students WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)"
+        ), {"uid": user_id}).fetchone()
+
+    return user_id, str(student_row[0]) if student_row else None
 
 
 @app.route("/api/student/dashboard")

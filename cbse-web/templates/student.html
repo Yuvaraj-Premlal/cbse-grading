@@ -482,7 +482,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
             <div style="font-size:12px;color:var(--muted);" id="grading-status">Reading question paper...</div>
           </div>
           <div style="margin-top:24px;">
-            <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">Preview Report (Demo) →</button>
+            <button class="btn btn-ghost btn-sm" onclick="openReport(currentSubmissionId)">View My Report →</button>
           </div>
         </div>
       </div>
@@ -511,128 +511,49 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
     </div>
   </nav>
   <div class="wrap-md">
-    <div style="margin-bottom:24px;">
-      <div class="page-title">Grading Report</div>
-      <div class="page-sub">Mathematics — Unit Test 3 · Released March 5, 2026</div>
-    </div>
+    <div id="report-loading" style="text-align:center;padding:48px;color:var(--muted);">Loading result...</div>
+    <div id="report-content" style="display:none;">
+      <div style="margin-bottom:24px;">
+        <div class="page-title" id="report-title">Grading Report</div>
+        <div class="page-sub" id="report-sub"></div>
+      </div>
 
-    <!-- SCORE HERO -->
-    <div class="score-hero">
-      <div class="score-ring-wrap">
-        <div class="score-ring">
-          <div class="score-ring-pct">75%</div>
-          <div class="score-ring-lbl">score</div>
+      <!-- SCORE HERO -->
+      <div class="score-hero">
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <div class="score-ring-pct" id="report-pct">—</div>
+            <div class="score-ring-lbl">score</div>
+          </div>
+        </div>
+        <div class="score-hero-info">
+          <h2 id="report-marks">— marks</h2>
+          <p id="report-subject-grade"></p>
+          <div class="score-hero-stats">
+            <div class="shs"><div class="shs-val" id="report-q-count">—</div><div class="shs-lbl">Questions</div></div>
+            <div class="shs"><div class="shs-val" id="report-full-marks">—</div><div class="shs-lbl">Full marks</div></div>
+            <div class="shs"><div class="shs-val" id="report-grade">—</div><div class="shs-lbl">Grade</div></div>
+            <div class="shs"><div class="shs-val" id="report-disputes">—</div><div class="shs-lbl">Disputes</div></div>
+          </div>
         </div>
       </div>
-      <div class="score-hero-info">
-        <h2>21 out of 28 marks</h2>
-        <p>Mathematics · Grade A</p>
-        <div class="score-hero-stats">
-          <div class="shs"><div class="shs-val">4</div><div class="shs-lbl">Questions</div></div>
-          <div class="shs"><div class="shs-val">2</div><div class="shs-lbl">Full marks</div></div>
-          <div class="shs"><div class="shs-val">1</div><div class="shs-lbl">Disputed</div></div>
-          <div class="shs"><div class="shs-val">A</div><div class="shs-lbl">Grade</div></div>
-        </div>
-      </div>
-    </div>
 
-    <!-- AI COACHING -->
-    <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:24px;">
-      <div class="coaching-ico">🧠</div>
-      <div class="coaching-text">
-        <span class="cl" style="color:var(--blue);">AI Coaching</span>
-        You clearly understand Probability and Algebra. Your main issue is Integration by Parts — you've lost marks on the u/dv selection in 3 consecutive exams. Practice 5 Calculus questions this week focusing on ILATE rule before touching anything else.
+      <!-- NOT RELEASED NOTICE -->
+      <div id="report-pending-notice" style="display:none;background:var(--amber-l);border:1px solid #F59E0B;border-radius:12px;padding:16px;margin-bottom:24px;font-size:13.5px;color:var(--amber);">
+        🔍 Your answer sheet has been graded by AI. The teacher is reviewing the results. Final marks will be visible once the teacher releases the grades.
       </div>
-    </div>
 
-    <!-- QUESTION BREAKDOWN -->
-    <div class="section-label">Question by Question</div>
-
-    <!-- Q1 -->
-    <div class="q-card open">
-      <div class="q-card-head" onclick="toggleQ(this)">
-        <div class="q-num" style="background:var(--green-l);color:var(--green);">Q1</div>
-        <div class="q-title"><h4>Probability — Conditional Events</h4><p>5 marks · Section A</p></div>
-        <div class="q-score" style="color:var(--green);">5/5</div>
-        <div class="q-chevron">▼</div>
-      </div>
-      <div class="q-card-body">
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Event identification correct</strong><span>P(A∩B) correctly identified from problem statement</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Bayes theorem applied</strong><span>Formula stated and correctly set up</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Calculation correct</strong><span>All arithmetic verified — clean working shown</span></div><div class="step-marks" style="color:var(--green);">3/3</div></div>
-        <div class="divider"></div>
-        <div class="feedback-box" style="background:var(--green-l);">
-          <div class="fb-label" style="color:var(--green);">💪 Strength</div>
-          Perfect answer. Clear method, all steps shown, correct final answer.
+      <!-- QUESTION BREAKDOWN -->
+      <div id="report-questions-section" style="display:none;">
+        <div class="section-label">Question by Question</div>
+        <div id="report-questions"></div>
+        <div style="margin-top:24px;padding:20px;background:var(--bg);border-radius:12px;text-align:center;">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Ready to fix your weak areas?</div>
+          <button class="btn btn-primary" onclick="showPage('page-practice')">📚 Practice now →</button>
         </div>
       </div>
     </div>
-
-    <!-- Q2 -->
-    <div class="q-card">
-      <div class="q-card-head" onclick="toggleQ(this)">
-        <div class="q-num" style="background:var(--red-l);color:var(--red);">Q2</div>
-        <div class="q-title"><h4>Calculus — Integration by Parts</h4><p>8 marks · Section B</p></div>
-        <div class="q-score" style="color:var(--red);">3/8</div>
-        <div class="q-chevron">▼</div>
-      </div>
-      <div class="q-card-body">
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Formula stated correctly</strong><span>∫u·dv = uv − ∫v·du written correctly</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Chain rule applied</strong><span>Differentiation of first function correct</span></div><div class="step-marks" style="color:var(--green);">1/1</div></div>
-        <div class="step-row"><div class="step-dot half">◑</div><div class="step-content"><strong>u and dv selection</strong><span>Wrong ILATE order — u=eˣ chosen over u=x. Algebraic functions should be u.</span></div><div class="step-marks" style="color:var(--amber);">1/2</div></div>
-        <div class="step-row"><div class="step-dot zero">✗</div><div class="step-content"><strong>Definite integral evaluation</strong><span>Wrong limits applied — substitution step skipped entirely</span></div><div class="step-marks" style="color:var(--red);">0/2</div></div>
-        <div class="step-row"><div class="step-dot zero">✗</div><div class="step-content"><strong>Final answer + simplification</strong><span>Not reached due to error in previous step</span></div><div class="step-marks" style="color:var(--red);">0/2</div></div>
-        <div class="divider"></div>
-        <div class="feedback-box" style="background:var(--amber-l);">
-          <div class="fb-label" style="color:var(--amber);">⚠️ Weakness</div>
-          ILATE rule not applied — u should always be the Algebraic term (x) not the Exponential (eˣ). This single error cascaded through the entire question.
-        </div>
-        <div class="feedback-box" style="background:var(--blue-l);">
-          <div class="fb-label" style="color:var(--blue);">📖 Model Solution</div>
-          u = x (Algebraic), dv = eˣdx → du = dx, v = eˣ → ∫x·eˣdx = xeˣ − ∫eˣdx = xeˣ − eˣ + C = eˣ(x−1) + C
-        </div>
-        <div class="feedback-box" style="background:var(--green-l);">
-          <div class="fb-label" style="color:var(--green);">💬 Teacher Comment</div>
-          Good start — formula recalled correctly. Remember ILATE: Inverse → Log → Algebraic → Trig → Exponential. Practice 3 more integration by parts problems.
-        </div>
-        <div style="margin-top:14px;">
-          <button class="btn btn-secondary btn-sm">🙋 Dispute this grade</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Q3 -->
-    <div class="q-card">
-      <div class="q-card-head" onclick="toggleQ(this)">
-        <div class="q-num" style="background:var(--green-l);color:var(--green);">Q3</div>
-        <div class="q-title"><h4>Probability — Binomial Distribution</h4><p>7 marks · Section B</p></div>
-        <div class="q-score" style="color:var(--green);">7/7</div>
-        <div class="q-chevron">▼</div>
-      </div>
-      <div class="q-card-body">
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>All steps correct</strong><span>Excellent working throughout — binomial formula correctly applied, all terms computed</span></div><div class="step-marks" style="color:var(--green);">7/7</div></div>
-      </div>
-    </div>
-
-    <!-- Q4 -->
-    <div class="q-card">
-      <div class="q-card-head" onclick="toggleQ(this)">
-        <div class="q-num" style="background:var(--amber-l);color:var(--amber);">Q4</div>
-        <div class="q-title"><h4>Matrices — Inverse and Determinant</h4><p>8 marks · Section C</p></div>
-        <div class="q-score" style="color:var(--amber);">6/8</div>
-        <div class="q-chevron">▼</div>
-      </div>
-      <div class="q-card-body">
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Determinant calculated correctly</strong><span>All cofactors computed accurately</span></div><div class="step-marks" style="color:var(--green);">2/2</div></div>
-        <div class="step-row"><div class="step-dot full">✓</div><div class="step-content"><strong>Adjoint matrix correct</strong><span>Transpose of cofactor matrix correctly formed</span></div><div class="step-marks" style="color:var(--green);">2/2</div></div>
-        <div class="step-row"><div class="step-dot half">◑</div><div class="step-content"><strong>Inverse computation</strong><span>Sign error in position (2,3) — minor calculation mistake</span></div><div class="step-marks" style="color:var(--amber);">2/4</div></div>
-      </div>
-    </div>
-
-    <div style="margin-top:24px;padding:20px;background:var(--bg);border-radius:12px;text-align:center;">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Ready to fix your weak areas?</div>
-      <button class="btn btn-primary" onclick="showPage('page-practice')">📚 Practice Calculus now →</button>
-    </div>
+    <div id="report-error" style="display:none;color:var(--red);padding:20px;"></div>
   </div>
 
   <div class="bottom-nav">
@@ -945,6 +866,144 @@ function showPage(id) {
   const p = document.getElementById(id);
   p.classList.add('active');
   window.scrollTo(0,0);
+}
+
+// ── REPORT ───────────────────────────────────────────
+let currentReportSubmissionId = null;
+
+function openReport(submissionId) {
+  currentReportSubmissionId = submissionId;
+  showPage('page-report');
+  loadReport(submissionId);
+}
+
+function scoreColor(awarded, max) {
+  const pct = max > 0 ? (awarded / max) * 100 : 0;
+  if (pct >= 80) return 'var(--green)';
+  if (pct >= 50) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function scoreBg(awarded, max) {
+  const pct = max > 0 ? (awarded / max) * 100 : 0;
+  if (pct >= 80) return 'var(--green-l)';
+  if (pct >= 50) return 'var(--amber-l)';
+  return 'var(--red-l)';
+}
+
+async function loadReport(submissionId) {
+  if (!submissionId) {
+    document.getElementById('report-loading').style.display = 'none';
+    document.getElementById('report-error').textContent = 'No result selected.';
+    document.getElementById('report-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('report-loading').style.display = 'block';
+  document.getElementById('report-content').style.display = 'none';
+  document.getElementById('report-error').style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/student/result/' + submissionId);
+    const data = await res.json();
+    if (!data.ok) {
+      document.getElementById('report-loading').style.display = 'none';
+      document.getElementById('report-error').textContent = data.error;
+      document.getElementById('report-error').style.display = 'block';
+      return;
+    }
+    const r = data.result;
+    const pct = r.percentage ? Math.round(r.percentage) : 0;
+    const isReleased = r.final_released;
+
+    // Header
+    document.getElementById('report-title').textContent = r.title;
+    document.getElementById('report-sub').textContent =
+      r.subject + ' · Class ' + r.class + ' · ' +
+      (isReleased ? 'Released ' + (r.released_at ? new Date(r.released_at).toLocaleDateString('en-IN') : '') : 'Under Review');
+
+    // Score hero
+    document.getElementById('report-pct').textContent = isReleased ? pct + '%' : '—';
+    document.getElementById('report-marks').textContent = isReleased
+      ? r.total_awarded + ' out of ' + r.total_max + ' marks'
+      : 'Awaiting release';
+    document.getElementById('report-subject-grade').textContent = r.subject + (isReleased ? ' · Grade ' + r.grade : '');
+    document.getElementById('report-q-count').textContent = r.questions.length;
+    document.getElementById('report-full-marks').textContent =
+      r.questions.filter(q => (q.final_marks || q.ai_marks_awarded) === q.max_marks).length;
+    document.getElementById('report-grade').textContent = isReleased ? r.grade : '—';
+    document.getElementById('report-disputes').textContent = r.disputes_count;
+
+    // Pending notice or questions
+    if (!isReleased) {
+      document.getElementById('report-pending-notice').style.display = 'block';
+      document.getElementById('report-questions-section').style.display = 'none';
+    } else {
+      document.getElementById('report-pending-notice').style.display = 'none';
+      document.getElementById('report-questions-section').style.display = 'block';
+
+      const questionsEl = document.getElementById('report-questions');
+      questionsEl.innerHTML = r.questions.map(q => {
+        const marks = q.final_marks !== null ? q.final_marks : q.ai_marks_awarded;
+        const color = scoreColor(marks, q.max_marks);
+        const bg    = scoreBg(marks, q.max_marks);
+
+        return `<div class="q-card">
+          <div class="q-card-head" onclick="toggleQ(this)">
+            <div class="q-num" style="background:${bg};color:${color};">${q.question_number}</div>
+            <div class="q-title"><h4>${q.chapter}</h4><p>${q.max_marks} marks · Section ${q.section}</p></div>
+            <div class="q-score" style="color:${color};">${marks}/${q.max_marks}</div>
+            <div class="q-chevron">▼</div>
+          </div>
+          <div class="q-card-body">
+            <div style="font-size:13.5px;color:var(--text);line-height:1.8;margin-bottom:14px;">${q.latex_content}</div>
+            ${q.ai_step_breakdown ? `
+            <div class="feedback-box" style="background:var(--bg);">
+              <div class="fb-label">📋 Step Breakdown</div>
+              ${q.ai_step_breakdown}
+            </div>` : ''}
+            ${q.ai_strength ? `
+            <div class="feedback-box" style="background:var(--green-l);">
+              <div class="fb-label" style="color:var(--green);">💪 Strength</div>
+              ${q.ai_strength}
+            </div>` : ''}
+            ${q.ai_weakness ? `
+            <div class="feedback-box" style="background:var(--amber-l);">
+              <div class="fb-label" style="color:var(--amber);">⚠️ Weakness</div>
+              ${q.ai_weakness}
+            </div>` : ''}
+            ${q.ai_model_solution ? `
+            <div class="feedback-box" style="background:var(--blue-l);">
+              <div class="fb-label" style="color:var(--blue);">📖 Model Solution</div>
+              ${q.ai_model_solution}
+            </div>` : ''}
+            ${q.ai_coaching_tip ? `
+            <div class="feedback-box" style="background:var(--purple-l);">
+              <div class="fb-label" style="color:var(--purple);">💡 Coaching Tip</div>
+              ${q.ai_coaching_tip}
+            </div>` : ''}
+            ${q.teacher_feedback ? `
+            <div class="feedback-box" style="background:var(--green-l);">
+              <div class="fb-label" style="color:var(--green);">💬 Teacher Comment</div>
+              ${q.teacher_feedback}
+            </div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+      // Render MathJax
+      if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([questionsEl]);
+      }
+    }
+
+    document.getElementById('report-loading').style.display = 'none';
+    document.getElementById('report-content').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('report-loading').style.display = 'none';
+    document.getElementById('report-error').textContent = 'Failed to load result.';
+    document.getElementById('report-error').style.display = 'block';
+  }
 }
 
 // ── LOGIN handled by Flask /login route ──
@@ -1353,7 +1412,7 @@ async function loadDashboard() {
             <div class="hr-marks">${e.total_awarded}/${e.total_marks}</div>
             <div class="hr-pct" style="color:${gradeColor(pct)};">${pct}%</div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="showPage('page-report')">View →</button>
+          <button class="btn btn-ghost btn-sm" onclick="openReport('${e.submission_id}')">View →</button>
         </div>`;
       }).join('');
     }

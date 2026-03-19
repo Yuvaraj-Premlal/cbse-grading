@@ -77,9 +77,12 @@ def get_blob_client():
 def upload_answer_sheet(file_bytes, filename, content_type):
     """Upload file to Azure Blob, return blob name (not URL — use get_sas_url to read)."""
     from azure.storage.blob import ContentSettings
+    import re
     blob_service  = get_blob_client()
     container     = blob_service.get_container_client(BLOB_CONTAINER)
-    blob_name     = f"{uuid.uuid4()}_{filename}"
+    # Sanitize filename — replace spaces and special chars with underscores
+    safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    blob_name     = f"{uuid.uuid4()}_{safe_filename}"
     container.upload_blob(
         blob_name, file_bytes,
         content_settings=ContentSettings(content_type=content_type)
@@ -92,10 +95,10 @@ def get_sas_url(blob_url, expiry_hours=2):
     """Generate a time-limited SAS URL for a private blob."""
     from azure.storage.blob import generate_blob_sas, BlobSasPermissions
     from datetime import timezone
-    # Parse blob name from URL
-    # URL format: https://<account>.blob.core.windows.net/<container>/<blob_name>
+    import urllib.parse
+    # Parse blob name from URL — decode any URL encoding first
     parts     = blob_url.split(f".blob.core.windows.net/{BLOB_CONTAINER}/")
-    blob_name = parts[1] if len(parts) > 1 else blob_url
+    blob_name = urllib.parse.unquote(parts[1]) if len(parts) > 1 else blob_url
     blob_service = get_blob_client()
     # Get account key from connection string
     conn_str = secrets["storage"]

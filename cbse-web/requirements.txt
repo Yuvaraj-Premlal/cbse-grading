@@ -9,3 +9,4 @@ python-dotenv
 gunicorn
 azure-storage-blob
 openai
+pdf2image

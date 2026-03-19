@@ -123,9 +123,10 @@ def get_openai_client():
         api_version    = "2024-02-01"
     )
 
-def grade_submission(questions, answer_sheet_url):
+def grade_submission(questions, answer_sheet_urls):
     """
     Grade student answer sheet using GPT-4o vision.
+    answer_sheet_urls: list of {url, filename} dicts, sorted in sequence.
     Returns list of per-question results.
     """
     client = get_openai_client()
@@ -169,12 +170,17 @@ For each question return a JSON object with these exact fields:
 
 Return ONLY the JSON array, nothing else."""
 
+    # Build image content — one entry per page, in sequence
+    image_contents = [{"type": "text", "text": user_prompt}]
+    for item in answer_sheet_urls:
+        image_contents.append({
+            "type": "image_url",
+            "image_url": {"url": item["url"], "detail": "high"}
+        })
+
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": [
-            {"type": "text", "text": user_prompt},
-            {"type": "image_url", "image_url": {"url": answer_sheet_url, "detail": "high"}}
-        ]}
+        {"role": "user", "content": image_contents}
     ]
 
     response = client.chat.completions.create(
@@ -201,17 +207,20 @@ def calculate_grade(percentage):
     if percentage >= 33: return 'D'
     return 'F'
 
-def run_grading_async(submission_id, assignment_id, student_id, questions, answer_sheet_url):
-    """Run AI grading in background thread."""
+def run_grading_async(submission_id, assignment_id, student_id, questions, answer_sheet_urls):
+    """Run AI grading in background thread. answer_sheet_urls is list of {url, filename}."""
     try:
         engine = get_engine()
 
-        # Generate SAS URL so GPT-4o can read the private blob
-        sas_url = get_sas_url(answer_sheet_url, expiry_hours=1)
-        print(f"Grading with SAS URL: {sas_url[:80]}...", flush=True)
+        # Generate SAS URLs for all images so GPT-4o can read private blobs
+        sas_urls = []
+        for item in answer_sheet_urls:
+            sas_url = get_sas_url(item["url"], expiry_hours=1)
+            sas_urls.append({"url": sas_url, "filename": item["filename"]})
+        print(f"Grading {len(sas_urls)} image(s)", flush=True)
 
         # Grade with GPT-4o
-        results = grade_submission(questions, sas_url)
+        results = grade_submission(questions, sas_urls)
 
         total_awarded = 0
         total_max     = sum(q['max_marks'] for q in questions)
@@ -1221,31 +1230,57 @@ def get_student_paper(paper_id):
 @app.route("/api/student/upload", methods=["POST"])
 @require_role("student")
 def upload_answer():
-    user = get_current_user(request)
     try:
-        if 'file' not in request.files:
-            return jsonify({"ok": False, "error": "No file provided"})
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({"ok": False, "error": "No files provided"})
 
-        file = request.files['file']
-        if not file.filename:
-            return jsonify({"ok": False, "error": "No file selected"})
+        allowed = {'jpg', 'jpeg', 'png', 'pdf'}
+        uploaded_urls = []
+        total_size = 0
 
-        # Validate file type
-        allowed = {'pdf', 'jpg', 'jpeg', 'png'}
-        ext = file.filename.rsplit('.', 1)[-1].lower()
-        if ext not in allowed:
-            return jsonify({"ok": False, "error": "Only PDF, JPG, PNG accepted"})
+        # Sort files by filename so student-numbered files go in order
+        files_sorted = sorted(files, key=lambda f: f.filename.lower())
 
-        # Validate file size (20MB max)
-        file_bytes = file.read()
-        if len(file_bytes) > 20 * 1024 * 1024:
-            return jsonify({"ok": False, "error": "File too large — max 20MB"})
+        for file in files_sorted:
+            if not file.filename:
+                continue
+            ext = file.filename.rsplit('.', 1)[-1].lower()
+            if ext not in allowed:
+                return jsonify({"ok": False, "error": f"File {file.filename}: only JPG, PNG, PDF accepted"})
 
-        content_type = file.content_type or f"image/{ext}"
-        url = upload_answer_sheet(file_bytes, file.filename, content_type)
+            file_bytes = file.read()
+            total_size += len(file_bytes)
+            if total_size > 50 * 1024 * 1024:
+                return jsonify({"ok": False, "error": "Total upload size too large — max 50MB"})
 
-        return jsonify({"ok": True, "url": url, "filename": file.filename,
-                        "size_mb": round(len(file_bytes) / 1024 / 1024, 2)})
+            if ext == 'pdf':
+                # Convert PDF pages to images
+                try:
+                    from pdf2image import convert_from_bytes
+                    pages = convert_from_bytes(file_bytes, dpi=200)
+                    base_name = file.filename.rsplit('.', 1)[0]
+                    for i, page in enumerate(pages):
+                        import io
+                        img_bytes = io.BytesIO()
+                        page.save(img_bytes, format='JPEG', quality=85)
+                        img_bytes = img_bytes.getvalue()
+                        page_name = f"{base_name}_page{i+1:02d}.jpg"
+                        url = upload_answer_sheet(img_bytes, page_name, 'image/jpeg')
+                        uploaded_urls.append({"url": url, "filename": page_name})
+                except ImportError:
+                    return jsonify({"ok": False, "error": "PDF support unavailable. Please upload JPG images."})
+            else:
+                content_type = file.content_type or f"image/{ext}"
+                url = upload_answer_sheet(file_bytes, file.filename, content_type)
+                uploaded_urls.append({"url": url, "filename": file.filename})
+
+        return jsonify({
+            "ok": True,
+            "urls": uploaded_urls,
+            "count": len(uploaded_urls),
+            "size_mb": round(total_size / 1024 / 1024, 2)
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
 
@@ -1257,11 +1292,16 @@ def submit_exam():
     user = get_current_user(request)
     data = request.json
     try:
-        assignment_id    = data.get("assignment_id")
-        answer_sheet_url = data.get("answer_sheet_url")
+        assignment_id     = data.get("assignment_id")
+        answer_sheet_urls = data.get("answer_sheet_urls", [])  # array of {url, filename}
 
-        if not assignment_id or not answer_sheet_url:
-            return jsonify({"ok": False, "error": "assignment_id and answer_sheet_url required"})
+        if not assignment_id or not answer_sheet_urls:
+            return jsonify({"ok": False, "error": "assignment_id and answer_sheet_urls required"})
+
+        # Sort by filename to maintain student-defined sequence
+        answer_sheet_urls = sorted(answer_sheet_urls, key=lambda x: x.get("filename","").lower())
+        # Primary URL for storage (first image)
+        answer_sheet_url = answer_sheet_urls[0]["url"] if answer_sheet_urls else ""
 
         engine = get_engine()
         with engine.connect() as conn:
@@ -1326,7 +1366,7 @@ def submit_exam():
         thread = threading.Thread(
             target=run_grading_async,
             args=(submission_id, assignment_id, student_id,
-                  questions_list, answer_sheet_url),
+                  questions_list, answer_sheet_urls),
             daemon=True
         )
         thread.start()

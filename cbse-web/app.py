@@ -142,7 +142,14 @@ Model Solution: {q.get('model_solution') or 'Grade based on standard CBSE markin
     system_prompt = """You are an expert CBSE Mathematics and Science examiner.
 You will be given a question paper and a student's handwritten answer sheet image.
 Grade each question strictly according to CBSE marking scheme — award marks for correct steps even if final answer is wrong.
-Respond ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
+
+IMPORTANT FORMATTING RULES:
+- Use LaTeX notation for ALL mathematical expressions, equations, and symbols.
+- Wrap inline math with single dollar signs: $expression$
+- Wrap display/block math with double dollar signs: $$expression$$
+- Examples: $\\int x \\cdot e^x dx$, $x \\in [0,1]$, $e^x(x-1) + C$
+- All step breakdowns, model solutions and coaching tips must use LaTeX for any math.
+- Respond ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
     user_prompt = f"""Grade this student's answer sheet for the following questions:
 
@@ -152,11 +159,11 @@ For each question return a JSON object with these exact fields:
 - question_number: "Q1", "Q2" etc
 - max_marks: integer
 - ai_marks_awarded: integer (0 to max_marks)
-- ai_step_breakdown: string explaining marks per step
-- ai_strength: string (what student did well)
-- ai_weakness: string (what student missed or got wrong)
-- ai_model_solution: string (brief ideal solution)
-- ai_coaching_tip: string (one actionable tip for improvement)
+- ai_step_breakdown: string explaining marks per step using LaTeX for math
+- ai_strength: string (what student did well) using LaTeX for math
+- ai_weakness: string (what student missed or got wrong) using LaTeX for math
+- ai_model_solution: string (brief ideal solution) using LaTeX for math — show key steps
+- ai_coaching_tip: string (one actionable tip) using LaTeX for math
 - ai_confidence: float between 0 and 1 (your confidence in this grade)
 - ai_flag_review: boolean (true if teacher should review)
 

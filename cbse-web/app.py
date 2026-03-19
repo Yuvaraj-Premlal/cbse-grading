@@ -288,11 +288,12 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
         try:
             engine = get_engine()
             with engine.begin() as conn:
+                # Mark as ai_failed — keeps status 'submitted' so teacher can review manually
                 conn.execute(text("""
                     UPDATE submissions SET
-                        ai_results = :err
+                        ai_results = 'ai_failed'
                     WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
-                """), {"err": f"Grading failed: {str(e)[:200]}", "sid": str(submission_id)})
+                """), {"sid": str(submission_id)})
         except:
             pass
 
@@ -1369,7 +1370,7 @@ def get_student_result(submission_id):
             if not sub:
                 return jsonify({"ok": False, "error": "Result not found"})
 
-            # Get per-question breakdown
+            # Get per-question breakdown — always return AI results
             questions = conn.execute(text("""
                 SELECT sq.question_number, sq.max_marks,
                        sq.ai_marks_awarded, sq.teacher_marks, sq.final_marks,
@@ -1393,6 +1394,13 @@ def get_student_result(submission_id):
                 ORDER BY sq.question_number
             """), {"sid": submission_id}).fetchall()
 
+            # Check if AI failed
+            ai_failed = conn.execute(text("""
+                SELECT ai_results FROM submissions
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"sid": submission_id}).fetchone()
+            ai_failed = ai_failed and ai_failed[0] == 'ai_failed' 
+
             # Open disputes count
             disputes = conn.execute(text("""
                 SELECT COUNT(*) FROM disputes
@@ -1400,8 +1408,9 @@ def get_student_result(submission_id):
             """), {"sid": submission_id}).fetchone()[0]
 
         result = dict(sub._mapping)
-        result["questions"] = [dict(q._mapping) for q in questions]
+        result["questions"]      = [dict(q._mapping) for q in questions]
         result["disputes_count"] = disputes
+        result["ai_failed"]      = bool(ai_failed)
         return jsonify({"ok": True, "result": result})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
@@ -1544,8 +1553,26 @@ def create_assignment():
 
         assigned_count = 0
         skipped_count  = 0
+        blocked_students = []
         with engine.begin() as conn:
             for sid in student_ids:
+                # Block if student has any unreleased assignment
+                unreleased = conn.execute(text("""
+                    SELECT a.assignment_id, p.title
+                    FROM assignments a
+                    JOIN papers p ON a.paper_id = p.paper_id
+                    WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                    AND a.status NOT IN ('released')
+                """), {"sid": str(sid)}).fetchone()
+
+                if unreleased:
+                    blocked_students.append({
+                        "student_id": str(sid),
+                        "blocked_by": unreleased.title
+                    })
+                    skipped_count += 1
+                    continue
+
                 existing = conn.execute(text("""
                     SELECT assignment_id FROM assignments
                     WHERE paper_id = CAST(:pid AS UNIQUEIDENTIFIER)
@@ -1576,8 +1603,12 @@ def create_assignment():
                 assigned_count += 1
 
         msg = f"Assigned to {assigned_count} student(s)."
-        if skipped_count:
+        if blocked_students:
+            blocked_titles = set(b["blocked_by"] for b in blocked_students)
+            msg += f" {len(blocked_students)} student(s) skipped — they have unreleased grades for: {', '.join(blocked_titles)}. Release those grades first."
+        elif skipped_count:
             msg += f" {skipped_count} already assigned (skipped)."
-        return jsonify({"ok": True, "message": msg, "assigned": assigned_count, "skipped": skipped_count})
+        return jsonify({"ok": True, "message": msg, "assigned": assigned_count,
+                        "skipped": skipped_count, "blocked": blocked_students})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})

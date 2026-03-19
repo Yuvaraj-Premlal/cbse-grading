@@ -20,6 +20,14 @@ load_dotenv()
 app = Flask(__name__)
 
 # ── SECRETS ───────────────────────────────────────────
+def get_secret_safe(client, name, fallback_env):
+    """Read one secret from Key Vault, fall back to env var if missing."""
+    try:
+        return client.get_secret(name).value
+    except Exception as e:
+        print(f"Key Vault secret '{name}' failed: {e}")
+        return os.getenv(fallback_env)
+
 def get_secrets():
     try:
         credential = DefaultAzureCredential()
@@ -28,19 +36,19 @@ def get_secrets():
             credential=credential
         )
         return {
-            "db"      : client.get_secret("DB-CONNECTION-STRING").value,
-            "jwt"     : client.get_secret("JWT-SECRET").value,
-            "storage" : client.get_secret("AZURE-STORAGE-CONNECTION-STRING").value,
-            "oai_endpoint" : client.get_secret("AZURE-OPENAI-ENDPOINT").value,
-            "oai_key"      : client.get_secret("AZURE-OPENAI-KEY").value,
-            "oai_deploy"   : client.get_secret("AZURE-OPENAI-DEPLOYMENT").value,
+            "db"           : get_secret_safe(client, "DB-CONNECTION-STRING",              "DB_CONNECTION_STRING"),
+            "jwt"          : get_secret_safe(client, "JWT-SECRET",                        "JWT_SECRET"),
+            "storage"      : get_secret_safe(client, "AZURE-STORAGE-CONNECTION-STRING",   "AZURE_STORAGE_CONNECTION_STRING"),
+            "oai_endpoint" : get_secret_safe(client, "AZURE-OPENAI-ENDPOINT",             "AZURE_OPENAI_ENDPOINT"),
+            "oai_key"      : get_secret_safe(client, "AZURE-OPENAI-KEY",                  "AZURE_OPENAI_KEY"),
+            "oai_deploy"   : get_secret_safe(client, "AZURE-OPENAI-DEPLOYMENT",           "AZURE_OPENAI_DEPLOYMENT"),
         }
     except Exception as e:
-        print(f"Key Vault fallback: {e}")
+        print(f"Key Vault connection failed entirely: {e}")
         return {
-            "db"      : os.getenv("DB_CONNECTION_STRING"),
-            "jwt"     : os.getenv("JWT_SECRET"),
-            "storage" : os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+            "db"           : os.getenv("DB_CONNECTION_STRING"),
+            "jwt"          : os.getenv("JWT_SECRET"),
+            "storage"      : os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
             "oai_endpoint" : os.getenv("AZURE_OPENAI_ENDPOINT"),
             "oai_key"      : os.getenv("AZURE_OPENAI_KEY"),
             "oai_deploy"   : os.getenv("AZURE_OPENAI_DEPLOYMENT"),

@@ -1366,6 +1366,24 @@ def get_students():
         return jsonify({"ok": False, "error": str(e)[:300]})
 
 
+# ── DEBUG STORAGE ────────────────────────────────────
+@app.route("/admin/debug-storage")
+def debug_storage():
+    storage_val = secrets.get("storage", "NOT FOUND")
+    if storage_val:
+        # Mask the account key but show structure
+        safe = storage_val[:80] + "..." if len(storage_val) > 80 else storage_val
+        valid = storage_val.startswith("DefaultEndpointsProtocol")
+    else:
+        safe = "None or empty"
+        valid = False
+    return jsonify({
+        "storage_secret_present": bool(storage_val),
+        "storage_secret_preview": safe,
+        "looks_valid": valid,
+        "length": len(storage_val) if storage_val else 0
+    })
+
 # ── DEBUG SCHEMA ─────────────────────────────────────
 @app.route("/admin/debug-schema")
 def debug_schema():

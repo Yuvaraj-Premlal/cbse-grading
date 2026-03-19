@@ -1340,6 +1340,73 @@ def submission_status(submission_id):
         return jsonify({"ok": False, "error": str(e)[:300]})
 
 
+@app.route("/api/student/result/<submission_id>")
+@require_role("student")
+def get_student_result(submission_id):
+    user = get_current_user(request)
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            user_id, student_id = get_student_id(conn, user)
+            if not student_id:
+                return jsonify({"ok": False, "error": "Student profile not found"})
+
+            # Get submission — must belong to this student and be released or graded
+            sub = conn.execute(text("""
+                SELECT s.submission_id, s.total_awarded, s.total_max,
+                       s.percentage, s.grade, s.final_released,
+                       CONVERT(VARCHAR, s.submitted_at, 120) as submitted_at,
+                       CONVERT(VARCHAR, s.released_at, 120) as released_at,
+                       p.title, p.subject, p.class, p.duration_minutes,
+                       a.assignment_id, a.status as assignment_status
+                FROM submissions s
+                JOIN assignments a ON s.assignment_id = a.assignment_id
+                JOIN papers p ON a.paper_id = p.paper_id
+                WHERE s.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND a.student_id = CAST(:stid AS UNIQUEIDENTIFIER)
+            """), {"sid": submission_id, "stid": student_id}).fetchone()
+
+            if not sub:
+                return jsonify({"ok": False, "error": "Result not found"})
+
+            # Get per-question breakdown
+            questions = conn.execute(text("""
+                SELECT sq.question_number, sq.max_marks,
+                       sq.ai_marks_awarded, sq.teacher_marks, sq.final_marks,
+                       sq.ai_step_breakdown, sq.ai_strength, sq.ai_weakness,
+                       sq.ai_model_solution, sq.ai_coaching_tip,
+                       sq.ai_confidence, sq.ai_flag_review,
+                       sq.teacher_feedback,
+                       q.latex_content, q.chapter, q.type,
+                       pq.section
+                FROM submission_questions sq
+                JOIN questions q ON sq.question_id = q.question_id
+                JOIN paper_questions pq ON q.question_id = pq.question_id
+                    AND pq.paper_id = (
+                        SELECT paper_id FROM assignments
+                        WHERE assignment_id = (
+                            SELECT assignment_id FROM submissions
+                            WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                        )
+                    )
+                WHERE sq.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                ORDER BY sq.question_number
+            """), {"sid": submission_id}).fetchall()
+
+            # Open disputes count
+            disputes = conn.execute(text("""
+                SELECT COUNT(*) FROM disputes
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"sid": submission_id}).fetchone()[0]
+
+        result = dict(sub._mapping)
+        result["questions"] = [dict(q._mapping) for q in questions]
+        result["disputes_count"] = disputes
+        return jsonify({"ok": True, "result": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
 

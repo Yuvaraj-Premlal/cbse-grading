@@ -207,13 +207,20 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
         total_max     = sum(q['max_marks'] for q in questions)
 
         with engine.begin() as conn:
-            for r in results:
-                # Find matching question
+            for i, r in enumerate(results):
+                # Match by question_number OR by position
                 q_match = next((q for q in questions
-                    if q['question_number'] == r.get('question_number')), None)
-                question_id = q_match['question_id'] if q_match else None
+                    if str(q['question_number']) == str(r.get('question_number'))), None)
+                # Fallback: match by index position
+                if not q_match and i < len(questions):
+                    q_match = questions[i]
 
-                marks = min(r.get('ai_marks_awarded', 0), r.get('max_marks', 0))
+                if not q_match:
+                    print(f"No match for {r.get('question_number')} — skipping", flush=True)
+                    continue
+
+                question_id = q_match['question_id']
+                marks = min(r.get('ai_marks_awarded', 0), q_match['max_marks'])
                 total_awarded += marks
 
                 conn.execute(text("""
@@ -232,9 +239,9 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                          :confidence, :flag)
                 """), {
                     "sid"       : str(submission_id),
-                    "qid"       : str(question_id) if question_id else str(uuid.uuid4()),
+                    "qid"       : str(question_id),
                     "qnum"      : r.get('question_number'),
-                    "max_marks" : r.get('max_marks', 0),
+                    "max_marks" : q_match['max_marks'],
                     "awarded"   : marks,
                     "breakdown" : r.get('ai_step_breakdown', ''),
                     "strength"  : r.get('ai_strength', ''),

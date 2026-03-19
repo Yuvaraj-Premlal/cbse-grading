@@ -921,29 +921,53 @@ async function loadReport(submissionId) {
       r.subject + ' · Class ' + r.class + ' · ' +
       (isReleased ? 'Released ' + (r.released_at ? new Date(r.released_at).toLocaleDateString('en-IN') : '') : 'Under Review');
 
-    // Score hero
-    document.getElementById('report-pct').textContent = isReleased ? pct + '%' : '—';
-    document.getElementById('report-marks').textContent = isReleased
+    // Score hero — show AI marks when graded, even if not released
+    const hasMarks = r.total_awarded !== null && r.total_max !== null && !r.ai_failed;
+    document.getElementById('report-pct').textContent = hasMarks ? pct + '%' : '—';
+    document.getElementById('report-marks').textContent = hasMarks
       ? r.total_awarded + ' out of ' + r.total_max + ' marks'
-      : 'Awaiting release';
-    document.getElementById('report-subject-grade').textContent = r.subject + (isReleased ? ' · Grade ' + r.grade : '');
+      : r.ai_failed ? 'Pending manual review' : 'Awaiting grading';
+    document.getElementById('report-subject-grade').textContent =
+      r.subject + (hasMarks ? ' · ' + (isReleased ? 'Grade ' + r.grade : 'AI Grade ' + r.grade) : '');
     document.getElementById('report-q-count').textContent = r.questions.length;
     document.getElementById('report-full-marks').textContent =
       r.questions.filter(q => (q.final_marks || q.ai_marks_awarded) === q.max_marks).length;
     document.getElementById('report-grade').textContent = isReleased ? r.grade : '—';
     document.getElementById('report-disputes').textContent = r.disputes_count;
 
-    // Pending notice or questions
-    if (!isReleased) {
+    // Three states: ai_failed / graded-not-released / released
+    const questionsEl = document.getElementById('report-questions');
+    if (r.ai_failed) {
+      document.getElementById('report-pending-notice').innerHTML =
+        '📋 <strong>Your answer sheet has been submitted to your teacher for review.</strong><br>' +
+        'AI grading was unavailable — your teacher will mark it manually. Results will be visible once released.';
+      document.getElementById('report-pending-notice').style.background = 'var(--blue-l)';
+      document.getElementById('report-pending-notice').style.color = 'var(--blue)';
       document.getElementById('report-pending-notice').style.display = 'block';
       document.getElementById('report-questions-section').style.display = 'none';
-    } else {
-      document.getElementById('report-pending-notice').style.display = 'none';
+    } else if (r.questions.length > 0) {
+      // AI graded — show results with review banner if not released
+      if (!isReleased) {
+        document.getElementById('report-pending-notice').innerHTML =
+          '🔍 <strong>AI has graded your paper.</strong> Your teacher is reviewing the results. ' +
+          'Marks shown below are AI marks — final marks may change after teacher review.';
+        document.getElementById('report-pending-notice').style.display = 'block';
+      } else {
+        document.getElementById('report-pending-notice').style.display = 'none';
+      }
       document.getElementById('report-questions-section').style.display = 'block';
-
+    } else {
+      document.getElementById('report-pending-notice').innerHTML =
+        '⏳ Your answer sheet is being processed. Check back in a few minutes.';
+      document.getElementById('report-pending-notice').style.display = 'block';
+      document.getElementById('report-questions-section').style.display = 'none';
+    }
+    if (r.questions.length > 0) {
+      document.getElementById('report-questions-section').style.display = 'block';
       const questionsEl = document.getElementById('report-questions');
       questionsEl.innerHTML = r.questions.map(q => {
-        const marks = q.final_marks !== null ? q.final_marks : q.ai_marks_awarded;
+        // Use teacher marks if released, otherwise show AI marks
+        const marks = isReleased && q.final_marks !== null ? q.final_marks : q.ai_marks_awarded;
         const color = scoreColor(marks, q.max_marks);
         const bg    = scoreBg(marks, q.max_marks);
 
@@ -1109,13 +1133,18 @@ function openExamSubmit(assignmentId, title, meta, dueDate) {
     document.getElementById('exam-countdown').style.color = 'var(--red)';
   }
 
-  // Reset form
+  // Reset form fully
+  currentSubmissionId = null;
+  if (gradingPollInterval) { clearInterval(gradingPollInterval); gradingPollInterval = null; }
   document.getElementById('upload-zone').style.display = 'block';
   document.getElementById('file-preview').style.display = 'none';
   document.getElementById('submit-btn').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').textContent = '📤 Submit for Grading →';
   document.getElementById('grading-progress').style.display = 'none';
+  document.getElementById('grading-bar').style.width = '0%';
+  document.getElementById('grading-status').textContent = 'Answer sheet uploaded. AI grading started...';
   document.getElementById('file-input').value = '';
-  document.getElementById('exam-error') && (document.getElementById('exam-error').style.display = 'none');
 
   showPage('page-exam');
 }
@@ -1223,20 +1252,20 @@ function pollGradingStatus() {
       if (data.ok && data.submission.graded) {
         clearInterval(gradingPollInterval);
         document.getElementById('grading-bar').style.width = '100%';
-        document.getElementById('grading-status').textContent = '✅ Grading complete!';
+        document.getElementById('grading-status').textContent = '✅ AI grading complete! Loading your results...';
         setTimeout(() => {
-          // Reload dashboard to show "Under Review"
-          loadDashboard();
-          showPage('page-dashboard');
-        }, 2000);
+          openReport(currentSubmissionId);
+        }, 1500);
       }
     } catch(e) { /* keep polling */ }
 
     // Timeout after 5 mins
     if (elapsed >= 300) {
       clearInterval(gradingPollInterval);
+      document.getElementById('grading-bar').style.width = '100%';
       document.getElementById('grading-status').textContent =
-        'Grading is taking longer than usual. Check back in a few minutes.';
+        '✅ Your answer sheet has been submitted to your teacher for review.';
+      setTimeout(() => { loadDashboard(); showPage('page-dashboard'); }, 3000);
     }
   }, 10000); // poll every 10s
 }

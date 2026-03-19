@@ -541,8 +541,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
           <p id="report-subject-grade"></p>
           <div class="score-hero-stats">
             <div class="shs"><div class="shs-val" id="report-q-count">—</div><div class="shs-lbl">Questions</div></div>
-            <div class="shs"><div class="shs-val" id="report-full-marks">—</div><div class="shs-lbl">Full marks</div></div>
-            <div class="shs"><div class="shs-val" id="report-grade">—</div><div class="shs-lbl">Grade</div></div>
+            <div class="shs"><div class="shs-val" id="report-grade">—</div><div class="shs-lbl" id="report-grade-lbl">Grade</div></div>
             <div class="shs"><div class="shs-val" id="report-disputes">—</div><div class="shs-lbl">Disputes</div></div>
           </div>
         </div>
@@ -938,11 +937,11 @@ async function loadReport(submissionId) {
       ? r.total_awarded + ' out of ' + r.total_max + ' marks'
       : r.ai_failed ? 'Pending manual review' : 'Awaiting grading';
     document.getElementById('report-subject-grade').textContent =
-      r.subject + (hasMarks ? ' · ' + (isReleased ? 'Grade ' + r.grade : 'AI Grade ' + r.grade) : '');
+      r.subject + (hasMarks ? (isReleased ? ' · Grade ' + r.grade : ' · Awaiting teacher review') : '');
     document.getElementById('report-q-count').textContent = r.questions.length;
-    document.getElementById('report-full-marks').textContent =
-      r.questions.filter(q => (q.final_marks || q.ai_marks_awarded) === q.max_marks).length;
-    document.getElementById('report-grade').textContent = isReleased ? r.grade : '—';
+
+    document.getElementById('report-grade').textContent = isReleased ? r.grade : (hasMarks ? r.grade : '—');
+    document.getElementById('report-grade-lbl').textContent = isReleased ? 'Grade' : (hasMarks ? 'AI Grade*' : 'Grade');
     document.getElementById('report-disputes').textContent = r.disputes_count;
 
     // Three states: ai_failed / graded-not-released / released

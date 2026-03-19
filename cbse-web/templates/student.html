@@ -283,6 +283,15 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
 .bn-item.active{color:var(--blue);}
 .bn-icon{font-size:20px;}
 @media(max-width:768px){.bottom-nav{display:block;}.wrap{padding-bottom:80px;}}
+
+@media print {
+  .bottom-nav, nav .btn, .btn-secondary, #report-pending-notice + div button { display:none !important; }
+  .page { display:block !important; }
+  .page:not(#page-report) { display:none !important; }
+  body { background:#fff; }
+  .q-card-body { display:block !important; }
+  nav { box-shadow:none; border-bottom:1px solid #ccc; }
+}
 </style>
 </head>
 <body>
@@ -444,24 +453,25 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       </div>
     </div>
 
+    <!-- UPLOAD INSTRUCTIONS -->
+    <div class="card" style="margin-bottom:20px;background:var(--blue-l);border-color:var(--blue-m);">
+      <div style="font-size:13px;color:var(--blue);line-height:1.8;">
+        📸 <strong>Multiple pages?</strong> Name your files in order before uploading — <strong>01.jpg, 02.jpg, 03.jpg</strong> etc. 
+        AI grades them in filename order so continuations across pages work correctly.<br/>
+        📄 <strong>PDF accepted</strong> — each page will be extracted automatically.
+      </div>
+    </div>
+
     <!-- UPLOAD ZONE -->
     <div class="upload-zone" id="upload-zone" onclick="triggerUpload()">
       <div class="uz-icon">📸</div>
-      <h3>Tap to upload your answer sheet</h3>
-      <p>PDF or JPEG · Max 20MB · Multiple pages supported</p>
-      <input type="file" id="file-input" style="display:none;" accept=".pdf,.jpg,.jpeg" onchange="fileSelected(this)"/>
+      <h3>Tap to select your answer sheet</h3>
+      <p>JPG · PNG · PDF · Select multiple files · Max 50MB total</p>
+      <input type="file" id="file-input" style="display:none;" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="filesSelected(this)"/>
     </div>
 
-    <div id="file-preview" style="display:none;margin-top:16px;">
-      <div class="card-sm" style="display:flex;align-items:center;gap:14px;">
-        <div style="font-size:28px;">📄</div>
-        <div style="flex:1;">
-          <div style="font-size:13.5px;font-weight:600;color:var(--text);" id="file-name">answer_sheet.jpg</div>
-          <div style="font-size:12px;color:var(--muted);" id="file-size">2.4 MB</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="removeFile()">✕ Remove</button>
-      </div>
-    </div>
+    <!-- FILE LIST — shows selected files in order -->
+    <div id="file-list" style="display:none;margin-top:16px;"></div>
 
     <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
       <button class="btn btn-primary" id="submit-btn" onclick="submitExam()" style="display:none;">📤 Submit for Grading →</button>
@@ -506,7 +516,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
       <div class="nav-right">
         <button class="btn btn-ghost btn-sm" onclick="showPage('page-dashboard')">← Dashboard</button>
-        <button class="btn btn-secondary btn-sm">📥 Download PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">📥 Download PDF</button>
       </div>
     </div>
   </nav>
@@ -1135,9 +1145,10 @@ function openExamSubmit(assignmentId, title, meta, dueDate) {
 
   // Reset form fully
   currentSubmissionId = null;
+  selectedFiles = [];
   if (gradingPollInterval) { clearInterval(gradingPollInterval); gradingPollInterval = null; }
   document.getElementById('upload-zone').style.display = 'block';
-  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('file-list').style.display = 'none';
   document.getElementById('submit-btn').style.display = 'none';
   document.getElementById('submit-btn').disabled = false;
   document.getElementById('submit-btn').textContent = '📤 Submit for Grading →';
@@ -1151,33 +1162,65 @@ function openExamSubmit(assignmentId, title, meta, dueDate) {
 
 function triggerUpload() { document.getElementById('file-input').click(); }
 
-function fileSelected(input) {
+let selectedFiles = [];
+
+function filesSelected(input) {
   if (!input.files.length) return;
-  const f = input.files[0];
-  document.getElementById('file-name').textContent = f.name;
-  document.getElementById('file-size').textContent = (f.size/1024/1024).toFixed(1) + ' MB';
-  document.getElementById('file-preview').style.display = 'block';
+  // Sort by filename so numbered files go in order
+  selectedFiles = Array.from(input.files).sort((a, b) =>
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  );
+  renderFileList();
+}
+
+function renderFileList() {
+  const listEl = document.getElementById('file-list');
+  if (!selectedFiles.length) {
+    listEl.style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'none';
+    return;
+  }
+  listEl.style.display = 'block';
+  const totalMB = selectedFiles.reduce((s, f) => s + f.size, 0) / 1024 / 1024;
+  listEl.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+      ${selectedFiles.length} file${selectedFiles.length>1?'s':''} selected · ${totalMB.toFixed(1)} MB total · Graded in this order:
+    </div>` +
+    selectedFiles.map((f, i) => `
+      <div class="card-sm" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:10px 14px;">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+        <div style="font-size:13px;font-weight:500;flex:1;">${f.name}</div>
+        <div style="font-size:12px;color:var(--muted);">${(f.size/1024/1024).toFixed(1)} MB</div>
+        <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="removeFileAt(${i})">✕</button>
+      </div>`).join('') +
+    `<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="clearFiles()">✕ Clear all</button>`;
   document.getElementById('submit-btn').style.display = 'inline-flex';
 }
 
-function removeFile() {
-  document.getElementById('file-preview').style.display = 'none';
-  document.getElementById('submit-btn').style.display = 'none';
-  document.getElementById('file-input').value = '';
+function removeFileAt(idx) {
+  selectedFiles.splice(idx, 1);
+  renderFileList();
 }
 
+function clearFiles() {
+  selectedFiles = [];
+  document.getElementById('file-input').value = '';
+  renderFileList();
+}
+
+function removeFile() { clearFiles(); }
+
 async function submitExam() {
-  const btn   = document.getElementById('submit-btn');
-  const files = document.getElementById('file-input').files;
-  if (!files.length) return;
+  const btn = document.getElementById('submit-btn');
+  if (!selectedFiles.length) return;
 
   btn.disabled = true;
-  btn.textContent = 'Uploading...';
+  btn.textContent = `Uploading ${selectedFiles.length} file${selectedFiles.length>1?'s':''}...`;
 
   try {
-    // Step 1 — Upload file to blob
+    // Step 1 — Upload all files to blob
     const formData = new FormData();
-    formData.append('file', files[0]);
+    selectedFiles.forEach(f => formData.append('files', f));
 
     const uploadRes  = await fetch('/api/student/upload', { method: 'POST', body: formData });
     const uploadData = await uploadRes.json();
@@ -1190,13 +1233,13 @@ async function submitExam() {
 
     btn.textContent = 'Submitting...';
 
-    // Step 2 — Create submission
+    // Step 2 — Create submission with all URLs in order
     const submitRes  = await fetch('/api/student/submit', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        assignment_id    : currentExamAssignmentId,
-        answer_sheet_url : uploadData.url
+        assignment_id     : currentExamAssignmentId,
+        answer_sheet_urls : uploadData.urls
       })
     });
     const submitData = await submitRes.json();

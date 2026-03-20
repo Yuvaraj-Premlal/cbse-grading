@@ -2592,7 +2592,14 @@ function annotGetJSON() {
   if (annotCanvas) {
     annotPageData[annotPageIdx] = annotCanvas.getObjects().map(o => o.toObject());
   }
-  return JSON.stringify({ pages: annotPageData });
+  // Store canvas width per page so student can scale correctly
+  const canvasWidths = {};
+  if (annotBgImage) {
+    const container = document.querySelector('#annot-canvas').closest('.card');
+    const baseWidth = (container ? container.offsetWidth : 500) - 2;
+    Object.keys(annotPageData).forEach(idx => { canvasWidths[idx] = baseWidth; });
+  }
+  return JSON.stringify({ pages: annotPageData, canvasWidths });
 }
 
 </script>

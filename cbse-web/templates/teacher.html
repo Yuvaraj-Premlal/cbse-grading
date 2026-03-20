@@ -2347,7 +2347,7 @@ function annotInit(sasUrls, savedAnnotations) {
   // Stamp tools on click
   annotCanvas.on('mouse:down', function(opt) {
     if (annotTool === 'draw' || annotTool === 'text' || annotTool === 'select') return;
-    if (opt.target) return; // clicked on existing object — let fabric handle it
+    if (opt.target) return; // clicked on existing object
     const p = annotCanvas.getPointer(opt.e);
     annotStamp(p.x, p.y);
   });
@@ -2489,19 +2489,31 @@ function annotUndo() {
   if (hist.length > 1) hist.pop();
   const prev = JSON.parse(hist[hist.length - 1] || '[]');
   annotPageData[annotPageIdx] = prev;
-  // FIX: reload background image + annotations together
-  annotCanvas.clear();
-  if (annotBgImage) {
-    annotCanvas.setBackgroundImage(annotBgImage, function() {
-      if (prev.length) {
-        annotCanvas.loadFromJSON({ objects: prev }, function() {
+  // Reload fresh image from URL to avoid destroyed reference
+  annotReloadBg(annotPages[annotPageIdx], prev);
+}
+
+function annotReloadBg(url, objects) {
+  fabric.Image.fromURL(url, function(img) {
+    annotBgImage = img;
+    const container = document.querySelector('#annot-canvas').closest('.card');
+    const baseWidth = (container ? container.offsetWidth : 500) - 2;
+    const scale     = baseWidth / img.width;
+    const height    = img.height * scale;
+    img.set({ scaleX: scale * annotZoom, scaleY: scale * annotZoom, left: 0, top: 0 });
+
+    // Remove all objects but keep canvas size
+    annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+    annotCanvas.setBackgroundImage(img, function() {
+      if (objects && objects.length) {
+        annotCanvas.loadFromJSON({ objects }, function() {
           annotCanvas.renderAll();
         });
       } else {
         annotCanvas.renderAll();
       }
     });
-  }
+  }, { crossOrigin: 'anonymous' });
 }
 
 function annotClear() {
@@ -2557,8 +2569,16 @@ function setTool(tool) {
   if (btn) btn.classList.add('active');
   if (annotCanvas) {
     annotCanvas.isDrawingMode = (tool === 'draw');
-    annotCanvas.selection     = (tool === 'text' || tool === 'select');
-    annotCanvas.defaultCursor = (tool === 'text') ? 'text' : (tool === 'draw') ? 'crosshair' : 'default';
+    if (tool === 'select') {
+      annotCanvas.selection = true;
+      annotCanvas.getObjects().forEach(o => o.set({ selectable: true, evented: true }));
+      annotCanvas.defaultCursor = 'move';
+    } else {
+      annotCanvas.selection = false;
+      annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+      annotCanvas.defaultCursor = tool === 'draw' ? 'crosshair' : tool === 'text' ? 'text' : 'default';
+    }
+    annotCanvas.renderAll();
   }
 }
 

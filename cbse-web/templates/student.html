@@ -1462,7 +1462,8 @@ async function loadDashboard() {
             <div style="font-size:14px;font-weight:600;color:var(--text);">${e.title}</div>
             <div style="font-size:12px;color:var(--muted);">Submitted ${e.submitted_at ? new Date(e.submitted_at).toLocaleDateString('en-IN') : '—'} · ${e.total_marks} marks</div>
           </div>
-          <span class="badge badge-amber">Under Review</span>
+          <span class="badge badge-amber" style="flex-shrink:0;">Under Review</span>
+          ${e.submission_id ? `<button class="btn btn-ghost btn-sm" onclick="openReport('${e.submission_id}')">View AI Report →</button>` : ''}
         </div>`).join('');
     }
 

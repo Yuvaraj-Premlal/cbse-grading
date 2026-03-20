@@ -1422,6 +1422,7 @@ def get_student_result(submission_id):
             sub = conn.execute(text("""
                 SELECT s.submission_id, s.total_awarded, s.total_max,
                        s.percentage, s.grade, s.final_released,
+                       s.answer_sheet_url,
                        CONVERT(VARCHAR, s.submitted_at, 120) as submitted_at,
                        CONVERT(VARCHAR, s.released_at, 120) as released_at,
                        p.title, p.subject, p.class, p.duration_minutes,

@@ -1066,7 +1066,6 @@ async function renderAnnotatedSheets(annotationsJson, answerSheetUrl) {
   // Get SAS URLs for all pages
   let imageUrls = [];
   try {
-    // Parse answer_sheet_url — may be JSON array or single URL
     let rawUrls = [];
     if (answerSheetUrl && answerSheetUrl.startsWith('[')) {
       rawUrls = JSON.parse(answerSheetUrl);
@@ -1082,7 +1081,7 @@ async function renderAnnotatedSheets(annotationsJson, answerSheetUrl) {
       const sasData = await sasRes.json();
       if (sasData.ok) imageUrls = sasData.sas_urls;
     }
-  } catch(e) { /* proceed without images */ }
+  } catch(e) { /* proceed */ }
 
   pagesEl.innerHTML = '';
   const pageCount = Object.keys(annotData.pages).length;
@@ -1093,31 +1092,49 @@ async function renderAnnotatedSheets(annotationsJson, answerSheetUrl) {
 
     const label = document.createElement('div');
     label.style.cssText = 'font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;';
-    label.textContent   = 'Page ' + (i+1) + ' of ' + pageCount;
+    label.textContent = 'Page ' + (i+1) + ' of ' + pageCount;
     pagesEl.appendChild(label);
 
+    // Use img tag as background + canvas overlay to avoid CORS issues with fabric background
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px;';
-    const canvasEl  = document.createElement('canvas');
-    canvasEl.id     = 'student-annot-canvas-' + i;
-    wrapper.appendChild(canvasEl);
+    wrapper.style.cssText = 'position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px;';
     pagesEl.appendChild(wrapper);
 
-    const width = pagesEl.offsetWidth || 340;
-
     if (imageUrl) {
-      fabric.Image.fromURL(imageUrl, function(img) {
-        const scale  = width / img.width;
-        const height = img.height * scale;
-        const c = new fabric.StaticCanvas(canvasEl.id, { width, height });
-        c.setBackgroundImage(img, c.renderAll.bind(c), { scaleX: scale, scaleY: scale });
-        if (objects && objects.length) {
-          // Scale annotation positions proportionally
-          c.loadFromJSON({ objects }, function() { c.renderAll(); });
+      const img       = document.createElement('img');
+      img.src         = imageUrl;
+      img.style.cssText = 'width:100%;display:block;';
+      wrapper.appendChild(img);
+
+      const pageObjects = objects; // capture for closure
+      img.onload = function() {
+        const dispW  = img.offsetWidth  || img.naturalWidth;
+        const scaleX = dispW / img.naturalWidth;
+        const dispH  = img.naturalHeight * scaleX;
+
+        const canvasEl       = document.createElement('canvas');
+        canvasEl.width       = dispW;
+        canvasEl.height      = dispH;
+        canvasEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;pointer-events:none;';
+        wrapper.appendChild(canvasEl);
+
+        const c = new fabric.StaticCanvas(canvasEl);
+        c.setWidth(dispW);
+        c.setHeight(dispH);
+
+        if (pageObjects && pageObjects.length) {
+          const scaled = pageObjects.map(o => Object.assign({}, o, {
+            left    : (o.left   || 0) * scaleX,
+            top     : (o.top    || 0) * scaleX,
+            fontSize: o.fontSize ? Math.round(o.fontSize * scaleX) : undefined
+          }));
+          c.loadFromJSON({ objects: scaled }, function() { c.renderAll(); });
         }
-      }, { crossOrigin: 'anonymous' });
+      };
     } else if (objects && objects.length) {
-      const c = new fabric.StaticCanvas(canvasEl.id, { width, height: 400 });
+      const canvasEl = document.createElement('canvas');
+      wrapper.appendChild(canvasEl);
+      const c = new fabric.StaticCanvas(canvasEl, { width: pagesEl.offsetWidth || 340, height: 400 });
       c.loadFromJSON({ objects }, function() { c.renderAll(); });
     }
   }

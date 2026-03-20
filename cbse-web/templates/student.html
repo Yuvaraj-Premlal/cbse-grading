@@ -989,12 +989,7 @@ async function loadReport(submissionId) {
         const color = scoreColor(marks, q.max_marks);
         const bg    = scoreBg(marks, q.max_marks);
 
-        // AI Trust badge
         const conf = parseFloat(q.ai_confidence || 0.8);
-        const trustLabel = conf >= 0.85 ? 'High' : conf >= 0.75 ? 'Medium' : 'Low';
-        const trustColor = conf >= 0.85 ? 'var(--green)' : conf >= 0.75 ? 'var(--amber)' : 'var(--red)';
-        const trustBg    = conf >= 0.85 ? 'var(--green-l)' : conf >= 0.75 ? 'var(--amber-l)' : '#FEE2E2';
-        const trustBadge = `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${trustBg};color:${trustColor};margin-left:8px;">AI Trust: ${trustLabel}</span>`;
 
         // Strict examiner warning
         const strictWarn = (q.ai_strict_marks !== null && q.ai_strict_marks !== undefined && q.ai_strict_marks < marks) ?
@@ -1015,10 +1010,7 @@ async function loadReport(submissionId) {
           <div class="q-card-head" onclick="toggleQ(this)">
             <div class="q-num" style="background:${bg};color:${color};">${q.question_number}</div>
             <div class="q-title"><h4>${q.chapter}</h4><p>${q.max_marks} marks · Section ${q.section}</p></div>
-            <div style="display:flex;align-items:center;">
-              <div class="q-score" style="color:${color};">${marks}/${q.max_marks}</div>
-              ${trustBadge}
-            </div>
+            <div class="q-score" style="color:${color};">${marks}/${q.max_marks}</div>
             <div class="q-chevron">▼</div>
           </div>
           <div class="q-card-body">

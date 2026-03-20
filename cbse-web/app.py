@@ -140,33 +140,45 @@ Q{i}. [{q['chapter']} · {q['max_marks']} marks]
 Model Solution: {q.get('model_solution') or 'Grade based on standard CBSE marking scheme'}
 ---"""
 
-    system_prompt = """You are an expert CBSE Mathematics and Science examiner.
+    system_prompt = """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
 You will be given a question paper and a student's handwritten answer sheet image.
-Grade each question strictly according to CBSE marking scheme — award marks for correct steps even if final answer is wrong.
+Grade each question using standard CBSE marking scheme — award marks for correct steps even if final answer is wrong.
 
-IMPORTANT FORMATTING RULES:
-- Use LaTeX notation for ALL mathematical expressions, equations, and symbols.
-- Wrap inline math with single dollar signs: $expression$
-- Wrap display/block math with double dollar signs: $$expression$$
-- Examples: $\\int x \\cdot e^x dx$, $x \\in [0,1]$, $e^x(x-1) + C$
-- All step breakdowns, model solutions and coaching tips must use LaTeX for any math.
-- Respond ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
+GRADING ROLES:
+You will grade as TWO examiners simultaneously:
+1. NEUTRAL (standard CBSE) — your main grade. Award marks for correct method and partial steps.
+2. STRICT — no benefit of doubt. Every step must be complete and correct. No marks for partially correct steps.
+
+FEEDBACK STYLE:
+- Be specific and technical, not generic. Avoid vague praise or criticism.
+- Focus on: exact step where mistake occurred, which concept was misapplied, what the correct concept is.
+- Use mathematical terminology appropriate for CBSE Class 11-12.
+- All math must use LaTeX with $ delimiters.
+
+IRRELEVANT ANSWER:
+If a student's answer has no relation to the question asked, set ai_irrelevant to true.
+Do not provide concept/formula/calculation analysis for irrelevant answers.
+
+RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
     user_prompt = f"""Grade this student's answer sheet for the following questions:
 
 {q_text}
 
-For each question return a JSON object with these exact fields:
+For each question return a JSON object with these EXACT fields:
 - question_number: "Q1", "Q2" etc
 - max_marks: integer
-- ai_marks_awarded: integer (0 to max_marks)
-- ai_step_breakdown: string explaining marks per step using LaTeX for math
-- ai_strength: string (what student did well) using LaTeX for math
-- ai_weakness: string (what student missed or got wrong) using LaTeX for math
-- ai_model_solution: string (brief ideal solution) using LaTeX for math — show key steps
-- ai_coaching_tip: string (one actionable tip) using LaTeX for math
-- ai_confidence: float between 0 and 1 (your confidence in this grade)
-- ai_flag_review: boolean (true if teacher should review)
+- ai_marks_awarded: integer (0 to max_marks) — NEUTRAL grade, this is the final score
+- ai_strict_marks: integer (0 to max_marks) — STRICT grade, what a strict examiner would give
+- ai_strict_reason: string — one concise sentence explaining why strict marks are lower (or "Strict and neutral agree" if equal)
+- ai_irrelevant: boolean — true if student answer has no relation to the question
+- ai_concept: string — concept analysis: which steps were correct, exact step where mistake occurred, why that concept application is wrong, what the correct concept/approach should be. Use LaTeX for math. Skip if ai_irrelevant is true.
+- ai_formula: string — formula analysis: did student use correct formula, if wrong what was used vs what should be used. Use LaTeX. Skip if ai_irrelevant is true.
+- ai_calculation: string — calculation analysis: arithmetic errors, sign errors, substitution mistakes, simplification errors. Use LaTeX. Skip if ai_irrelevant is true.
+- ai_model_solution: string — complete model solution showing key steps with LaTeX
+- ai_coaching_tip: string — one specific actionable improvement tip using LaTeX for math
+- ai_confidence: float 0 to 1 — confidence in neutral grade
+- ai_flag_review: boolean — true if teacher should review (low confidence, irrelevant answer, or borderline case)
 
 Return ONLY the JSON array, nothing else."""
 
@@ -247,7 +259,9 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                         (sq_id, submission_id, question_id, question_number,
                          max_marks, ai_marks_awarded, ai_step_breakdown,
                          ai_strength, ai_weakness, ai_model_solution,
-                         ai_coaching_tip, ai_confidence, ai_flag_review)
+                         ai_coaching_tip, ai_confidence, ai_flag_review,
+                         ai_strict_marks, ai_strict_reason,
+                         ai_concept, ai_formula, ai_calculation, ai_irrelevant)
                     VALUES
                         (NEWID(),
                          CAST(:sid AS UNIQUEIDENTIFIER),
@@ -255,20 +269,28 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                          :qnum, :max_marks, :awarded,
                          :breakdown, :strength, :weakness,
                          :model_sol, :tip,
-                         :confidence, :flag)
+                         :confidence, :flag,
+                         :strict_marks, :strict_reason,
+                         :concept, :formula, :calculation, :irrelevant)
                 """), {
-                    "sid"       : str(submission_id),
-                    "qid"       : str(question_id),
-                    "qnum"      : r.get('question_number'),
-                    "max_marks" : q_match['max_marks'],
-                    "awarded"   : marks,
-                    "breakdown" : r.get('ai_step_breakdown', ''),
-                    "strength"  : r.get('ai_strength', ''),
-                    "weakness"  : r.get('ai_weakness', ''),
-                    "model_sol" : r.get('ai_model_solution', ''),
-                    "tip"       : r.get('ai_coaching_tip', ''),
-                    "confidence": float(r.get('ai_confidence', 0.8)),
-                    "flag"      : bool(r.get('ai_flag_review', False))
+                    "sid"          : str(submission_id),
+                    "qid"          : str(question_id),
+                    "qnum"         : r.get('question_number'),
+                    "max_marks"    : q_match['max_marks'],
+                    "awarded"      : marks,
+                    "breakdown"    : r.get('ai_step_breakdown', ''),
+                    "strength"     : r.get('ai_strength', ''),
+                    "weakness"     : r.get('ai_weakness', ''),
+                    "model_sol"    : r.get('ai_model_solution', ''),
+                    "tip"          : r.get('ai_coaching_tip', ''),
+                    "confidence"   : float(r.get('ai_confidence', 0.8)),
+                    "flag"         : bool(r.get('ai_flag_review', False)),
+                    "strict_marks" : int(r.get('ai_strict_marks', marks)),
+                    "strict_reason": r.get('ai_strict_reason', ''),
+                    "concept"      : r.get('ai_concept', ''),
+                    "formula"      : r.get('ai_formula', ''),
+                    "calculation"  : r.get('ai_calculation', ''),
+                    "irrelevant"   : bool(r.get('ai_irrelevant', False))
                 })
 
             pct   = round((total_awarded / total_max * 100), 2) if total_max > 0 else 0
@@ -1445,6 +1467,8 @@ def get_student_result(submission_id):
                        sq.ai_model_solution, sq.ai_coaching_tip,
                        sq.ai_confidence, sq.ai_flag_review,
                        sq.teacher_feedback,
+                       sq.ai_strict_marks, sq.ai_strict_reason,
+                       sq.ai_concept, sq.ai_formula, sq.ai_calculation, sq.ai_irrelevant,
                        q.latex_content, q.chapter, q.type,
                        pq.section
                 FROM submission_questions sq
@@ -1527,6 +1551,8 @@ def review_queue():
                            sq.ai_strength, sq.ai_weakness,
                            sq.ai_model_solution, sq.ai_coaching_tip,
                            sq.ai_confidence, sq.ai_flag_review,
+                           sq.ai_strict_marks, sq.ai_strict_reason,
+                           sq.ai_concept, sq.ai_formula, sq.ai_calculation, sq.ai_irrelevant,
                            q.latex_content, q.chapter, pq.section
                     FROM submission_questions sq
                     JOIN questions q ON sq.question_id = q.question_id

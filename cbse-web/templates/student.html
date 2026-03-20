@@ -12,6 +12,7 @@ window.MathJax = {
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -547,6 +548,13 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
         </div>
       </div>
 
+      <!-- ANNOTATED ANSWER SHEET — shown after release -->
+      <div id="report-annot-section" style="display:none;margin-bottom:24px;">
+        <div class="section-label">Your Marked Answer Sheet</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">Tap any page to view full size. Teacher annotations are shown on your answers.</div>
+        <div id="report-annot-pages" style="display:flex;flex-direction:column;gap:16px;"></div>
+      </div>
+
       <!-- NOT RELEASED NOTICE -->
       <div id="report-pending-notice" style="display:none;background:var(--amber-l);border:1px solid #F59E0B;border-radius:12px;padding:16px;margin-bottom:24px;font-size:13.5px;color:var(--amber);">
         🔍 Your answer sheet has been graded by AI. The teacher is reviewing the results. Final marks will be visible once the teacher releases the grades.
@@ -1029,6 +1037,17 @@ async function loadReport(submissionId) {
       }
     }
 
+    // Show annotated answer sheet if released and annotations exist
+    if (isReleased && r.annotations) {
+      try {
+        const annotData = JSON.parse(r.annotations);
+        if (annotData.pages && Object.keys(annotData.pages).length) {
+          document.getElementById('report-annot-section').style.display = 'block';
+          renderAnnotatedSheets(r.annotations, r.answer_sheet_url);
+        }
+      } catch(e) { /* no annotations */ }
+    }
+
     document.getElementById('report-loading').style.display = 'none';
     document.getElementById('report-content').style.display = 'block';
 
@@ -1036,6 +1055,71 @@ async function loadReport(submissionId) {
     document.getElementById('report-loading').style.display = 'none';
     document.getElementById('report-error').textContent = 'Failed to load result.';
     document.getElementById('report-error').style.display = 'block';
+  }
+}
+
+async function renderAnnotatedSheets(annotationsJson, answerSheetUrl) {
+  const annotData = JSON.parse(annotationsJson);
+  const pagesEl   = document.getElementById('report-annot-pages');
+  pagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">Loading annotated sheets...</div>';
+
+  // Get SAS URLs for all pages
+  let imageUrls = [];
+  try {
+    // Parse answer_sheet_url — may be JSON array or single URL
+    let rawUrls = [];
+    if (answerSheetUrl && answerSheetUrl.startsWith('[')) {
+      rawUrls = JSON.parse(answerSheetUrl);
+    } else if (answerSheetUrl) {
+      rawUrls = [answerSheetUrl];
+    }
+    if (rawUrls.length) {
+      const sasRes  = await fetch('/api/student/sas-urls', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ urls: rawUrls })
+      });
+      const sasData = await sasRes.json();
+      if (sasData.ok) imageUrls = sasData.sas_urls;
+    }
+  } catch(e) { /* proceed without images */ }
+
+  pagesEl.innerHTML = '';
+  const pageCount = Object.keys(annotData.pages).length;
+
+  for (let i = 0; i < pageCount; i++) {
+    const objects  = annotData.pages[i];
+    const imageUrl = imageUrls[i] || null;
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;';
+    label.textContent   = 'Page ' + (i+1) + ' of ' + pageCount;
+    pagesEl.appendChild(label);
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px;';
+    const canvasEl  = document.createElement('canvas');
+    canvasEl.id     = 'student-annot-canvas-' + i;
+    wrapper.appendChild(canvasEl);
+    pagesEl.appendChild(wrapper);
+
+    const width = pagesEl.offsetWidth || 340;
+
+    if (imageUrl) {
+      fabric.Image.fromURL(imageUrl, function(img) {
+        const scale  = width / img.width;
+        const height = img.height * scale;
+        const c = new fabric.StaticCanvas(canvasEl.id, { width, height });
+        c.setBackgroundImage(img, c.renderAll.bind(c), { scaleX: scale, scaleY: scale });
+        if (objects && objects.length) {
+          // Scale annotation positions proportionally
+          c.loadFromJSON({ objects }, function() { c.renderAll(); });
+        }
+      }, { crossOrigin: 'anonymous' });
+    } else if (objects && objects.length) {
+      const c = new fabric.StaticCanvas(canvasEl.id, { width, height: 400 });
+      c.loadFromJSON({ objects }, function() { c.renderAll(); });
+    }
   }
 }
 

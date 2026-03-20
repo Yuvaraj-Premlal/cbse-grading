@@ -467,8 +467,9 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
     <div class="upload-zone" id="upload-zone" onclick="triggerUpload()">
       <div class="uz-icon">📸</div>
       <h3>Tap to select your answer sheet</h3>
-      <p>JPG · PNG · PDF · Select multiple files · Max 50MB total</p>
+      <p>JPG · PNG · PDF · Max 50MB total</p>
       <input type="file" id="file-input" style="display:none;" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="filesSelected(this)"/>
+      <input type="file" id="file-input-more" style="display:none;" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="filesAdd(this)"/>
     </div>
 
     <!-- FILE LIST — shows selected files in order -->
@@ -1256,7 +1257,7 @@ function openExamSubmit(assignmentId, title, meta, dueDate) {
   currentSubmissionId = null;
   selectedFiles = [];
   if (gradingPollInterval) { clearInterval(gradingPollInterval); gradingPollInterval = null; }
-  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('upload-zone').style.display = 'flex';
   document.getElementById('file-list').style.display = 'none';
   document.getElementById('submit-btn').style.display = 'none';
   document.getElementById('submit-btn').disabled = false;
@@ -1287,13 +1288,16 @@ function renderFileList() {
   if (!selectedFiles.length) {
     listEl.style.display = 'none';
     document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('upload-zone').style.display = 'block';
     return;
   }
+  // Hide upload zone once files selected — show file list instead
+  document.getElementById('upload-zone').style.display = 'none';
   listEl.style.display = 'block';
   const totalMB = selectedFiles.reduce((s, f) => s + f.size, 0) / 1024 / 1024;
   listEl.innerHTML = `
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-      ${selectedFiles.length} file${selectedFiles.length>1?'s':''} selected · ${totalMB.toFixed(1)} MB total · Graded in this order:
+      ${selectedFiles.length} file${selectedFiles.length>1?'s':''} · ${totalMB.toFixed(1)} MB · AI grades in this order:
     </div>` +
     selectedFiles.map((f, i) => `
       <div class="card-sm" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:10px 14px;">
@@ -1302,8 +1306,26 @@ function renderFileList() {
         <div style="font-size:12px;color:var(--muted);">${(f.size/1024/1024).toFixed(1)} MB</div>
         <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="removeFileAt(${i})">✕</button>
       </div>`).join('') +
-    `<button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="clearFiles()">✕ Clear all</button>`;
+    `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="addMoreFiles()">+ Add more files</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="clearFiles()">✕ Clear all</button>
+    </div>`;
   document.getElementById('submit-btn').style.display = 'inline-flex';
+}
+
+function addMoreFiles() {
+  document.getElementById('file-input-more').value = '';
+  document.getElementById('file-input-more').click();
+}
+
+function filesAdd(input) {
+  if (!input.files.length) return;
+  const newFiles = Array.from(input.files);
+  // Merge and re-sort by filename
+  selectedFiles = [...selectedFiles, ...newFiles].sort((a, b) =>
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  );
+  renderFileList();
 }
 
 function removeFileAt(idx) {

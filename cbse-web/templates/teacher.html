@@ -1977,14 +1977,17 @@ async function loadAssignPage() {
       paperList.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No published papers yet. Publish a paper from Paper Builder first.</div>';
     } else {
       paperList.innerHTML = assignPapers.map((p, i) => `
-        <label onclick="assignHighlightPaper(this)" style="display:flex;align-items:center;gap:14px;padding:14px;border:${i===0?'2px solid var(--blue)':'1.5px solid var(--border)'};border-radius:11px;${i===0?'background:var(--blue-l);':''}cursor:pointer;margin-bottom:8px;">
-          <input type="radio" name="assign-paper" value="${p.paper_id}" ${i===0?'checked':''} style="accent-color:var(--blue);"/>
-          <div style="flex:1;">
-            <div style="font-size:14px;font-weight:600;color:var(--text);">${p.title}</div>
-            <div style="font-size:12px;color:var(--muted);">${p.question_count} questions · ${p.total_marks} marks · ${p.subject} · Class ${p.class}</div>
-          </div>
-          <span class="badge badge-green">Published</span>
-        </label>`).join('');
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <label onclick="assignHighlightPaper(this)" style="display:flex;align-items:center;gap:14px;padding:14px;border:${i===0?'2px solid var(--blue)':'1.5px solid var(--border)'};border-radius:11px;${i===0?'background:var(--blue-l);':''}cursor:pointer;flex:1;">
+            <input type="radio" name="assign-paper" value="${p.paper_id}" ${i===0?'checked':''} style="accent-color:var(--blue);"/>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:600;color:var(--text);">${p.title}</div>
+              <div style="font-size:12px;color:var(--muted);">${p.question_count} questions · ${p.total_marks} marks · ${p.subject} · Class ${p.class}</div>
+            </div>
+            <span class="badge badge-green">Published</span>
+          </label>
+          <button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="pbViewPaper('${p.paper_id}')">👁 Preview</button>
+        </div>`).join('');
     }
 
     // Render students

@@ -2143,17 +2143,32 @@ async function loadAssignPage() {
 
     // Render students
     assignStudents = studentsData.ok ? studentsData.students : [];
+    const blocked  = studentsData.ok ? (studentsData.blocked || []) : [];
     const grid = document.getElementById('assign-student-grid');
-    if (!assignStudents.length) {
-      grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No students found.</div>';
+
+    let html = '';
+    if (!assignStudents.length && !blocked.length) {
+      html = '<div style="color:var(--muted);font-size:13px;padding:8px;">No students found.</div>';
     } else {
-      grid.innerHTML = assignStudents.map(s => `
-        <label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" onchange="updateAssignCount()">
-          <input type="checkbox" value="${s.student_id}" style="accent-color:var(--blue);"/>
-          ${s.name}
-        </label>`).join('');
-      updateAssignCount();
+      if (assignStudents.length) {
+        html += assignStudents.map(s =>
+          '<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" onchange="updateAssignCount()">' +
+          '<input type="checkbox" value="' + s.student_id + '" style="accent-color:var(--blue);"/>' +
+          s.name + '</label>'
+        ).join('');
+      }
+      if (blocked.length) {
+        html += '<div style="grid-column:1/-1;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:12px;margin-bottom:4px;">Cannot assign — pending grade release</div>';
+        html += blocked.map(s =>
+          '<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;opacity:0.5;background:var(--bg);" title="Blocked: ' + s.blocked_by + '">' +
+          '🔒 ' + s.name +
+          '<span style="font-size:11px;color:var(--muted);margin-left:auto;">' + s.blocked_by + '</span>' +
+          '</div>'
+        ).join('');
+      }
     }
+    grid.innerHTML = html;
+    updateAssignCount();
   } catch(e) {
     document.getElementById('assign-paper-list').innerHTML = '<div style="color:var(--red);font-size:13px;">Failed to load. Try again.</div>';
   }

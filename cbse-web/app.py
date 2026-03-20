@@ -1699,13 +1699,35 @@ def get_students():
 
         with engine.connect() as conn:
             rows = conn.execute(text("""
-                SELECT s.student_id, u.name, u.email
+                SELECT s.student_id, u.name, u.email,
+                    -- Check if student has any unreleased assignment
+                    (SELECT TOP 1 p.title
+                     FROM assignments a
+                     JOIN papers p ON a.paper_id = p.paper_id
+                     WHERE a.student_id = s.student_id
+                     AND a.status NOT IN ('released')
+                    ) as blocked_by
                 FROM users u
                 JOIN students s ON s.user_id = u.user_id
                 WHERE u.role = 'student' AND u.is_active = 1
                 ORDER BY u.name
             """)).fetchall()
-        return jsonify({"ok": True, "students": [dict(r._mapping) for r in rows]})
+
+        # Separate assignable vs blocked
+        assignable = []
+        blocked    = []
+        for r in rows:
+            d = dict(r._mapping)
+            if d.get('blocked_by'):
+                blocked.append(d)
+            else:
+                assignable.append(d)
+
+        return jsonify({
+            "ok"        : True,
+            "students"  : assignable,
+            "blocked"   : blocked
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
 

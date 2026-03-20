@@ -1496,8 +1496,10 @@ function viewQuestion(q) {
 
   const solSection = document.getElementById('vq-solution-section');
   if (q.model_solution) {
-    document.getElementById('vq-solution').textContent = q.model_solution;
+    const solEl = document.getElementById('vq-solution');
+    solEl.textContent = q.model_solution;
     solSection.style.display = 'block';
+    renderMath(solEl);
   } else {
     solSection.style.display = 'none';
   }

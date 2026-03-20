@@ -399,7 +399,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       </div>
       <div id="vp-sections"></div>
       <div style="margin-top:24px;">
-        <button class="btn btn-primary" id="vp-submit-btn" onclick="showPage('page-exam')">📤 Submit Answer Sheet →</button>
+        <button class="btn btn-primary" id="vp-submit-btn" onclick="openExamSubmit(currentAssignmentId, document.getElementById('vp-title').textContent, document.getElementById('vp-meta').textContent, '')">📤 Submit Answer Sheet →</button>
       </div>
     </div>
     <div id="vp-error" style="display:none;color:var(--red);padding:20px;"></div>

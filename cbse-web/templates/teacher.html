@@ -940,6 +940,20 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
      MODALS
 ══════════════════════════════════════ -->
 
+<!-- Paper Preview Modal -->
+<div class="modal-overlay" id="modal-preview-paper">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-title" id="pp-title">Paper Preview</div>
+    <div class="modal-sub" id="pp-sub"></div>
+    <div id="pp-instructions" style="display:none;background:var(--blue-l);border-radius:9px;padding:12px 16px;margin-bottom:20px;font-size:13.5px;color:var(--text);line-height:1.7;"></div>
+    <div id="pp-loading" style="text-align:center;padding:32px;color:var(--muted);">Loading...</div>
+    <div id="pp-sections" style="display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-preview-paper')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Question -->
 <div class="modal-overlay" id="modal-add-question">
   <div class="modal">
@@ -1666,11 +1680,71 @@ async function loadPapers() {
           <div style="font-size:12px;color:var(--muted);">${p.subject} · Class ${p.class} · ${p.total_marks} marks · ${p.duration_minutes} min · ${p.question_count||0} questions</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="pbViewPaper('${p.paper_id}')">👁 View</button>
           <button class="btn btn-secondary btn-sm" onclick="pbEditPaper('${p.paper_id}')">Edit</button>
           <button class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid #FCCACA;" onclick="pbDeletePaper('${p.paper_id}',this)">Delete</button>
         </div>
       </div>`).join('');
   } catch(e) { list.innerHTML='<div style="color:var(--red);padding:20px;">Failed to load papers.</div>'; }
+}
+
+async function pbViewPaper(paperId) {
+  openModal('modal-preview-paper');
+  document.getElementById('pp-loading').style.display = 'block';
+  document.getElementById('pp-sections').style.display = 'none';
+  document.getElementById('pp-instructions').style.display = 'none';
+
+  try {
+    const res  = await fetch(`/api/teacher/papers/${paperId}`);
+    const data = await res.json();
+    if (!data.ok) { alert(data.error); closeModal('modal-preview-paper'); return; }
+    const p = data.paper;
+
+    document.getElementById('pp-title').textContent = p.title;
+    document.getElementById('pp-sub').textContent =
+      `${p.subject} · Class ${p.class} · ${p.total_marks} marks · ${p.duration_minutes} min · ${p.is_active ? 'Published' : 'Draft'}`;
+
+    if (p.marking_scheme) {
+      document.getElementById('pp-instructions').textContent = p.marking_scheme;
+      document.getElementById('pp-instructions').style.display = 'block';
+    }
+
+    // Group questions by section
+    const sections = {};
+    (p.questions || []).forEach(q => {
+      const s = q.section || 'A';
+      if (!sections[s]) sections[s] = [];
+      sections[s].push(q);
+    });
+
+    const sectionsEl = document.getElementById('pp-sections');
+    sectionsEl.innerHTML = Object.entries(sections).sort().map(([sec, qs]) => `
+      <div style="margin-bottom:20px;">
+        <div class="section-label">Section ${sec}</div>
+        ${qs.map((q, i) => `
+          <div class="card-sm" style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+              <div style="font-size:11.5px;font-weight:700;color:var(--muted);">Q${q.order_num || i+1} · ${q.chapter}</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span class="badge badge-muted" style="font-size:10px;">${q.difficulty}</span>
+                <span class="badge badge-blue" style="font-size:10px;">${q.max_marks} marks</span>
+              </div>
+            </div>
+            <div style="font-size:13.5px;color:var(--text);line-height:1.8;">${q.latex_content}</div>
+            ${q.model_solution ? `
+            <div style="margin-top:10px;background:var(--green-l);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--green);line-height:1.6;">
+              <strong>Model Solution:</strong> ${q.model_solution}
+            </div>` : ''}
+          </div>`).join('')}
+      </div>`).join('');
+
+    renderMath(sectionsEl);
+    document.getElementById('pp-loading').style.display = 'none';
+    document.getElementById('pp-sections').style.display = 'block';
+  } catch(e) {
+    alert('Failed to load paper.');
+    closeModal('modal-preview-paper');
+  }
 }
 
 async function pbEditPaper(paperId) {
@@ -1990,9 +2064,15 @@ async function submitAssignment() {
       errBox.textContent = data.error;
       errBox.style.display = 'block';
     } else {
-      okBox.textContent = `✅ ${data.message}`;
-      okBox.style.display = 'block';
-      assignClearAll();
+      if (data.assigned === 0 && data.blocked && data.blocked.length > 0) {
+        // All blocked — show as error
+        errBox.textContent = '⚠️ ' + data.message;
+        errBox.style.display = 'block';
+      } else {
+        okBox.textContent = '✅ ' + data.message;
+        okBox.style.display = 'block';
+        assignClearAll();
+      }
     }
   } catch(e) {
     errBox.textContent = 'Failed to assign. Try again.';

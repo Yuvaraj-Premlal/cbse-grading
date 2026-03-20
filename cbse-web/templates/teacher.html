@@ -2445,10 +2445,13 @@ function annotLoadPage(idx) {
     // FIX: set background image separately and re-render after annotations load
     img.set({ scaleX: scale, scaleY: scale, left: 0, top: 0 });
     annotCanvas.setBackgroundImage(img, function() {
-      // Restore annotations AFTER background is set
+      // Restore annotations using enlivenObjects to avoid clearing background
       if (annotPageData[idx] && annotPageData[idx].length) {
-        let loaded = 0;
-        annotCanvas.loadFromJSON({ objects: annotPageData[idx] }, function() {
+        fabric.util.enlivenObjects(annotPageData[idx], function(objects) {
+          objects.forEach(function(o) {
+            o.set({ selectable: false, evented: false });
+            annotCanvas.add(o);
+          });
           annotCanvas.renderAll();
         });
       } else {
@@ -2507,9 +2510,13 @@ function annotUndo() {
 
   // Remove only annotation objects — never touch background
   annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+
   if (prev.length) {
-    annotCanvas.loadFromJSON({ objects: prev }, function() {
-      annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+    fabric.util.enlivenObjects(prev, function(objects) {
+      objects.forEach(function(o) {
+        o.set({ selectable: false, evented: false });
+        annotCanvas.add(o);
+      });
       annotCanvas.renderAll();
     });
   } else {
@@ -2522,15 +2529,16 @@ function annotReloadBg(url, objects) {
     annotBgImage = img;
     const container = document.querySelector('#annot-canvas').closest('.card');
     const baseWidth = (container ? container.offsetWidth : 500) - 2;
-    const scale     = baseWidth / img.width;
-    const height    = img.height * scale;
-    img.set({ scaleX: scale * annotZoom, scaleY: scale * annotZoom, left: 0, top: 0 });
-
-    // Remove all objects but keep canvas size
+    const scale     = (baseWidth / img.width) * annotZoom;
+    img.set({ scaleX: scale, scaleY: scale, left: 0, top: 0 });
     annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
     annotCanvas.setBackgroundImage(img, function() {
       if (objects && objects.length) {
-        annotCanvas.loadFromJSON({ objects }, function() {
+        fabric.util.enlivenObjects(objects, function(objs) {
+          objs.forEach(function(o) {
+            o.set({ selectable: false, evented: false });
+            annotCanvas.add(o);
+          });
           annotCanvas.renderAll();
         });
       } else {
@@ -2539,6 +2547,7 @@ function annotReloadBg(url, objects) {
     });
   }, { crossOrigin: 'anonymous' });
 }
+
 
 function annotClear() {
   if (!confirm('Clear all annotations on this page?')) return;
@@ -2560,50 +2569,7 @@ function annotNextPage() {
   annotLoadPage(annotPageIdx + 1);
 }
 
-function annotUndo() {
-  const hist = annotHistory[annotPageIdx];
-  if (!hist || hist.length === 0) return;
-  if (hist.length > 1) hist.pop();
-  const prev = JSON.parse(hist[hist.length - 1] || '[]');
-  annotPageData[annotPageIdx] = prev;
 
-  // FIX: remove only annotation objects, keep background image intact
-  annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
-  if (prev.length) {
-    annotCanvas.loadFromJSON({ objects: prev }, function() {
-      // Re-apply selectable based on current tool
-      if (annotTool !== 'select') {
-        annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
-      }
-      annotCanvas.renderAll();
-    });
-  } else {
-    annotCanvas.renderAll();
-  }
-}
-
-function annotReloadBg(url, objects) {
-  fabric.Image.fromURL(url, function(img) {
-    annotBgImage = img;
-    const container = document.querySelector('#annot-canvas').closest('.card');
-    const baseWidth = (container ? container.offsetWidth : 500) - 2;
-    const scale     = (baseWidth / img.width) * annotZoom;
-    img.set({ scaleX: scale, scaleY: scale, left: 0, top: 0 });
-    annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
-    annotCanvas.setBackgroundImage(img, function() {
-      if (objects && objects.length) {
-        annotCanvas.loadFromJSON({ objects }, function() {
-          if (annotTool !== 'select') {
-            annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
-          }
-          annotCanvas.renderAll();
-        });
-      } else {
-        annotCanvas.renderAll();
-      }
-    });
-  }, { crossOrigin: 'anonymous' });
-}
 
 // Smooth zoom using wheel + buttons, show % indicator
 function annotZoomIn()  { annotSetZoom(Math.min(annotZoom + 0.1, 3.0)); }

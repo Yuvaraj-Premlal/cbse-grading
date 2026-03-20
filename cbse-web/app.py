@@ -1340,6 +1340,9 @@ def submit_exam():
 
         submission_id = str(uuid.uuid4())
 
+        # Store all URLs as JSON array in answer_sheet_url column
+        all_urls_json = json.dumps([item["url"] for item in answer_sheet_urls])
+
         with engine.begin() as conn:
             # Create submission
             conn.execute(text("""
@@ -1355,7 +1358,7 @@ def submit_exam():
                 "sub_id" : submission_id,
                 "aid"    : assignment_id,
                 "sid"    : student_id,
-                "url"    : answer_sheet_url
+                "url"    : all_urls_json
             })
 
             # Update assignment status
@@ -1470,10 +1473,17 @@ def get_student_result(submission_id):
                 WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {"sid": submission_id}).fetchone()[0]
 
+        # Get annotations
+        annot = conn.execute(text("""
+            SELECT annotations FROM submissions
+            WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+        """), {"sid": submission_id}).fetchone()
+
         result = dict(sub._mapping)
         result["questions"]      = [dict(q._mapping) for q in questions]
         result["disputes_count"] = disputes
         result["ai_failed"]      = bool(ai_failed)
+        result["annotations"]    = annot[0] if annot and annot[0] else None
         return jsonify({"ok": True, "result": result})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
@@ -1533,9 +1543,15 @@ def review_queue():
 
                 sub_dict["questions"] = [dict(q._mapping) for q in questions]
 
-                # Get all answer sheet URLs (multiple images)
-                # Parse from blob storage — stored as JSON array or single URL
-                sub_dict["answer_sheet_urls"] = [sub.answer_sheet_url] if sub.answer_sheet_url else []
+                # Parse answer_sheet_url — may be single URL or JSON array
+                url_field = sub.answer_sheet_url or ''
+                if url_field.startswith('['):
+                    try:
+                        sub_dict["answer_sheet_urls"] = json.loads(url_field)
+                    except:
+                        sub_dict["answer_sheet_urls"] = [url_field] if url_field else []
+                else:
+                    sub_dict["answer_sheet_urls"] = [url_field] if url_field else []
 
                 result.append(sub_dict)
 
@@ -1550,6 +1566,7 @@ def approve_release(submission_id):
     data = request.json
     try:
         overrides   = data.get("overrides", [])   # [{sq_id, teacher_marks, teacher_feedback}]
+        annotations = data.get("annotations", None) # fabric.js JSON string
         engine = get_engine()
 
         with engine.begin() as conn:
@@ -1592,7 +1609,7 @@ def approve_release(submission_id):
             pct   = round((total_awarded / total_max * 100), 2) if total_max > 0 else 0
             grade = calculate_grade(pct)
 
-            # Update submission — release it
+            # Update submission — release it with annotations
             conn.execute(text("""
                 UPDATE submissions SET
                     total_awarded  = :awarded,
@@ -1600,14 +1617,16 @@ def approve_release(submission_id):
                     percentage     = :pct,
                     grade          = :grade,
                     final_released = 1,
-                    released_at    = GETUTCDATE()
+                    released_at    = GETUTCDATE(),
+                    annotations    = :annotations
                 WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {
-                "awarded"  : total_awarded,
-                "total_max": total_max,
-                "pct"      : pct,
-                "grade"    : grade,
-                "sid"      : submission_id
+                "awarded"    : total_awarded,
+                "total_max"  : total_max,
+                "pct"        : pct,
+                "grade"      : grade,
+                "sid"        : submission_id,
+                "annotations": annotations
             })
 
             # Update assignment status
@@ -1633,6 +1652,18 @@ def approve_release(submission_id):
 @app.route("/api/teacher/sas-url", methods=["POST"])
 @require_role("teacher")
 def get_sas_urls():
+    data = request.json
+    urls = data.get("urls", [])
+    try:
+        sas_urls = [get_sas_url(url, expiry_hours=2) for url in urls if url]
+        return jsonify({"ok": True, "sas_urls": sas_urls})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200], "sas_urls": []})
+
+
+@app.route("/api/student/sas-urls", methods=["POST"])
+@require_role("student")
+def student_sas_urls():
     data = request.json
     urls = data.get("urls", [])
     try:

@@ -1358,10 +1358,13 @@ async function rqRenderPanel(idx) {
       '<input class="mark-input" type="number" value="' + q.ai_marks_awarded + '" min="0" max="' + q.max_marks + '" data-sqid="' + q.sq_id + '" oninput="rqUpdateTotal()" style="width:52px;"/>' +
       '<div style="font-size:13px;color:var(--muted);">/' + q.max_marks + '</div></div></div>' +
       '<div style="font-size:12.5px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:10px;line-height:1.7;">' + q.latex_content + '</div>' +
-      (q.ai_step_breakdown ? '<div style="font-size:12px;color:var(--muted);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:6px;line-height:1.6;"><strong>📋 Step Breakdown:</strong> ' + q.ai_step_breakdown + '</div>' : '') +
-      (q.ai_strength ? '<div style="font-size:12px;color:var(--green);background:var(--green-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>💪 Strength:</strong> ' + q.ai_strength + '</div>' : '') +
-      (q.ai_weakness ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>⚠️ Weakness:</strong> ' + q.ai_weakness + '</div>' : '') +
-      (q.ai_model_solution ? '<div style="font-size:12px;color:var(--blue);background:var(--blue-l);padding:8px 10px;border-radius:8px;margin-bottom:10px;"><strong>📖 Model Solution:</strong> ' + q.ai_model_solution + '</div>' : '') +
+      (q.ai_strict_marks !== null && q.ai_strict_marks !== undefined && q.ai_strict_marks < q.ai_marks_awarded ?
+        '<div style="font-size:12px;background:#FEE2E2;border:1px solid #FCA5A5;padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong style="color:#DC2626;">🔴 Strict:</strong> ' + q.ai_strict_marks + '/' + q.max_marks + ' — ' + (q.ai_strict_reason||'') + '</div>' : '') +
+      (q.ai_irrelevant ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>⚠️ Irrelevant answer flagged</strong></div>' : '') +
+      (q.ai_concept ? '<div style="font-size:12px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:6px;line-height:1.6;"><strong>🧠 Concept:</strong> ' + q.ai_concept + '</div>' : '') +
+      (q.ai_formula ? '<div style="font-size:12px;color:var(--blue);background:var(--blue-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>📐 Formula:</strong> ' + q.ai_formula + '</div>' : '') +
+      (q.ai_calculation ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>🔢 Calculation:</strong> ' + q.ai_calculation + '</div>' : '') +
+      (q.ai_model_solution ? '<div style="font-size:12px;color:var(--green);background:var(--green-l);padding:8px 10px;border-radius:8px;margin-bottom:10px;"><strong>📖 Model Solution:</strong> ' + q.ai_model_solution + '</div>' : '') +
       '<input class="form-input" type="text" data-feedback="' + q.sq_id + '" placeholder="Teacher feedback (optional — shown to student)" style="font-size:12.5px;padding:8px 12px;margin-top:4px;"/>' +
       '</div>';
   }).join('');

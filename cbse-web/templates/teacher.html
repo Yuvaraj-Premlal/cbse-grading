@@ -657,6 +657,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
             <button class="btn btn-sm" onclick="annotClear()" title="Clear page" style="color:var(--red);">🗑</button>
             <div style="width:1px;background:var(--border);margin:0 4px;"></div>
             <button class="btn btn-sm" onclick="annotZoomOut()" title="Zoom out">−</button>
+            <span id="annot-zoom-pct" style="font-size:11px;color:var(--muted);min-width:36px;text-align:center;">100%</span>
             <button class="btn btn-sm" onclick="annotZoomIn()"  title="Zoom in">+</button>
             <div style="flex:1;"></div>
             <select id="annot-color" onchange="setAnnotColor(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--white);">
@@ -2364,6 +2365,17 @@ function annotInit(sasUrls, savedAnnotations) {
   annotCanvas.on('path:created', function() { annotSaveState(); });
   annotCanvas.on('object:modified', function() { annotSaveState(); });
 
+  // Mouse wheel zoom
+  annotInitWheel();
+
+  // Ctrl+Z keyboard shortcut
+  document.onkeydown = function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      annotUndo();
+    }
+  };
+
   annotLoadPage(0);
 }
 
@@ -2472,7 +2484,11 @@ function annotStamp(x, y) {
       selectable: true
     });
   }
-  if (obj) { annotCanvas.add(obj); annotSaveState(); }
+  if (obj) {
+    obj.set({ selectable: annotTool === 'select', evented: annotTool === 'select' });
+    annotCanvas.add(obj);
+    annotSaveState();
+  }
 }
 
 function annotSaveState() {
@@ -2536,30 +2552,84 @@ function annotNextPage() {
   annotLoadPage(annotPageIdx + 1);
 }
 
-function annotZoomIn() {
-  annotZoom = Math.min(annotZoom + 0.2, 3.0);
-  annotCanvas.setZoom(annotZoom);
-  annotCanvas.setWidth(annotCanvas.getWidth() * annotZoom / (annotZoom - 0.2 < 0.1 ? 1 : annotZoom / (annotZoom - 0.2)));
-  annotApplyZoom();
+function annotUndo() {
+  const hist = annotHistory[annotPageIdx];
+  if (!hist || hist.length === 0) return;
+  if (hist.length > 1) hist.pop();
+  const prev = JSON.parse(hist[hist.length - 1] || '[]');
+  annotPageData[annotPageIdx] = prev;
+
+  // FIX: remove only annotation objects, keep background image intact
+  annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+  if (prev.length) {
+    annotCanvas.loadFromJSON({ objects: prev }, function() {
+      // Re-apply selectable based on current tool
+      if (annotTool !== 'select') {
+        annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+      }
+      annotCanvas.renderAll();
+    });
+  } else {
+    annotCanvas.renderAll();
+  }
 }
 
-function annotZoomOut() {
-  annotZoom = Math.max(annotZoom - 0.2, 0.4);
-  annotApplyZoom();
+function annotReloadBg(url, objects) {
+  fabric.Image.fromURL(url, function(img) {
+    annotBgImage = img;
+    const container = document.querySelector('#annot-canvas').closest('.card');
+    const baseWidth = (container ? container.offsetWidth : 500) - 2;
+    const scale     = (baseWidth / img.width) * annotZoom;
+    img.set({ scaleX: scale, scaleY: scale, left: 0, top: 0 });
+    annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+    annotCanvas.setBackgroundImage(img, function() {
+      if (objects && objects.length) {
+        annotCanvas.loadFromJSON({ objects }, function() {
+          if (annotTool !== 'select') {
+            annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+          }
+          annotCanvas.renderAll();
+        });
+      } else {
+        annotCanvas.renderAll();
+      }
+    });
+  }, { crossOrigin: 'anonymous' });
 }
 
-function annotApplyZoom() {
+// Smooth zoom using wheel + buttons, show % indicator
+function annotZoomIn()  { annotSetZoom(Math.min(annotZoom + 0.1, 3.0)); }
+function annotZoomOut() { annotSetZoom(Math.max(annotZoom - 0.1, 0.3)); }
+
+function annotSetZoom(newZoom) {
   if (!annotBgImage || !annotCanvas) return;
-  const container   = document.querySelector('#annot-canvas').closest('.card');
-  const baseWidth   = (container ? container.offsetWidth : 500) - 2;
-  const baseScale   = baseWidth / annotBgImage.width;
-  const zoomedW     = baseWidth * annotZoom;
-  const zoomedH     = annotBgImage.height * baseScale * annotZoom;
-  annotCanvas.setZoom(annotZoom);
+  annotZoom = newZoom;
+  const container = document.querySelector('#annot-canvas').closest('.card');
+  const baseWidth = (container ? container.offsetWidth : 500) - 2;
+  const baseScale = baseWidth / annotBgImage.width;
+  const zoomedW   = baseWidth * annotZoom;
+  const zoomedH   = annotBgImage.height * baseScale * annotZoom;
+
+  annotBgImage.set({ scaleX: baseScale * annotZoom, scaleY: baseScale * annotZoom });
+  annotCanvas.setZoom(1); // reset zoom, scale background manually
   annotCanvas.setWidth(zoomedW);
   annotCanvas.setHeight(zoomedH);
-  annotBgImage.set({ scaleX: baseScale * annotZoom, scaleY: baseScale * annotZoom });
   annotCanvas.renderAll();
+
+  // Update zoom indicator
+  const ind = document.getElementById('annot-zoom-pct');
+  if (ind) ind.textContent = Math.round(annotZoom * 100) + '%';
+}
+
+// Mouse wheel zoom
+function annotInitWheel() {
+  const wrapper = document.querySelector('#annot-canvas').closest('.card');
+  if (!wrapper) return;
+  wrapper.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    annotSetZoom(Math.min(Math.max(annotZoom + delta, 0.3), 3.0));
+  }, { passive: false });
 }
 
 function setTool(tool) {
@@ -2567,19 +2637,29 @@ function setTool(tool) {
   document.querySelectorAll('.annot-tool').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('tool-' + tool);
   if (btn) btn.classList.add('active');
-  if (annotCanvas) {
-    annotCanvas.isDrawingMode = (tool === 'draw');
-    if (tool === 'select') {
-      annotCanvas.selection = true;
-      annotCanvas.getObjects().forEach(o => o.set({ selectable: true, evented: true }));
-      annotCanvas.defaultCursor = 'move';
-    } else {
-      annotCanvas.selection = false;
-      annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
-      annotCanvas.defaultCursor = tool === 'draw' ? 'crosshair' : tool === 'text' ? 'text' : 'default';
-    }
-    annotCanvas.renderAll();
+  if (!annotCanvas) return;
+
+  if (tool === 'draw') {
+    annotCanvas.isDrawingMode = true;
+    annotCanvas.selection = false;
+    annotCanvas.defaultCursor = 'crosshair';
+    annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+  } else if (tool === 'select') {
+    annotCanvas.isDrawingMode = false;
+    annotCanvas.selection = true;
+    annotCanvas.defaultCursor = 'default';
+    // Make ALL objects selectable and moveable
+    annotCanvas.getObjects().forEach(o => {
+      o.set({ selectable: true, evented: true, hasControls: true, hasBorders: true });
+    });
+  } else {
+    annotCanvas.isDrawingMode = false;
+    annotCanvas.selection = false;
+    annotCanvas.defaultCursor = tool === 'text' ? 'text' : 'crosshair';
+    annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
   }
+  annotCanvas.discardActiveObject();
+  annotCanvas.renderAll();
 }
 
 function setAnnotColor(color) {

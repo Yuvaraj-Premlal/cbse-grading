@@ -1123,10 +1123,19 @@ async function renderAnnotatedSheets(annotationsJson, answerSheetUrl) {
         c.setHeight(dispH);
 
         if (pageObjects && pageObjects.length) {
+          // Scale annotations from teacher's canvas width to student's display width
+          const teacherWidth = annotData.canvasWidths && annotData.canvasWidths[i]
+            ? annotData.canvasWidths[i] : dispW;
+          const ratio = dispW / teacherWidth;
           const scaled = pageObjects.map(o => Object.assign({}, o, {
-            left    : (o.left   || 0) * scaleX,
-            top     : (o.top    || 0) * scaleX,
-            fontSize: o.fontSize ? Math.round(o.fontSize * scaleX) : undefined
+            left    : (o.left   || 0) * ratio,
+            top     : (o.top    || 0) * ratio,
+            fontSize: o.fontSize ? Math.round(o.fontSize * ratio) : undefined,
+            scaleX  : (o.scaleX || 1) * ratio,
+            scaleY  : (o.scaleY || 1) * ratio,
+            radius  : o.radius  ? o.radius  * ratio : undefined,
+            width   : o.width   ? o.width   * ratio : undefined,
+            strokeWidth: o.strokeWidth ? o.strokeWidth * ratio : undefined
           }));
           c.loadFromJSON({ objects: scaled }, function() { c.renderAll(); });
         }

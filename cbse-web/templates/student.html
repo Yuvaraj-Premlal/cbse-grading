@@ -985,14 +985,19 @@ async function loadReport(submissionId) {
       document.getElementById('report-questions-section').style.display = 'block';
       const questionsEl = document.getElementById('report-questions');
       questionsEl.innerHTML = r.questions.map(q => {
-        // Use teacher marks if released, otherwise show AI marks
         const marks = isReleased && q.final_marks !== null ? q.final_marks : q.ai_marks_awarded;
         const color = scoreColor(marks, q.max_marks);
         const bg    = scoreBg(marks, q.max_marks);
 
-        // Strict grader warning
-        const strictWarning = (q.ai_strict_marks !== null && q.ai_strict_marks !== undefined &&
-                               q.ai_strict_marks < marks) ?
+        // AI Trust badge
+        const conf = parseFloat(q.ai_confidence || 0.8);
+        const trustLabel = conf >= 0.85 ? 'High' : conf >= 0.75 ? 'Medium' : 'Low';
+        const trustColor = conf >= 0.85 ? 'var(--green)' : conf >= 0.75 ? 'var(--amber)' : 'var(--red)';
+        const trustBg    = conf >= 0.85 ? 'var(--green-l)' : conf >= 0.75 ? 'var(--amber-l)' : '#FEE2E2';
+        const trustBadge = `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${trustBg};color:${trustColor};margin-left:8px;">AI Trust: ${trustLabel}</span>`;
+
+        // Strict examiner warning
+        const strictWarn = (q.ai_strict_marks !== null && q.ai_strict_marks !== undefined && q.ai_strict_marks < marks) ?
           `<div class="feedback-box" style="background:#FEE2E2;border:1px solid #FCA5A5;">
             <div class="fb-label" style="color:#DC2626;">🔴 Strict Examiner Note</div>
             A strict examiner may have awarded only <strong>${q.ai_strict_marks}/${q.max_marks}</strong> for this question.
@@ -1006,50 +1011,49 @@ async function loadReport(submissionId) {
             The response provided does not appear to directly address this question. Please ensure you are answering the correct question in your next attempt.
           </div>` : '';
 
-        // Structured feedback (only if not irrelevant)
-        const structuredFeedback = !q.ai_irrelevant ? `
-            ${q.ai_concept ? `
-            <div class="feedback-box" style="background:var(--bg);">
-              <div class="fb-label">🧠 Concept Analysis</div>
-              ${q.ai_concept}
-            </div>` : ''}
-            ${q.ai_formula ? `
-            <div class="feedback-box" style="background:var(--blue-l);">
-              <div class="fb-label" style="color:var(--blue);">📐 Formula Usage</div>
-              ${q.ai_formula}
-            </div>` : ''}
-            ${q.ai_calculation ? `
-            <div class="feedback-box" style="background:var(--amber-l);">
-              <div class="fb-label" style="color:var(--amber);">🔢 Calculation</div>
-              ${q.ai_calculation}
-            </div>` : ''}` : '';
-
         return `<div class="q-card">
           <div class="q-card-head" onclick="toggleQ(this)">
             <div class="q-num" style="background:${bg};color:${color};">${q.question_number}</div>
             <div class="q-title"><h4>${q.chapter}</h4><p>${q.max_marks} marks · Section ${q.section}</p></div>
-            <div class="q-score" style="color:${color};">${marks}/${q.max_marks}</div>
+            <div style="display:flex;align-items:center;">
+              <div class="q-score" style="color:${color};">${marks}/${q.max_marks}</div>
+              ${trustBadge}
+            </div>
             <div class="q-chevron">▼</div>
           </div>
           <div class="q-card-body">
             <div style="font-size:13.5px;color:var(--text);line-height:1.8;margin-bottom:14px;">${q.latex_content}</div>
-            ${strictWarning}
+            ${strictWarn}
             ${irrelevantBox}
-            ${structuredFeedback}
+            ${!q.ai_irrelevant && q.ai_concept ? `
+            <div class="feedback-box" style="background:var(--bg);">
+              <div class="fb-label">🧠 Concept Analysis</div>
+              ${q.ai_concept || ''}
+            </div>` : ''}
+            ${!q.ai_irrelevant && q.ai_formula ? `
+            <div class="feedback-box" style="background:var(--blue-l);">
+              <div class="fb-label" style="color:var(--blue);">📐 Formula Usage</div>
+              ${q.ai_formula || ''}
+            </div>` : ''}
+            ${!q.ai_irrelevant && q.ai_calculation ? `
+            <div class="feedback-box" style="background:var(--amber-l);">
+              <div class="fb-label" style="color:var(--amber);">🔢 Calculation</div>
+              ${q.ai_calculation || ''}
+            </div>` : ''}
             ${q.ai_model_solution ? `
             <div class="feedback-box" style="background:var(--green-l);">
               <div class="fb-label" style="color:var(--green);">📖 Model Solution</div>
-              ${q.ai_model_solution}
+              ${q.ai_model_solution || ''}
             </div>` : ''}
             ${q.ai_coaching_tip ? `
             <div class="feedback-box" style="background:var(--purple-l);">
               <div class="fb-label" style="color:var(--purple);">💡 Coaching Tip</div>
-              ${q.ai_coaching_tip}
+              ${q.ai_coaching_tip || ''}
             </div>` : ''}
             ${q.teacher_feedback ? `
             <div class="feedback-box" style="background:var(--green-l);">
               <div class="fb-label" style="color:var(--green);">💬 Teacher Comment</div>
-              ${q.teacher_feedback}
+              ${q.teacher_feedback || ''}
             </div>` : ''}
           </div>
         </div>`;

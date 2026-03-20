@@ -125,43 +125,65 @@ def get_openai_client():
 
 def grade_submission(questions, answer_sheet_urls):
     """
-    Grade student answer sheet using GPT-4o vision.
-    answer_sheet_urls: list of {url, filename} dicts, sorted in sequence.
-    Returns list of per-question results.
+    Grade student answer sheet using GPT-4o vision — 2-pass approach.
+    Pass 1: Grade with full prompt + images.
+    Pass 2: Verify consistency, mathematical equivalence, alternate methods.
+    Returns verified list of per-question results.
     """
     client = get_openai_client()
 
-    # Build question list — conditional model solution instruction
+    # Build q_text — conditional model solution instruction
     q_text = ""
     for i, q in enumerate(questions, 1):
         model_sol = (q.get('model_solution') or '').strip()
         if model_sol:
-            model_sol_text = f"Model Solution (use as benchmark to evaluate student): {model_sol}"
+            model_sol_text = f"Model Solution (one valid approach only — award full marks for any correct alternate method): {model_sol}"
         else:
-            model_sol_text = "No model solution provided — solve this question independently before grading the student."
+            model_sol_text = "No model solution provided — solve this question independently before grading. Award full marks for any correct method that reaches the right answer."
         q_text += f"""
 Q{i}. [{q['chapter']} · {q['max_marks']} marks]
 Question: {q['latex_content']}
 {model_sol_text}
 ---"""
 
-    system_prompt = """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
+    # ── PASS 1 — GRADE ────────────────────────────────────────────────────────
+    p1_system = """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
 You will be given a question paper and a student's handwritten answer sheet image.
 
 GRADING PROCESS — follow this for every question:
 1. Read the question carefully.
-2. If a Model Solution is provided, use it as your benchmark. If not, solve the question yourself mentally before evaluating the student.
+2. If a Model Solution is provided, use it to understand the correct final answer and one valid approach. If not, solve the question yourself mentally.
 3. Locate the student's answer for this specific question on the answer sheet.
-4. Compare the student's work against the correct solution step by step.
-5. Award marks for each correct step. Deduct from the exact step where the error first occurs.
+4. Determine if the student used the same method as the model solution or a different one.
+5. Grade accordingly — see SAME METHOD and ALTERNATE METHOD rules below.
+6. Award marks for each correct step. Deduct from the exact step where error first occurs.
+
+SAME METHOD AS MODEL SOLUTION:
+- Compare student's steps against the model solution step by step.
+- Award marks for each correct step.
+- Deduct from the exact step where the error first occurs and all steps affected after it.
+
+ALTERNATE METHOD EVALUATION:
+If the student used a method different from the Model Solution:
+1. Do not compare their steps against the model solution steps.
+2. Evaluate their method independently on its own mathematical merit.
+3. Check: is each step in their method mathematically valid and logically sound?
+4. Check: does their method logically lead to the final answer they obtained?
+5. Check: is their final answer correct?
+6. If all three checks pass — award full marks regardless of method used.
+7. If their method is valid but you are uncertain whether it is a recognised CBSE-accepted approach, set ai_confidence below 0.75 and ai_flag_review to true so teacher can verify.
+8. If their method is invalid — treat each incorrect step the same as SAME METHOD.
 
 NEUTRAL GRADE (ai_marks_awarded) — CBSE standard:
+- Full marks for any correct method that reaches the correct final answer.
 - Partial credit for correct method even if final answer is wrong.
 - Deduct marks from the step where error first occurs and all affected steps after it.
+- Never penalise a student for using a valid alternate method.
 
 STRICT GRADE (ai_strict_marks) — no benefit of doubt:
 - Wrong final answer = 0 marks for the final answer step.
 - Incomplete or partially correct step = 0 marks for that step.
+- Correct alternate method with correct final answer = full marks (same as neutral).
 - IMPORTANT: If the final answer is wrong, ai_strict_marks MUST be less than ai_marks_awarded. They cannot be equal when the final answer is incorrect.
 
 CONFIDENCE SCORE — calculate per question:
@@ -170,6 +192,7 @@ CONFIDENCE SCORE — calculate per question:
 - Subtract 0.15 if final answer appears wrong but partial marks were awarded
 - Subtract 0.10 if answer is borderline between two mark values
 - Subtract 0.15 if student may have answered a different question
+- Subtract 0.10 if student used an unfamiliar method and you are uncertain if valid
 - Minimum value is 0.10
 
 IRRELEVANT ANSWER:
@@ -186,7 +209,7 @@ LATEX RULES:
 
 RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
-    user_prompt = f"""Grade this student's answer sheet for the following questions:
+    p1_user = f"""Grade this student's answer sheet for the following questions:
 
 {q_text}
 
@@ -197,43 +220,117 @@ For each question return a JSON object with these EXACT fields:
 - ai_strict_marks: integer (0 to max_marks) — STRICT grade, must be less than ai_marks_awarded if final answer is wrong
 - ai_strict_reason: string — one sentence why strict < neutral, or "Strict and neutral agree" if final answer is correct
 - ai_irrelevant: boolean — true if student answer has no relation to the question
-- ai_concept: string — correct steps identified, exact step of mistake, wrong concept used, correct concept. English with LaTeX for math only.
-- ai_formula: string — correct formula vs what student used. English with LaTeX for formulas only.
-- ai_calculation: string — exact line of arithmetic, sign or substitution error. English with LaTeX for expressions only.
+- ai_concept: string — correct steps identified, exact step of mistake, wrong concept used, correct concept. If student used a valid alternate method, explicitly state "Student used an alternate valid method" and describe it. English with LaTeX for math only.
+- ai_formula: string — correct formula vs what student used. If student used a different but valid formula, state "Alternate valid approach used" and describe it. English with LaTeX for formulas only.
+- ai_calculation: string — exact line of arithmetic, sign or substitution error. If no errors, state "No calculation errors found". English with LaTeX for expressions only.
 - ai_model_solution: string — complete correct solution with key steps. LaTeX for math only.
-- ai_coaching_tip: string — one specific actionable tip. English with LaTeX for math only.
+- ai_coaching_tip: string — one specific actionable tip. If full marks awarded, acknowledge correct approach and suggest next practice. English with LaTeX for math only.
 - ai_confidence: float 0 to 1 — calculated per CONFIDENCE SCORE rules above
-- ai_flag_review: boolean — true if confidence < 0.85, final answer wrong, or irrelevant answer
+- ai_flag_review: boolean — true if confidence < 0.85, final answer wrong, irrelevant answer, or alternate method needs teacher verification
 
 Return ONLY the JSON array, nothing else."""
 
-    # Build image content — one entry per page, in sequence
-    image_contents = [{"type": "text", "text": user_prompt}]
+    # Build image content for Pass 1
+    image_contents = [{"type": "text", "text": p1_user}]
     for item in answer_sheet_urls:
         image_contents.append({
             "type": "image_url",
             "image_url": {"url": item["url"], "detail": "high"}
         })
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": image_contents}
-    ]
-
-    response = client.chat.completions.create(
+    p1_response = client.chat.completions.create(
         model       = secrets["oai_deploy"],
-        messages    = messages,
+        messages    = [
+            {"role": "system", "content": p1_system},
+            {"role": "user",   "content": image_contents}
+        ],
         max_tokens  = 4000,
         temperature = 0.1
     )
 
-    raw = response.choices[0].message.content.strip()
-    # Strip markdown if present
+    raw = p1_response.choices[0].message.content.strip()
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
-    return json.loads(raw.strip())
+    pass1_results = json.loads(raw.strip())
+    print(f"Pass 1 complete — {len(pass1_results)} questions graded", flush=True)
+
+    # ── PASS 2 — VERIFY ───────────────────────────────────────────────────────
+    p2_system = """You are an expert CBSE Mathematics and Science examiner performing a quality verification of a previous grading result.
+
+Your job is NOT to re-grade from scratch. Your job is to verify consistency and correctness of the existing grading.
+
+MATHEMATICAL EQUIVALENCE RULE:
+Two answers are mathematically equivalent if they represent the same mathematical truth, even if expressed in different form, notation, method, or level of simplification. Use your mathematical knowledge to determine equivalence — do not rely on textual or symbolic matching. If you are uncertain whether two forms are equivalent, set ai_flag_review to true rather than penalising the student.
+
+ALTERNATE METHOD RULE:
+If the student used a different method than the model solution:
+- Do NOT verify their answer by comparing steps to the model solution.
+- Evaluate their final answer independently on its own mathematical merit.
+- Ask: is their final answer mathematically correct for this question?
+- If yes — the marks awarded are correct. Do not reduce them.
+- If uncertain — flag for teacher, do not reduce marks.
+
+RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
+
+    p2_user = f"""You previously graded a student's answer sheet and returned this result:
+
+{json.dumps(pass1_results, indent=2)}
+
+The original questions were:
+{q_text}
+
+Verify each question by checking ALL of the following steps in order:
+
+STEP 1 — ANSWER CORRECTNESS CHECK:
+- What is the mathematically correct final answer for this question?
+- What final answer did you credit the student with in your previous grading?
+- Are these mathematically equivalent — using your mathematical knowledge, not textual matching?
+- If they are NOT mathematically equivalent and you awarded full marks — reduce ai_marks_awarded.
+- If student used an alternate method, evaluate their final answer independently — do not compare against model solution steps or form.
+
+STEP 2 — INTERNAL CONSISTENCY CHECK:
+- Does your ai_concept feedback describe the student getting the right answer?
+- Does your ai_calculation feedback mention errors?
+- Does your ai_model_solution show a different answer than what you credited?
+- If your feedback text contradicts the marks awarded — correct the marks to match what your feedback actually describes.
+
+STEP 3 — STRICT MARKS CHECK:
+- If the final answer is wrong, ai_strict_marks MUST be less than ai_marks_awarded. Correct if not.
+- If the final answer is correct, ai_strict_marks can equal ai_marks_awarded.
+- Verify ai_strict_reason accurately reflects the difference.
+
+STEP 4 — CONFIDENCE AND FLAG UPDATE:
+- If you changed any marks in steps 1-3, subtract 0.15 from ai_confidence.
+- Clamp ai_confidence between 0.10 and 1.0.
+- Set ai_flag_review to true if you changed any marks, ai_confidence is below 0.85, student used alternate method needing teacher confirmation, or final answer is wrong but partial marks awarded.
+
+STEP 5 — ALTERNATE METHOD FLAG:
+- If student used an alternate method that you verified as correct, set ai_flag_review to true so teacher can confirm the method is CBSE-acceptable. Do not reduce marks for this.
+
+Return the verified and corrected JSON array with the exact same field structure as the input. Only update fields that need correction.
+Return ONLY the JSON array, nothing else."""
+
+    p2_response = client.chat.completions.create(
+        model       = secrets["oai_deploy"],
+        messages    = [
+            {"role": "system", "content": p2_system},
+            {"role": "user",   "content": p2_user}
+        ],
+        max_tokens  = 4000,
+        temperature = 0.1
+    )
+
+    raw2 = p2_response.choices[0].message.content.strip()
+    if raw2.startswith("```"):
+        raw2 = raw2.split("```")[1]
+        if raw2.startswith("json"):
+            raw2 = raw2[4:]
+    pass2_results = json.loads(raw2.strip())
+    print(f"Pass 2 complete — verification done", flush=True)
+
+    return pass2_results
 
 def calculate_grade(percentage):
     if percentage >= 90: return 'A+'

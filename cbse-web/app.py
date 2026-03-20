@@ -142,22 +142,26 @@ Model Solution: {q.get('model_solution') or 'Grade based on standard CBSE markin
 
     system_prompt = """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
 You will be given a question paper and a student's handwritten answer sheet image.
-Grade each question using standard CBSE marking scheme — award marks for correct steps even if final answer is wrong.
 
-GRADING ROLES:
-You will grade as TWO examiners simultaneously:
-1. NEUTRAL (standard CBSE) — your main grade. Award marks for correct method and partial steps.
-2. STRICT — no benefit of doubt. Every step must be complete and correct. No marks for partially correct steps.
+GRADING RULES:
+- Read each question carefully, then find the student's answer for THAT specific question.
+- Verify the student's final numerical answer against the correct answer before awarding full marks.
+- If the student's answer does not match the correct answer, do NOT award full marks even if method looks correct.
+- Award marks for correct steps/method even if final answer is wrong — but deduct for wrong final answer.
+- If the student appears to have answered a different question than the one being graded, set ai_irrelevant to true.
 
-FEEDBACK STYLE:
-- Be specific and technical, not generic. Avoid vague praise or criticism.
-- Focus on: exact step where mistake occurred, which concept was misapplied, what the correct concept is.
-- Use mathematical terminology appropriate for CBSE Class 11-12.
-- All math must use LaTeX with $ delimiters.
+LATEX RULES:
+- Use LaTeX ONLY for mathematical symbols, equations, expressions and numbers in equations.
+- NEVER wrap regular English words or phrases in LaTeX delimiters.
+- Correct: "The student used $x(x+1) = 156$"
+- Wrong: "$positivity of integers$" or "$e.g.$"
 
-IRRELEVANT ANSWER:
-If a student's answer has no relation to the question asked, set ai_irrelevant to true.
-Do not provide concept/formula/calculation analysis for irrelevant answers.
+TWO GRADING PERSPECTIVES (return both in same response):
+1. NEUTRAL — standard CBSE marking scheme. Award marks for correct method and partial steps.
+2. STRICT — no benefit of doubt. Each step must be fully correct and complete.
+   - Wrong final answer = 0 marks for final step, no rounding up
+   - Partially correct step = 0 marks for that step
+   - Missing step = 0 marks even if surrounding steps are correct
 
 RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
@@ -165,20 +169,25 @@ RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
 {q_text}
 
+IMPORTANT VERIFICATION STEP before grading each question:
+1. Does the student's answer actually address THIS specific question or a different one?
+2. Does the student's final answer match the expected correct answer?
+3. If final answer is wrong, identify which exact step caused the error.
+
 For each question return a JSON object with these EXACT fields:
 - question_number: "Q1", "Q2" etc
 - max_marks: integer
 - ai_marks_awarded: integer (0 to max_marks) — NEUTRAL grade, this is the final score
-- ai_strict_marks: integer (0 to max_marks) — STRICT grade, what a strict examiner would give
-- ai_strict_reason: string — one concise sentence explaining why strict marks are lower (or "Strict and neutral agree" if equal)
-- ai_irrelevant: boolean — true if student answer has no relation to the question
-- ai_concept: string — concept analysis: which steps were correct, exact step where mistake occurred, why that concept application is wrong, what the correct concept/approach should be. Use LaTeX for math. Skip if ai_irrelevant is true.
-- ai_formula: string — formula analysis: did student use correct formula, if wrong what was used vs what should be used. Use LaTeX. Skip if ai_irrelevant is true.
-- ai_calculation: string — calculation analysis: arithmetic errors, sign errors, substitution mistakes, simplification errors. Use LaTeX. Skip if ai_irrelevant is true.
-- ai_model_solution: string — complete model solution showing key steps with LaTeX
-- ai_coaching_tip: string — one specific actionable improvement tip using LaTeX for math
-- ai_confidence: float 0 to 1 — confidence in neutral grade
-- ai_flag_review: boolean — true if teacher should review (low confidence, irrelevant answer, or borderline case)
+- ai_strict_marks: integer (0 to max_marks) — STRICT grade, must differ if any step incomplete or final answer wrong
+- ai_strict_reason: string — one concise sentence explaining why strict marks are lower, or "Strict and neutral agree" if equal
+- ai_irrelevant: boolean — true if student answer does not address this question
+- ai_concept: string — concept analysis: which steps were correct, exact step where mistake occurred, why that concept is wrong, what the correct concept should be. Use LaTeX for math only, never for English words.
+- ai_formula: string — formula analysis: correct formula vs what student used. Use LaTeX for math only.
+- ai_calculation: string — calculation errors: arithmetic, sign, substitution mistakes with LaTeX for math only.
+- ai_model_solution: string — complete model solution showing all key steps with LaTeX for math only.
+- ai_coaching_tip: string — one specific actionable improvement tip with LaTeX for math only.
+- ai_confidence: float 0 to 1 — confidence in neutral grade. Set below 0.7 if final answer is wrong but partial marks awarded.
+- ai_flag_review: boolean — true if final answer is wrong but marks were awarded, irrelevant answer, or borderline case.
 
 Return ONLY the JSON array, nothing else."""
 
@@ -1731,7 +1740,7 @@ def get_students():
                      FROM assignments a
                      JOIN papers p ON a.paper_id = p.paper_id
                      WHERE a.student_id = s.student_id
-                     AND a.status NOT IN ('released')
+                     AND a.status IN ('submitted', 'graded')
                     ) as blocked_by
                 FROM users u
                 JOIN students s ON s.user_id = u.user_id
@@ -1862,13 +1871,13 @@ def create_assignment():
         blocked_students = []
         with engine.begin() as conn:
             for sid in student_ids:
-                # Block if student has any unreleased assignment
+                # Block if student has any submitted or graded (unreleased) assignment
                 unreleased = conn.execute(text("""
                     SELECT a.assignment_id, p.title
                     FROM assignments a
                     JOIN papers p ON a.paper_id = p.paper_id
                     WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
-                    AND a.status NOT IN ('released')
+                    AND a.status IN ('submitted', 'graded')
                 """), {"sid": str(sid)}).fetchone()
 
                 if unreleased:

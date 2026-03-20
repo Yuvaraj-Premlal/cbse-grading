@@ -131,37 +131,58 @@ def grade_submission(questions, answer_sheet_urls):
     """
     client = get_openai_client()
 
-    # Build question list for prompt
+    # Build question list — conditional model solution instruction
     q_text = ""
     for i, q in enumerate(questions, 1):
+        model_sol = (q.get('model_solution') or '').strip()
+        if model_sol:
+            model_sol_text = f"Model Solution (use as benchmark to evaluate student): {model_sol}"
+        else:
+            model_sol_text = "No model solution provided — solve this question independently before grading the student."
         q_text += f"""
 Q{i}. [{q['chapter']} · {q['max_marks']} marks]
-{q['latex_content']}
-Model Solution: {q.get('model_solution') or 'Grade based on standard CBSE marking scheme'}
+Question: {q['latex_content']}
+{model_sol_text}
 ---"""
 
     system_prompt = """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
 You will be given a question paper and a student's handwritten answer sheet image.
 
-GRADING RULES:
-- Read each question carefully, then find the student's answer for THAT specific question.
-- Verify the student's final numerical answer against the correct answer before awarding full marks.
-- If the student's answer does not match the correct answer, do NOT award full marks even if method looks correct.
-- Award marks for correct steps/method even if final answer is wrong — but deduct for wrong final answer.
-- If the student appears to have answered a different question than the one being graded, set ai_irrelevant to true.
+GRADING PROCESS — follow this for every question:
+1. Read the question carefully.
+2. If a Model Solution is provided, use it as your benchmark. If not, solve the question yourself mentally before evaluating the student.
+3. Locate the student's answer for this specific question on the answer sheet.
+4. Compare the student's work against the correct solution step by step.
+5. Award marks for each correct step. Deduct from the exact step where the error first occurs.
+
+NEUTRAL GRADE (ai_marks_awarded) — CBSE standard:
+- Partial credit for correct method even if final answer is wrong.
+- Deduct marks from the step where error first occurs and all affected steps after it.
+
+STRICT GRADE (ai_strict_marks) — no benefit of doubt:
+- Wrong final answer = 0 marks for the final answer step.
+- Incomplete or partially correct step = 0 marks for that step.
+- IMPORTANT: If the final answer is wrong, ai_strict_marks MUST be less than ai_marks_awarded. They cannot be equal when the final answer is incorrect.
+
+CONFIDENCE SCORE — calculate per question:
+- Start at 1.0
+- Subtract 0.20 if handwriting was unclear or difficult to read
+- Subtract 0.15 if final answer appears wrong but partial marks were awarded
+- Subtract 0.10 if answer is borderline between two mark values
+- Subtract 0.15 if student may have answered a different question
+- Minimum value is 0.10
+
+IRRELEVANT ANSWER:
+- If student's response has no mathematical relation to the question, set ai_irrelevant to true.
+- Skip concept, formula and calculation analysis for irrelevant answers.
+- Still provide model solution.
 
 LATEX RULES:
-- Use LaTeX ONLY for mathematical symbols, equations, expressions and numbers in equations.
-- NEVER wrap regular English words or phrases in LaTeX delimiters.
-- Correct: "The student used $x(x+1) = 156$"
-- Wrong: "$positivity of integers$" or "$e.g.$"
-
-TWO GRADING PERSPECTIVES (return both in same response):
-1. NEUTRAL — standard CBSE marking scheme. Award marks for correct method and partial steps.
-2. STRICT — no benefit of doubt. Each step must be fully correct and complete.
-   - Wrong final answer = 0 marks for final step, no rounding up
-   - Partially correct step = 0 marks for that step
-   - Missing step = 0 marks even if surrounding steps are correct
+- Use LaTeX ONLY for mathematical expressions, equations, symbols and numbers within equations.
+- Wrap inline math with single dollar signs: $expression$
+- NEVER use LaTeX delimiters around English words or phrases.
+- CORRECT: "The student correctly set up $x(x+1) = 156$"
+- WRONG: "$positiveinteger$" or "$factorization$" or "$e.g.$"
 
 RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
@@ -169,25 +190,20 @@ RESPOND ONLY with a valid JSON array. No preamble, no markdown, no backticks."""
 
 {q_text}
 
-IMPORTANT VERIFICATION STEP before grading each question:
-1. Does the student's answer actually address THIS specific question or a different one?
-2. Does the student's final answer match the expected correct answer?
-3. If final answer is wrong, identify which exact step caused the error.
-
 For each question return a JSON object with these EXACT fields:
 - question_number: "Q1", "Q2" etc
 - max_marks: integer
-- ai_marks_awarded: integer (0 to max_marks) — NEUTRAL grade, this is the final score
-- ai_strict_marks: integer (0 to max_marks) — STRICT grade, must differ if any step incomplete or final answer wrong
-- ai_strict_reason: string — one concise sentence explaining why strict marks are lower, or "Strict and neutral agree" if equal
-- ai_irrelevant: boolean — true if student answer does not address this question
-- ai_concept: string — concept analysis: which steps were correct, exact step where mistake occurred, why that concept is wrong, what the correct concept should be. Use LaTeX for math only, never for English words.
-- ai_formula: string — formula analysis: correct formula vs what student used. Use LaTeX for math only.
-- ai_calculation: string — calculation errors: arithmetic, sign, substitution mistakes with LaTeX for math only.
-- ai_model_solution: string — complete model solution showing all key steps with LaTeX for math only.
-- ai_coaching_tip: string — one specific actionable improvement tip with LaTeX for math only.
-- ai_confidence: float 0 to 1 — confidence in neutral grade. Set below 0.7 if final answer is wrong but partial marks awarded.
-- ai_flag_review: boolean — true if final answer is wrong but marks were awarded, irrelevant answer, or borderline case.
+- ai_marks_awarded: integer (0 to max_marks) — NEUTRAL grade, the final score
+- ai_strict_marks: integer (0 to max_marks) — STRICT grade, must be less than ai_marks_awarded if final answer is wrong
+- ai_strict_reason: string — one sentence why strict < neutral, or "Strict and neutral agree" if final answer is correct
+- ai_irrelevant: boolean — true if student answer has no relation to the question
+- ai_concept: string — correct steps identified, exact step of mistake, wrong concept used, correct concept. English with LaTeX for math only.
+- ai_formula: string — correct formula vs what student used. English with LaTeX for formulas only.
+- ai_calculation: string — exact line of arithmetic, sign or substitution error. English with LaTeX for expressions only.
+- ai_model_solution: string — complete correct solution with key steps. LaTeX for math only.
+- ai_coaching_tip: string — one specific actionable tip. English with LaTeX for math only.
+- ai_confidence: float 0 to 1 — calculated per CONFIDENCE SCORE rules above
+- ai_flag_review: boolean — true if confidence < 0.85, final answer wrong, or irrelevant answer
 
 Return ONLY the JSON array, nothing else."""
 
@@ -263,6 +279,12 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                 marks = min(r.get('ai_marks_awarded', 0), q_match['max_marks'])
                 total_awarded += marks
 
+                # Safeguards for all fields
+                strict_marks = min(max(int(r.get('ai_strict_marks', marks)), 0), q_match['max_marks'])
+                confidence   = min(max(float(r.get('ai_confidence', 0.8)), 0.0), 1.0)
+                irrelevant   = str(r.get('ai_irrelevant', 'false')).lower() in ('true', '1')
+                flag         = bool(r.get('ai_flag_review', False)) or confidence < 0.85
+
                 conn.execute(text("""
                     INSERT INTO submission_questions
                         (sq_id, submission_id, question_id, question_number,
@@ -292,14 +314,14 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                     "weakness"     : r.get('ai_weakness', ''),
                     "model_sol"    : r.get('ai_model_solution', ''),
                     "tip"          : r.get('ai_coaching_tip', ''),
-                    "confidence"   : float(r.get('ai_confidence', 0.8)),
-                    "flag"         : bool(r.get('ai_flag_review', False)),
-                    "strict_marks" : int(r.get('ai_strict_marks', marks)),
+                    "confidence"   : confidence,
+                    "flag"         : flag,
+                    "strict_marks" : strict_marks,
                     "strict_reason": r.get('ai_strict_reason', ''),
                     "concept"      : r.get('ai_concept', ''),
                     "formula"      : r.get('ai_formula', ''),
                     "calculation"  : r.get('ai_calculation', ''),
-                    "irrelevant"   : bool(r.get('ai_irrelevant', False))
+                    "irrelevant"   : irrelevant
                 })
 
             pct   = round((total_awarded / total_max * 100), 2) if total_max > 0 else 0

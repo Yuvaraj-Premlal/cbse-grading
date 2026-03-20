@@ -1346,11 +1346,12 @@ async function rqRenderPanel(idx) {
   questionsEl.innerHTML = (s.questions || []).map(q => {
     const flagColor = q.ai_flag_review ? 'var(--amber)' : 'var(--green)';
     const flagText  = q.ai_flag_review ? '⚠️ Review recommended' : '✓ High confidence';
+    const confPctDisplay = Math.round((q.ai_confidence || 0.8) * 100) + '%';
     const conf      = q.ai_confidence ? Math.round(q.ai_confidence * 100) + '%' : '—';
     return '<div class="card-sm" style="margin-bottom:12px;' + (q.ai_flag_review?'border-color:var(--amber)':'') + '">' +
       '<div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:10px;gap:12px;flex-wrap:wrap;">' +
       '<div><div style="font-size:13.5px;font-weight:700;color:var(--text);">' + q.question_number + ' — ' + q.chapter + ' (' + q.max_marks + ' marks)</div>' +
-      '<div style="font-size:11px;color:' + flagColor + ';margin-top:3px;">' + flagText + ' · Confidence ' + conf + '</div></div>' +
+      '<div style="font-size:11px;color:' + flagColor + ';margin-top:3px;">' + flagText + ' · AI Confidence: ' + confPctDisplay + '</div></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
       '<div style="font-size:11px;color:var(--muted);">AI gave</div>' +
       '<div style="font-family:var(--serif);font-size:20px;color:var(--blue);">' + q.ai_marks_awarded + '/' + q.max_marks + '</div>' +
@@ -1358,13 +1359,21 @@ async function rqRenderPanel(idx) {
       '<input class="mark-input" type="number" value="' + q.ai_marks_awarded + '" min="0" max="' + q.max_marks + '" data-sqid="' + q.sq_id + '" oninput="rqUpdateTotal()" style="width:52px;"/>' +
       '<div style="font-size:13px;color:var(--muted);">/' + q.max_marks + '</div></div></div>' +
       '<div style="font-size:12.5px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:10px;line-height:1.7;">' + q.latex_content + '</div>' +
+      // Confidence display for teacher
+      (function() {
+        const conf = parseFloat(q.ai_confidence || 0.8);
+        const confPct = Math.round(conf * 100);
+        const confColor = conf >= 0.85 ? 'var(--green)' : conf >= 0.75 ? 'var(--amber)' : 'var(--red)';
+        const confBg = conf >= 0.85 ? 'var(--green-l)' : conf >= 0.75 ? 'var(--amber-l)' : '#FEE2E2';
+        return '<div style="font-size:11px;background:' + confBg + ';color:' + confColor + ';padding:4px 10px;border-radius:6px;margin-bottom:8px;display:inline-block;font-weight:700;">AI Confidence: ' + confPct + '%' + (conf < 0.85 ? ' ⚠️ Review recommended' : '') + '</div>';
+      })() +
       (q.ai_strict_marks !== null && q.ai_strict_marks !== undefined && q.ai_strict_marks < q.ai_marks_awarded ?
         '<div style="font-size:12px;background:#FEE2E2;border:1px solid #FCA5A5;padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong style="color:#DC2626;">🔴 Strict:</strong> ' + q.ai_strict_marks + '/' + q.max_marks + ' — ' + (q.ai_strict_reason||'') + '</div>' : '') +
       (q.ai_irrelevant ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>⚠️ Irrelevant answer flagged</strong></div>' : '') +
-      (q.ai_concept ? '<div style="font-size:12px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:6px;line-height:1.6;"><strong>🧠 Concept:</strong> ' + q.ai_concept + '</div>' : '') +
-      (q.ai_formula ? '<div style="font-size:12px;color:var(--blue);background:var(--blue-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>📐 Formula:</strong> ' + q.ai_formula + '</div>' : '') +
-      (q.ai_calculation ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>🔢 Calculation:</strong> ' + q.ai_calculation + '</div>' : '') +
-      (q.ai_model_solution ? '<div style="font-size:12px;color:var(--green);background:var(--green-l);padding:8px 10px;border-radius:8px;margin-bottom:10px;"><strong>📖 Model Solution:</strong> ' + q.ai_model_solution + '</div>' : '') +
+      (!q.ai_irrelevant && q.ai_concept ? '<div style="font-size:12px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:6px;line-height:1.6;"><strong>🧠 Concept:</strong> ' + (q.ai_concept||'') + '</div>' : '') +
+      (!q.ai_irrelevant && q.ai_formula ? '<div style="font-size:12px;color:var(--blue);background:var(--blue-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>📐 Formula:</strong> ' + (q.ai_formula||'') + '</div>' : '') +
+      (!q.ai_irrelevant && q.ai_calculation ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>🔢 Calculation:</strong> ' + (q.ai_calculation||'') + '</div>' : '') +
+      (q.ai_model_solution ? '<div style="font-size:12px;color:var(--green);background:var(--green-l);padding:8px 10px;border-radius:8px;margin-bottom:10px;"><strong>📖 Model Solution:</strong> ' + (q.ai_model_solution||'') + '</div>' : '') +
       '<input class="form-input" type="text" data-feedback="' + q.sq_id + '" placeholder="Teacher feedback (optional — shown to student)" style="font-size:12.5px;padding:8px 12px;margin-top:4px;"/>' +
       '</div>';
   }).join('');

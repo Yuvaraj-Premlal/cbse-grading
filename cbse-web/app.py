@@ -596,7 +596,8 @@ def teacher_dashboard():
                     s.total_awarded AS ai_score,
                     s.submission_id
                 FROM assignments a
-                JOIN users u       ON a.student_id  = u.user_id
+                JOIN students st   ON a.student_id  = st.student_id
+                JOIN users u       ON st.user_id    = u.user_id
                 JOIN papers p      ON a.paper_id    = p.paper_id
                 LEFT JOIN submissions s ON a.assignment_id = s.assignment_id
                 WHERE a.status = 'graded'
@@ -1117,6 +1118,7 @@ def student_dashboard():
                     p.title,
                     p.subject,
                     p.total_marks,
+                    s.submission_id,
                     CONVERT(VARCHAR, s.submitted_at, 120) as submitted_at
                 FROM assignments a
                 JOIN papers p ON a.paper_id = p.paper_id
@@ -1475,6 +1477,169 @@ def get_student_result(submission_id):
         return jsonify({"ok": True, "result": result})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── REVIEW QUEUE ──────────────────────────────────────
+@app.route("/api/teacher/review-queue")
+@require_role("teacher")
+def review_queue():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            submissions = conn.execute(text("""
+                SELECT
+                    s.submission_id,
+                    s.total_awarded, s.total_max, s.percentage, s.grade,
+                    s.answer_sheet_url,
+                    CONVERT(VARCHAR, s.submitted_at, 120) as submitted_at,
+                    p.title as paper_title, p.subject,
+                    u.name as student_name,
+                    a.assignment_id
+                FROM submissions s
+                JOIN assignments a ON s.assignment_id = a.assignment_id
+                JOIN papers p ON a.paper_id = p.paper_id
+                JOIN students st ON a.student_id = st.student_id
+                JOIN users u ON st.user_id = u.user_id
+                WHERE a.status = 'graded'
+                AND s.final_released = 0
+                ORDER BY s.submitted_at ASC
+            """)).fetchall()
+
+            result = []
+            for sub in submissions:
+                sub_dict = dict(sub._mapping)
+
+                # Get per-question data
+                questions = conn.execute(text("""
+                    SELECT sq.sq_id, sq.question_number, sq.max_marks,
+                           sq.ai_marks_awarded, sq.ai_step_breakdown,
+                           sq.ai_strength, sq.ai_weakness,
+                           sq.ai_model_solution, sq.ai_coaching_tip,
+                           sq.ai_confidence, sq.ai_flag_review,
+                           q.latex_content, q.chapter, pq.section
+                    FROM submission_questions sq
+                    JOIN questions q ON sq.question_id = q.question_id
+                    JOIN paper_questions pq ON q.question_id = pq.question_id
+                        AND pq.paper_id = (
+                            SELECT paper_id FROM assignments
+                            WHERE assignment_id = CAST(:aid AS UNIQUEIDENTIFIER)
+                        )
+                    WHERE sq.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                    ORDER BY sq.question_number
+                """), {
+                    "sid": str(sub.submission_id),
+                    "aid": str(sub.assignment_id)
+                }).fetchall()
+
+                sub_dict["questions"] = [dict(q._mapping) for q in questions]
+
+                # Get all answer sheet URLs (multiple images)
+                # Parse from blob storage — stored as JSON array or single URL
+                sub_dict["answer_sheet_urls"] = [sub.answer_sheet_url] if sub.answer_sheet_url else []
+
+                result.append(sub_dict)
+
+        return jsonify({"ok": True, "submissions": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/approve-release/<submission_id>", methods=["POST"])
+@require_role("teacher")
+def approve_release(submission_id):
+    data = request.json
+    try:
+        overrides   = data.get("overrides", [])   # [{sq_id, teacher_marks, teacher_feedback}]
+        engine = get_engine()
+
+        with engine.begin() as conn:
+            total_awarded = 0
+            total_max     = 0
+
+            for o in overrides:
+                teacher_marks = int(o.get("teacher_marks", 0))
+                feedback      = o.get("teacher_feedback", "")
+
+                # Get max_marks and ai_marks for this question
+                sq = conn.execute(text("""
+                    SELECT sq_id, max_marks, ai_marks_awarded
+                    FROM submission_questions
+                    WHERE sq_id = CAST(:sqid AS UNIQUEIDENTIFIER)
+                """), {"sqid": o["sq_id"]}).fetchone()
+
+                if not sq:
+                    continue
+
+                final_marks = min(teacher_marks, sq.max_marks)
+                total_max  += sq.max_marks
+                total_awarded += final_marks
+
+                conn.execute(text("""
+                    UPDATE submission_questions SET
+                        teacher_marks    = :tm,
+                        final_marks      = :fm,
+                        teacher_feedback = :fb,
+                        teacher_reviewed = 1
+                    WHERE sq_id = CAST(:sqid AS UNIQUEIDENTIFIER)
+                """), {
+                    "tm"  : teacher_marks,
+                    "fm"  : final_marks,
+                    "fb"  : feedback,
+                    "sqid": o["sq_id"]
+                })
+
+            # Recalculate grade
+            pct   = round((total_awarded / total_max * 100), 2) if total_max > 0 else 0
+            grade = calculate_grade(pct)
+
+            # Update submission — release it
+            conn.execute(text("""
+                UPDATE submissions SET
+                    total_awarded  = :awarded,
+                    total_max      = :total_max,
+                    percentage     = :pct,
+                    grade          = :grade,
+                    final_released = 1,
+                    released_at    = GETUTCDATE()
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {
+                "awarded"  : total_awarded,
+                "total_max": total_max,
+                "pct"      : pct,
+                "grade"    : grade,
+                "sid"      : submission_id
+            })
+
+            # Update assignment status
+            conn.execute(text("""
+                UPDATE assignments SET status = 'released'
+                WHERE assignment_id = (
+                    SELECT assignment_id FROM submissions
+                    WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                )
+            """), {"sid": submission_id})
+
+        return jsonify({
+            "ok"          : True,
+            "total_awarded": total_awarded,
+            "total_max"   : total_max,
+            "percentage"  : pct,
+            "grade"       : grade
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/teacher/sas-url", methods=["POST"])
+@require_role("teacher")
+def get_sas_urls():
+    data = request.json
+    urls = data.get("urls", [])
+    try:
+        sas_urls = [get_sas_url(url, expiry_hours=2) for url in urls if url]
+        return jsonify({"ok": True, "sas_urls": sas_urls})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200], "sas_urls": []})
 
 
 if __name__ == "__main__":

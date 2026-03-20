@@ -157,6 +157,7 @@ GRADING PROCESS — follow this for every question:
 4. Determine if the student used the same method as the model solution or a different one.
 5. Grade accordingly — see SAME METHOD and ALTERNATE METHOD rules below.
 6. Award marks for each correct step. Deduct from the exact step where error first occurs.
+7. The student's answer is only complete and correct if their final stated answer matches the final stated answer in the model solution. Reaching correct intermediate steps is not sufficient — the student must reach the same final conclusion as the model solution. Deduct marks for any missing final steps.
 
 SAME METHOD AS MODEL SOLUTION:
 - Compare student's steps against the model solution step by step.
@@ -284,9 +285,10 @@ The original questions were:
 Verify each question by checking ALL of the following steps in order:
 
 STEP 1 — ANSWER CORRECTNESS CHECK:
-- What is the mathematically correct final answer for this question?
-- What final answer did you credit the student with in your previous grading?
+- What is the final stated answer in the model solution?
+- What is the final stated answer the student wrote — not intermediate steps, the actual conclusion?
 - Are these mathematically equivalent — using your mathematical knowledge, not textual matching?
+- If the student only reached an intermediate result and did not state the final conclusion that the model solution states, their answer is incomplete — reduce ai_marks_awarded for the missing final step.
 - If they are NOT mathematically equivalent and you awarded full marks — reduce ai_marks_awarded.
 - If student used an alternate method, evaluate their final answer independently — do not compare against model solution steps or form.
 

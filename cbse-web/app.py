@@ -1473,11 +1473,11 @@ def get_student_result(submission_id):
                 WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {"sid": submission_id}).fetchone()[0]
 
-        # Get annotations
-        annot = conn.execute(text("""
-            SELECT annotations FROM submissions
-            WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
-        """), {"sid": submission_id}).fetchone()
+            # Get annotations
+            annot = conn.execute(text("""
+                SELECT annotations FROM submissions
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"sid": submission_id}).fetchone()
 
         result = dict(sub._mapping)
         result["questions"]      = [dict(q._mapping) for q in questions]

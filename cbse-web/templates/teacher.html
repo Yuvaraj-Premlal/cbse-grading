@@ -651,7 +651,6 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
             <button class="btn btn-sm annot-tool"         id="tool-circle"  onclick="setTool('circle')"  title="Circle">○</button>
             <button class="btn btn-sm annot-tool"         id="tool-draw"    onclick="setTool('draw')"    title="Free draw">✏️</button>
             <button class="btn btn-sm annot-tool"         id="tool-text"    onclick="setTool('text')"    title="Text comment">T</button>
-            <button class="btn btn-sm annot-tool"         id="tool-select"  onclick="setTool('select')"  title="Select/move">⊹</button>
             <div style="width:1px;background:var(--border);margin:0 4px;"></div>
             <button class="btn btn-sm" onclick="annotUndo()" title="Undo">↩</button>
             <button class="btn btn-sm" onclick="annotClear()" title="Clear page" style="color:var(--red);">🗑</button>
@@ -2505,8 +2504,17 @@ function annotUndo() {
   if (hist.length > 1) hist.pop();
   const prev = JSON.parse(hist[hist.length - 1] || '[]');
   annotPageData[annotPageIdx] = prev;
-  // Reload fresh image from URL to avoid destroyed reference
-  annotReloadBg(annotPages[annotPageIdx], prev);
+
+  // Remove only annotation objects — never touch background
+  annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+  if (prev.length) {
+    annotCanvas.loadFromJSON({ objects: prev }, function() {
+      annotCanvas.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+      annotCanvas.renderAll();
+    });
+  } else {
+    annotCanvas.renderAll();
+  }
 }
 
 function annotReloadBg(url, objects) {

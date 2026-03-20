@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CBSE Grading — Teacher Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
 <!-- MathJax for LaTeX rendering -->
 <script>
@@ -191,6 +192,10 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 .rc-meta{font-size:12px;color:var(--muted);margin-top:2px;}
 .rc-score{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);text-align:right;flex-shrink:0;}
 .rc-pct{font-size:11px;color:var(--muted);text-align:right;}
+
+.annot-tool { background:var(--white);border:1.5px solid var(--border);color:var(--text);font-size:14px;font-weight:700;width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center; }
+.annot-tool.active { background:var(--blue);border-color:var(--blue);color:#fff; }
+#annot-canvas { display:block; }
 </style>
 </head>
 <body>
@@ -625,12 +630,43 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div id="rq-panel" style="display:none;">
       <div class="grid-2" style="align-items:start;gap:24px;">
 
-        <!-- LEFT — ANSWER SHEET IMAGES -->
+        <!-- LEFT — ANNOTATION CANVAS -->
         <div>
-          <div class="section-label" id="rq-student-label">Answer Sheet</div>
-          <div class="card" style="padding:16px;">
-            <div id="rq-images" style="display:flex;flex-direction:column;gap:12px;max-height:600px;overflow-y:auto;"></div>
-            <div style="font-size:11.5px;color:var(--muted);margin-top:10px;" id="rq-submitted-at"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div class="section-label" style="margin-bottom:0;" id="rq-student-label">Answer Sheet</div>
+            <div style="font-size:11.5px;color:var(--muted);" id="rq-submitted-at"></div>
+          </div>
+
+          <!-- PAGE NAVIGATION -->
+          <div id="rq-page-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <button class="btn btn-ghost btn-sm" onclick="annotPrevPage()">← Prev</button>
+            <span id="rq-page-indicator" style="font-size:12px;color:var(--muted);flex:1;text-align:center;">Page 1 of 1</span>
+            <button class="btn btn-ghost btn-sm" onclick="annotNextPage()">Next →</button>
+          </div>
+
+          <!-- TOOL BAR -->
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;background:var(--bg);padding:8px;border-radius:10px;">
+            <button class="btn btn-sm annot-tool active" id="tool-tick"    onclick="setTool('tick')"    title="Tick (correct)">✓</button>
+            <button class="btn btn-sm annot-tool"         id="tool-cross"   onclick="setTool('cross')"   title="Cross (wrong)">✗</button>
+            <button class="btn btn-sm annot-tool"         id="tool-circle"  onclick="setTool('circle')"  title="Circle">○</button>
+            <button class="btn btn-sm annot-tool"         id="tool-draw"    onclick="setTool('draw')"    title="Free draw">✏️</button>
+            <button class="btn btn-sm annot-tool"         id="tool-text"    onclick="setTool('text')"    title="Text comment">T</button>
+            <div style="width:1px;background:var(--border);margin:0 4px;"></div>
+            <button class="btn btn-sm" onclick="annotUndo()" title="Undo">↩</button>
+            <button class="btn btn-sm" onclick="annotClear()" title="Clear page" style="color:var(--red);">🗑</button>
+            <div style="flex:1;"></div>
+            <select id="annot-color" onchange="setAnnotColor(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--white);">
+              <option value="#E53935">Red</option>
+              <option value="#43A047">Green</option>
+              <option value="#1E88E5">Blue</option>
+              <option value="#FB8C00">Orange</option>
+            </select>
+          </div>
+
+          <!-- CANVAS WRAPPER -->
+          <div class="card" style="padding:0;overflow:hidden;position:relative;">
+            <div id="rq-canvas-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:10;font-size:13px;color:var(--muted);">Loading image...</div>
+            <canvas id="annot-canvas"></canvas>
           </div>
         </div>
 
@@ -1280,9 +1316,7 @@ async function rqRenderPanel(idx) {
   document.getElementById('rq-submitted-at').textContent =
     'Submitted ' + (s.submitted_at ? new Date(s.submitted_at).toLocaleString('en-IN') : '');
 
-  // Load answer sheet images via SAS
-  const imagesEl = document.getElementById('rq-images');
-  imagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px;">Loading images...</div>';
+  // Load answer sheet images into annotation canvas
   try {
     const sasRes  = await fetch('/api/teacher/sas-url', {
       method: 'POST',
@@ -1291,16 +1325,13 @@ async function rqRenderPanel(idx) {
     });
     const sasData = await sasRes.json();
     if (sasData.ok && sasData.sas_urls.length) {
-      imagesEl.innerHTML = sasData.sas_urls.map((url, i) =>
-        '<div><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Page ' + (i+1) + '</div>' +
-        '<img src="' + url + '" style="width:100%;border-radius:8px;border:1px solid var(--border);" ' +
-        'onclick="window.open(this.src,\'_blank\')" title="Click to open full size" loading="lazy" style="cursor:pointer"/></div>'
-      ).join('');
+      const savedAnnotations = s.annotations ? JSON.parse(s.annotations) : null;
+      annotInit(sasData.sas_urls, savedAnnotations);
     } else {
-      imagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px;">📄 Answer sheet not viewable</div>';
+      document.getElementById('rq-canvas-loading').textContent = '📄 Answer sheet not viewable';
     }
   } catch(e) {
-    imagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">Could not load image</div>';
+    document.getElementById('rq-canvas-loading').textContent = 'Could not load image';
   }
 
   document.getElementById('rq-ai-total').textContent =
@@ -1369,11 +1400,14 @@ async function rqApproveRelease() {
     };
   });
 
+  // Collect annotations from canvas
+  const annotations = annotGetJSON();
+
   try {
     const res  = await fetch('/api/teacher/approve-release/' + s.submission_id, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ overrides })
+      body: JSON.stringify({ overrides, annotations })
     });
     const data = await res.json();
 
@@ -2272,6 +2306,203 @@ async function loadDashboard() {
 
 // Load on page ready
 document.addEventListener('DOMContentLoaded', loadDashboard);
+
+// ── ANNOTATION ENGINE ─────────────────────────────────
+let annotCanvas    = null;
+let annotPages     = [];      // SAS URLs per page
+let annotPageIdx   = 0;
+let annotPageData  = {};      // {pageIdx: fabric JSON}
+let annotTool      = 'tick';
+let annotColor     = '#E53935';
+let annotHistory   = {};      // {pageIdx: [states]}
+
+function annotInit(sasUrls, savedAnnotations) {
+  annotPages    = sasUrls;
+  annotPageIdx  = 0;
+  annotPageData = {};
+  annotHistory  = {};
+
+  // Load saved annotations if any
+  if (savedAnnotations && savedAnnotations.pages) {
+    annotPageData = savedAnnotations.pages;
+  }
+
+  // Init fabric canvas
+  if (annotCanvas) {
+    annotCanvas.dispose();
+    annotCanvas = null;
+  }
+  annotCanvas = new fabric.Canvas('annot-canvas', {
+    selection: false,
+    isDrawingMode: false
+  });
+
+  annotCanvas.freeDrawingBrush.color = annotColor;
+  annotCanvas.freeDrawingBrush.width = 3;
+
+  // Click handler for stamp tools
+  annotCanvas.on('mouse:down', function(opt) {
+    if (annotTool === 'draw' || annotTool === 'text') return;
+    const pointer = annotCanvas.getPointer(opt.e);
+    annotStamp(pointer.x, pointer.y);
+  });
+
+  // Text tool
+  annotCanvas.on('mouse:dblclick', function(opt) {
+    if (annotTool !== 'text') return;
+    const pointer = annotCanvas.getPointer(opt.e);
+    const text = prompt('Enter comment:');
+    if (!text) return;
+    const obj = new fabric.Text(text, {
+      left: pointer.x, top: pointer.y,
+      fontSize: 16, fill: annotColor,
+      fontWeight: 'bold', fontFamily: 'Arial',
+      selectable: true
+    });
+    annotCanvas.add(obj);
+    annotSaveState();
+  });
+
+  // After draw ends, save state
+  annotCanvas.on('path:created', function() {
+    annotSaveState();
+  });
+
+  annotLoadPage(0);
+}
+
+function annotLoadPage(idx) {
+  if (!annotCanvas || !annotPages[idx]) return;
+  annotPageIdx = idx;
+
+  document.getElementById('rq-canvas-loading').style.display = 'flex';
+  document.getElementById('rq-page-indicator').textContent =
+    'Page ' + (idx+1) + ' of ' + annotPages.length;
+
+  const wrapperWidth = document.querySelector('#annot-canvas').parentElement.offsetWidth || 500;
+
+  fabric.Image.fromURL(annotPages[idx], function(img) {
+    const scale  = wrapperWidth / img.width;
+    const height = img.height * scale;
+
+    annotCanvas.setWidth(wrapperWidth);
+    annotCanvas.setHeight(height);
+    annotCanvas.clear();
+    annotCanvas.setBackgroundImage(img, annotCanvas.renderAll.bind(annotCanvas), {
+      scaleX: scale, scaleY: scale
+    });
+
+    // Restore saved annotations for this page
+    if (annotPageData[idx]) {
+      annotCanvas.loadFromJSON({objects: annotPageData[idx]}, function() {
+        annotCanvas.renderAll();
+      });
+    }
+
+    document.getElementById('rq-canvas-loading').style.display = 'none';
+    if (!annotHistory[idx]) annotHistory[idx] = [];
+  }, { crossOrigin: 'anonymous' });
+}
+
+function annotStamp(x, y) {
+  let obj;
+  const size = 28;
+  if (annotTool === 'tick') {
+    obj = new fabric.Text('✓', {
+      left: x - size/2, top: y - size/2,
+      fontSize: size, fill: annotColor,
+      fontWeight: 'bold', selectable: true, fontFamily: 'Arial'
+    });
+  } else if (annotTool === 'cross') {
+    obj = new fabric.Text('✗', {
+      left: x - size/2, top: y - size/2,
+      fontSize: size, fill: annotColor,
+      fontWeight: 'bold', selectable: true, fontFamily: 'Arial'
+    });
+  } else if (annotTool === 'circle') {
+    obj = new fabric.Circle({
+      left: x - 20, top: y - 20,
+      radius: 20, fill: 'transparent',
+      stroke: annotColor, strokeWidth: 3,
+      selectable: true
+    });
+  }
+  if (obj) {
+    annotCanvas.add(obj);
+    annotSaveState();
+  }
+}
+
+function annotSaveState() {
+  const objects = annotCanvas.getObjects().map(o => o.toObject());
+  annotPageData[annotPageIdx] = objects;
+  if (!annotHistory[annotPageIdx]) annotHistory[annotPageIdx] = [];
+  annotHistory[annotPageIdx].push(JSON.stringify(objects));
+}
+
+function annotUndo() {
+  const hist = annotHistory[annotPageIdx];
+  if (!hist || hist.length <= 1) {
+    annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+    annotPageData[annotPageIdx] = [];
+    annotCanvas.renderAll();
+    return;
+  }
+  hist.pop();
+  const prev = JSON.parse(hist[hist.length - 1]);
+  annotPageData[annotPageIdx] = prev;
+  annotCanvas.loadFromJSON({objects: prev}, function() {
+    annotCanvas.renderAll();
+  });
+}
+
+function annotClear() {
+  if (!confirm('Clear all annotations on this page?')) return;
+  annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
+  annotPageData[annotPageIdx] = [];
+  annotHistory[annotPageIdx]  = [];
+  annotCanvas.renderAll();
+}
+
+function annotPrevPage() {
+  if (annotPageIdx <= 0) return;
+  // Save current page before switching
+  annotPageData[annotPageIdx] = annotCanvas.getObjects().map(o => o.toObject());
+  annotLoadPage(annotPageIdx - 1);
+}
+
+function annotNextPage() {
+  if (annotPageIdx >= annotPages.length - 1) return;
+  annotPageData[annotPageIdx] = annotCanvas.getObjects().map(o => o.toObject());
+  annotLoadPage(annotPageIdx + 1);
+}
+
+function setTool(tool) {
+  annotTool = tool;
+  document.querySelectorAll('.annot-tool').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tool-' + tool);
+  if (btn) btn.classList.add('active');
+  if (annotCanvas) {
+    annotCanvas.isDrawingMode = (tool === 'draw');
+    annotCanvas.selection     = (tool === 'text');
+  }
+}
+
+function setAnnotColor(color) {
+  annotColor = color;
+  if (annotCanvas) {
+    annotCanvas.freeDrawingBrush.color = color;
+  }
+}
+
+function annotGetJSON() {
+  // Save current page first
+  if (annotCanvas) {
+    annotPageData[annotPageIdx] = annotCanvas.getObjects().map(o => o.toObject());
+  }
+  return JSON.stringify({ pages: annotPageData });
+}
+
 </script>
 </body>
 </html>

@@ -651,9 +651,13 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
             <button class="btn btn-sm annot-tool"         id="tool-circle"  onclick="setTool('circle')"  title="Circle">○</button>
             <button class="btn btn-sm annot-tool"         id="tool-draw"    onclick="setTool('draw')"    title="Free draw">✏️</button>
             <button class="btn btn-sm annot-tool"         id="tool-text"    onclick="setTool('text')"    title="Text comment">T</button>
+            <button class="btn btn-sm annot-tool"         id="tool-select"  onclick="setTool('select')"  title="Select/move">⊹</button>
             <div style="width:1px;background:var(--border);margin:0 4px;"></div>
             <button class="btn btn-sm" onclick="annotUndo()" title="Undo">↩</button>
             <button class="btn btn-sm" onclick="annotClear()" title="Clear page" style="color:var(--red);">🗑</button>
+            <div style="width:1px;background:var(--border);margin:0 4px;"></div>
+            <button class="btn btn-sm" onclick="annotZoomOut()" title="Zoom out">−</button>
+            <button class="btn btn-sm" onclick="annotZoomIn()"  title="Zoom in">+</button>
             <div style="flex:1;"></div>
             <select id="annot-color" onchange="setAnnotColor(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--white);">
               <option value="#E53935">Red</option>
@@ -2316,22 +2320,22 @@ let annotTool      = 'tick';
 let annotColor     = '#E53935';
 let annotHistory   = {};      // {pageIdx: [states]}
 
+let annotZoom = 1.0;
+let annotBgImage = null; // keep reference to background image
+
 function annotInit(sasUrls, savedAnnotations) {
   annotPages    = sasUrls;
   annotPageIdx  = 0;
   annotPageData = {};
   annotHistory  = {};
+  annotZoom     = 1.0;
 
-  // Load saved annotations if any
   if (savedAnnotations && savedAnnotations.pages) {
     annotPageData = savedAnnotations.pages;
   }
 
-  // Init fabric canvas
-  if (annotCanvas) {
-    annotCanvas.dispose();
-    annotCanvas = null;
-  }
+  if (annotCanvas) { annotCanvas.dispose(); annotCanvas = null; }
+
   annotCanvas = new fabric.Canvas('annot-canvas', {
     selection: false,
     isDrawingMode: false
@@ -2340,73 +2344,114 @@ function annotInit(sasUrls, savedAnnotations) {
   annotCanvas.freeDrawingBrush.color = annotColor;
   annotCanvas.freeDrawingBrush.width = 3;
 
-  // Click handler for stamp tools
+  // Stamp tools on click
   annotCanvas.on('mouse:down', function(opt) {
-    if (annotTool === 'draw' || annotTool === 'text') return;
-    const pointer = annotCanvas.getPointer(opt.e);
-    annotStamp(pointer.x, pointer.y);
+    if (annotTool === 'draw' || annotTool === 'text' || annotTool === 'select') return;
+    if (opt.target) return; // clicked on existing object — let fabric handle it
+    const p = annotCanvas.getPointer(opt.e);
+    annotStamp(p.x, p.y);
   });
 
-  // Text tool
-  annotCanvas.on('mouse:dblclick', function(opt) {
+  // Text tool — single click places text input
+  annotCanvas.on('mouse:up', function(opt) {
     if (annotTool !== 'text') return;
-    const pointer = annotCanvas.getPointer(opt.e);
-    const text = prompt('Enter comment:');
-    if (!text) return;
-    const obj = new fabric.Text(text, {
-      left: pointer.x, top: pointer.y,
-      fontSize: 16, fill: annotColor,
+    if (opt.target) return;
+    const p = annotCanvas.getPointer(opt.e);
+    // Show inline input at click position
+    showTextInput(p.x, p.y);
+  });
+
+  annotCanvas.on('path:created', function() { annotSaveState(); });
+  annotCanvas.on('object:modified', function() { annotSaveState(); });
+
+  annotLoadPage(0);
+}
+
+function showTextInput(x, y) {
+  // Remove any existing input
+  const old = document.getElementById('annot-text-input');
+  if (old) old.remove();
+
+  const canvasEl  = document.getElementById('annot-canvas');
+  const rect      = canvasEl.getBoundingClientRect();
+  const input     = document.createElement('input');
+  input.id        = 'annot-text-input';
+  input.type      = 'text';
+  input.placeholder = 'Type comment, press Enter';
+  input.style.cssText = 'position:fixed;left:' + (rect.left + x) + 'px;top:' + (rect.top + y) + 'px;' +
+    'z-index:9999;font-size:14px;padding:4px 8px;border:2px solid ' + annotColor + ';border-radius:6px;' +
+    'background:#fff;min-width:180px;box-shadow:0 2px 8px rgba(0,0,0,0.2);outline:none;';
+  document.body.appendChild(input);
+  input.focus();
+
+  function commit() {
+    const val = input.value.trim();
+    input.remove();
+    if (!val) return;
+    const obj = new fabric.Text(val, {
+      left: x, top: y,
+      fontSize: 15, fill: annotColor,
       fontWeight: 'bold', fontFamily: 'Arial',
       selectable: true
     });
     annotCanvas.add(obj);
     annotSaveState();
-  });
+  }
 
-  // After draw ends, save state
-  annotCanvas.on('path:created', function() {
-    annotSaveState();
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') commit();
+    if (e.key === 'Escape') input.remove();
   });
-
-  annotLoadPage(0);
+  input.addEventListener('blur', function() {
+    setTimeout(commit, 150);
+  });
 }
 
 function annotLoadPage(idx) {
   if (!annotCanvas || !annotPages[idx]) return;
-  annotPageIdx = idx;
+  annotPageIdx  = idx;
+  annotBgImage  = null;
 
   document.getElementById('rq-canvas-loading').style.display = 'flex';
   document.getElementById('rq-page-indicator').textContent =
     'Page ' + (idx+1) + ' of ' + annotPages.length;
 
-  const wrapperWidth = document.querySelector('#annot-canvas').parentElement.offsetWidth || 500;
+  // FIX: use full container width minus padding
+  const container = document.querySelector('#annot-canvas').closest('.card');
+  const wrapperWidth = (container ? container.offsetWidth : 500) - 2;
 
   fabric.Image.fromURL(annotPages[idx], function(img) {
+    annotBgImage = img;
     const scale  = wrapperWidth / img.width;
     const height = img.height * scale;
 
+    annotCanvas.setZoom(1);
+    annotZoom = 1;
     annotCanvas.setWidth(wrapperWidth);
     annotCanvas.setHeight(height);
     annotCanvas.clear();
-    annotCanvas.setBackgroundImage(img, annotCanvas.renderAll.bind(annotCanvas), {
-      scaleX: scale, scaleY: scale
-    });
 
-    // Restore saved annotations for this page
-    if (annotPageData[idx]) {
-      annotCanvas.loadFromJSON({objects: annotPageData[idx]}, function() {
+    // FIX: set background image separately and re-render after annotations load
+    img.set({ scaleX: scale, scaleY: scale, left: 0, top: 0 });
+    annotCanvas.setBackgroundImage(img, function() {
+      // Restore annotations AFTER background is set
+      if (annotPageData[idx] && annotPageData[idx].length) {
+        let loaded = 0;
+        annotCanvas.loadFromJSON({ objects: annotPageData[idx] }, function() {
+          annotCanvas.renderAll();
+        });
+      } else {
         annotCanvas.renderAll();
-      });
-    }
-
-    document.getElementById('rq-canvas-loading').style.display = 'none';
-    if (!annotHistory[idx]) annotHistory[idx] = [];
+      }
+      document.getElementById('rq-canvas-loading').style.display = 'none';
+      if (!annotHistory[idx]) annotHistory[idx] = ['[]'];
+    });
   }, { crossOrigin: 'anonymous' });
 }
 
 function annotStamp(x, y) {
   let obj;
-  const size = 28;
+  const size = 30;
   if (annotTool === 'tick') {
     obj = new fabric.Text('✓', {
       left: x - size/2, top: y - size/2,
@@ -2421,16 +2466,13 @@ function annotStamp(x, y) {
     });
   } else if (annotTool === 'circle') {
     obj = new fabric.Circle({
-      left: x - 20, top: y - 20,
-      radius: 20, fill: 'transparent',
+      left: x - 24, top: y - 24,
+      radius: 24, fill: 'transparent',
       stroke: annotColor, strokeWidth: 3,
       selectable: true
     });
   }
-  if (obj) {
-    annotCanvas.add(obj);
-    annotSaveState();
-  }
+  if (obj) { annotCanvas.add(obj); annotSaveState(); }
 }
 
 function annotSaveState() {
@@ -2438,35 +2480,40 @@ function annotSaveState() {
   annotPageData[annotPageIdx] = objects;
   if (!annotHistory[annotPageIdx]) annotHistory[annotPageIdx] = [];
   annotHistory[annotPageIdx].push(JSON.stringify(objects));
+  if (annotHistory[annotPageIdx].length > 50) annotHistory[annotPageIdx].shift();
 }
 
 function annotUndo() {
   const hist = annotHistory[annotPageIdx];
-  if (!hist || hist.length <= 1) {
-    annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
-    annotPageData[annotPageIdx] = [];
-    annotCanvas.renderAll();
-    return;
-  }
-  hist.pop();
-  const prev = JSON.parse(hist[hist.length - 1]);
+  if (!hist || hist.length === 0) return;
+  if (hist.length > 1) hist.pop();
+  const prev = JSON.parse(hist[hist.length - 1] || '[]');
   annotPageData[annotPageIdx] = prev;
-  annotCanvas.loadFromJSON({objects: prev}, function() {
-    annotCanvas.renderAll();
-  });
+  // FIX: reload background image + annotations together
+  annotCanvas.clear();
+  if (annotBgImage) {
+    annotCanvas.setBackgroundImage(annotBgImage, function() {
+      if (prev.length) {
+        annotCanvas.loadFromJSON({ objects: prev }, function() {
+          annotCanvas.renderAll();
+        });
+      } else {
+        annotCanvas.renderAll();
+      }
+    });
+  }
 }
 
 function annotClear() {
   if (!confirm('Clear all annotations on this page?')) return;
   annotCanvas.getObjects().slice().forEach(o => annotCanvas.remove(o));
   annotPageData[annotPageIdx] = [];
-  annotHistory[annotPageIdx]  = [];
+  annotHistory[annotPageIdx]  = ['[]'];
   annotCanvas.renderAll();
 }
 
 function annotPrevPage() {
   if (annotPageIdx <= 0) return;
-  // Save current page before switching
   annotPageData[annotPageIdx] = annotCanvas.getObjects().map(o => o.toObject());
   annotLoadPage(annotPageIdx - 1);
 }
@@ -2477,6 +2524,32 @@ function annotNextPage() {
   annotLoadPage(annotPageIdx + 1);
 }
 
+function annotZoomIn() {
+  annotZoom = Math.min(annotZoom + 0.2, 3.0);
+  annotCanvas.setZoom(annotZoom);
+  annotCanvas.setWidth(annotCanvas.getWidth() * annotZoom / (annotZoom - 0.2 < 0.1 ? 1 : annotZoom / (annotZoom - 0.2)));
+  annotApplyZoom();
+}
+
+function annotZoomOut() {
+  annotZoom = Math.max(annotZoom - 0.2, 0.4);
+  annotApplyZoom();
+}
+
+function annotApplyZoom() {
+  if (!annotBgImage || !annotCanvas) return;
+  const container   = document.querySelector('#annot-canvas').closest('.card');
+  const baseWidth   = (container ? container.offsetWidth : 500) - 2;
+  const baseScale   = baseWidth / annotBgImage.width;
+  const zoomedW     = baseWidth * annotZoom;
+  const zoomedH     = annotBgImage.height * baseScale * annotZoom;
+  annotCanvas.setZoom(annotZoom);
+  annotCanvas.setWidth(zoomedW);
+  annotCanvas.setHeight(zoomedH);
+  annotBgImage.set({ scaleX: baseScale * annotZoom, scaleY: baseScale * annotZoom });
+  annotCanvas.renderAll();
+}
+
 function setTool(tool) {
   annotTool = tool;
   document.querySelectorAll('.annot-tool').forEach(b => b.classList.remove('active'));
@@ -2484,15 +2557,14 @@ function setTool(tool) {
   if (btn) btn.classList.add('active');
   if (annotCanvas) {
     annotCanvas.isDrawingMode = (tool === 'draw');
-    annotCanvas.selection     = (tool === 'text');
+    annotCanvas.selection     = (tool === 'text' || tool === 'select');
+    annotCanvas.defaultCursor = (tool === 'text') ? 'text' : (tool === 'draw') ? 'crosshair' : 'default';
   }
 }
 
 function setAnnotColor(color) {
   annotColor = color;
-  if (annotCanvas) {
-    annotCanvas.freeDrawingBrush.color = color;
-  }
+  if (annotCanvas) annotCanvas.freeDrawingBrush.color = color;
 }
 
 function annotGetJSON() {

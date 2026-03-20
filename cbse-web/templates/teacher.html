@@ -603,137 +603,66 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <div class="topbar-title">Review Queue</div>
     </div>
     <div class="topbar-actions">
-      <span style="font-size:13px;color:var(--muted);">3 pending · Mathematics Unit Test 3</span>
+      <span id="rq-topbar-count" style="font-size:13px;color:var(--muted);"></span>
     </div>
   </div>
   <div class="content-area">
 
-    <!-- STUDENT SELECTOR -->
-    <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
-      <button class="tab active" onclick="switchReview('aryan',this)">Aryan Mehta <span class="badge badge-green" style="margin-left:4px;">21/28</span></button>
-      <button class="tab" onclick="switchReview('sneha',this)">Sneha Iyer <span class="badge badge-amber" style="margin-left:4px;">18/28</span></button>
-      <button class="tab" onclick="switchReview('rahul',this)">Rahul Das <span class="badge badge-red" style="margin-left:4px;">11/28</span></button>
+    <!-- STUDENT SELECTOR TABS -->
+    <div id="rq-tabs" style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;"></div>
+
+    <!-- EMPTY STATE -->
+    <div id="rq-empty" style="display:none;text-align:center;padding:64px 20px;">
+      <div style="font-size:48px;margin-bottom:16px;">✅</div>
+      <div style="font-size:18px;font-weight:600;color:var(--ink);margin-bottom:8px;">All caught up!</div>
+      <div style="font-size:13.5px;color:var(--muted);">No submissions pending review.</div>
     </div>
 
-    <div id="review-aryan">
+    <!-- LOADING STATE -->
+    <div id="rq-loading" style="text-align:center;padding:48px;color:var(--muted);">Loading submissions...</div>
+
+    <!-- SUBMISSION PANEL — dynamically rendered -->
+    <div id="rq-panel" style="display:none;">
       <div class="grid-2" style="align-items:start;gap:24px;">
 
-        <!-- ANSWER IMAGE -->
+        <!-- LEFT — ANSWER SHEET IMAGES -->
         <div>
-          <div class="section-label">Answer Sheet — Aryan Mehta</div>
+          <div class="section-label" id="rq-student-label">Answer Sheet</div>
           <div class="card" style="padding:16px;">
-            <div class="answer-img-box" style="min-height:400px;">
-              <div style="text-align:center;">
-                <div style="font-size:32px;margin-bottom:8px;">📄</div>
-                <div>Answer sheet image appears here</div>
-                <div style="font-size:12px;margin-top:4px;color:var(--muted);">Submitted Mar 5 · 2.4MB · JPEG</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:12px;">
-              <button class="btn btn-ghost btn-sm btn-full">↕ Zoom</button>
-              <button class="btn btn-ghost btn-sm btn-full">⤢ Full Screen</button>
-            </div>
+            <div id="rq-images" style="display:flex;flex-direction:column;gap:12px;max-height:600px;overflow-y:auto;"></div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:10px;" id="rq-submitted-at"></div>
           </div>
         </div>
 
-        <!-- AI GRADING + TEACHER OVERRIDE -->
+        <!-- RIGHT — AI GRADING + OVERRIDE -->
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <div class="section-label" style="margin-bottom:0;">AI Grading</div>
-            <div style="font-size:12px;color:var(--muted);">AI gave <strong>21/28</strong> · Override if needed</div>
+            <div style="font-size:12px;color:var(--muted);" id="rq-ai-total"></div>
           </div>
 
-          <!-- Q1 -->
-          <div class="card-sm" style="margin-bottom:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div>
-                <div style="font-size:13.5px;font-weight:700;color:var(--text);">Q1 — Probability (5 marks)</div>
-                <div style="font-size:11.5px;color:var(--green);margin-top:2px;">AI Confidence: High · No flag</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="font-size:11px;color:var(--muted);">AI gave</div>
-                <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);">5/5</div>
-                <div style="font-size:11px;color:var(--muted);">Override:</div>
-                <input class="mark-input" type="number" value="5" min="0" max="5"/>
-                <div style="font-size:13px;color:var(--muted);">/5</div>
-              </div>
-            </div>
-            <div style="font-size:12.5px;color:var(--muted);line-height:1.6;background:var(--bg);padding:10px;border-radius:8px;">AI: All steps correct. Bayes theorem applied perfectly. Clear working throughout.</div>
-            <div style="margin-top:10px;">
-              <label class="form-label" style="font-size:11px;">Teacher Feedback (optional — shown to student after release)</label>
-              <input class="form-input" type="text" placeholder="Add comment for student..." style="font-size:13px;padding:8px 12px;"/>
-            </div>
-          </div>
+          <div id="rq-questions"></div>
 
-          <!-- Q2 -->
-          <div class="card-sm" style="margin-bottom:10px;border-color:var(--amber);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div>
-                <div style="font-size:13.5px;font-weight:700;color:var(--text);">Q2 — Calculus (8 marks)</div>
-                <div style="font-size:11.5px;color:var(--amber);margin-top:2px;">⚠️ AI Confidence: Medium · Review recommended</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="font-size:11px;color:var(--muted);">AI gave</div>
-                <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--red);">3/8</div>
-                <div style="font-size:11px;color:var(--muted);">Override:</div>
-                <input class="mark-input" type="number" value="3" min="0" max="8" style="border-color:var(--amber);"/>
-                <div style="font-size:13px;color:var(--muted);">/8</div>
-              </div>
-            </div>
-            <div style="font-size:12.5px;color:var(--muted);line-height:1.6;background:var(--bg);padding:10px;border-radius:8px;">AI: ILATE rule not applied — u/dv selection wrong. Formula recalled correctly (+1). Chain rule applied (+1). Definite integral not evaluated (0/2). Final answer not reached (0/2).</div>
-            <div style="margin-top:10px;">
-              <label class="form-label" style="font-size:11px;">Teacher Feedback</label>
-              <input class="form-input" type="text" placeholder="Add comment..." value="Good start — formula recalled correctly. Remember ILATE: Algebraic before Exponential." style="font-size:13px;padding:8px 12px;"/>
-            </div>
-          </div>
-
-          <!-- Q3 + Q4 collapsed -->
-          <div class="card-sm" style="margin-bottom:10px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div><div style="font-size:13.5px;font-weight:700;">Q3 — Probability (7 marks)</div><div style="font-size:11.5px;color:var(--green);margin-top:2px;">AI Confidence: High</div></div>
-              <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:11px;color:var(--muted);">AI gave</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);">7/7</div><div style="font-size:11px;color:var(--muted);">Override:</div><input class="mark-input" type="number" value="7" min="0" max="7"/><div style="font-size:13px;color:var(--muted);">/7</div></div>
-            </div>
-          </div>
-          <div class="card-sm" style="margin-bottom:20px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div><div style="font-size:13.5px;font-weight:700;">Q4 — Matrices (8 marks)</div><div style="font-size:11.5px;color:var(--muted);margin-top:2px;">AI Confidence: High</div></div>
-              <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:11px;color:var(--muted);">AI gave</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--amber);">6/8</div><div style="font-size:11px;color:var(--muted);">Override:</div><input class="mark-input" type="number" value="6" min="0" max="8"/><div style="font-size:13px;color:var(--muted);">/8</div></div>
-            </div>
-          </div>
-
+          <!-- TOTALS -->
           <div style="background:var(--bg);border-radius:11px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
             <div>
               <div style="font-size:11px;color:var(--muted);">Final Total</div>
-              <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);">21 <span style="font-size:16px;color:var(--muted);">/ 28</span></div>
+              <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);" id="rq-final-total">—</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:22px;font-family:'DM Serif Display',serif;color:var(--blue);">75%</div>
-              <div style="font-size:12px;color:var(--muted);">Grade A</div>
+              <div style="font-size:22px;font-family:'DM Serif Display',serif;color:var(--blue);" id="rq-final-pct">—</div>
+              <div style="font-size:12px;color:var(--muted);" id="rq-final-grade">—</div>
             </div>
           </div>
 
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-green" onclick="openModal('modal-review-done')">✓ Approve & Mark Reviewed</button>
-            <button class="btn btn-ghost">← Previous</button>
-            <button class="btn btn-secondary">Next Student →</button>
+            <button class="btn btn-primary" id="rq-release-btn" onclick="rqApproveRelease()">✓ Approve & Release</button>
+            <button class="btn btn-ghost btn-sm" onclick="rqNav(-1)">← Prev</button>
+            <button class="btn btn-ghost btn-sm" onclick="rqNav(1)">Next →</button>
           </div>
+          <div id="rq-release-msg" style="display:none;margin-top:12px;font-size:13px;color:var(--green);font-weight:600;"></div>
+          <div id="rq-release-err" style="display:none;margin-top:12px;font-size:13px;color:var(--red);"></div>
         </div>
-      </div>
-    </div>
-
-    <div id="review-sneha" style="display:none;">
-      <div class="card" style="text-align:center;padding:48px;">
-        <div style="font-size:32px;margin-bottom:12px;">📋</div>
-        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Sneha Iyer — AI gave 18/28</div>
-        <div style="font-size:13px;color:var(--muted);">Answer sheet and AI breakdown loads here</div>
-      </div>
-    </div>
-
-    <div id="review-rahul" style="display:none;">
-      <div class="card" style="text-align:center;padding:48px;">
-        <div style="font-size:32px;margin-bottom:12px;">📋</div>
-        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Rahul Das — AI gave 11/28</div>
-        <div style="font-size:13px;color:var(--muted);">Answer sheet and AI breakdown loads here</div>
       </div>
     </div>
   </div>
@@ -1280,10 +1209,193 @@ function selectClass(cls){
 
 // ── REVIEW TABS ──
 function switchReview(student,btn){
-  ['aryan','sneha','rahul'].forEach(s=>{ const el=document.getElementById('review-'+s); if(el) el.style.display='none'; });
-  document.getElementById('review-'+student).style.display='block';
-  document.querySelectorAll('#page-review .tab').forEach(t=>t.classList.remove('active'));
-  btn.classList.add('active');
+  // Legacy mock function — kept for safety
+}
+
+// ── REVIEW QUEUE ──────────────────────────────────────
+let rqSubmissions = [];
+let rqCurrentIdx  = 0;
+
+async function loadReviewQueue() {
+  document.getElementById('rq-loading').style.display = 'block';
+  document.getElementById('rq-empty').style.display   = 'none';
+  document.getElementById('rq-panel').style.display   = 'none';
+  document.getElementById('rq-tabs').innerHTML        = '';
+
+  try {
+    const res  = await fetch('/api/teacher/review-queue');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    rqSubmissions = data.submissions;
+    document.getElementById('rq-loading').style.display = 'none';
+
+    if (!rqSubmissions.length) {
+      document.getElementById('rq-empty').style.display = 'block';
+      document.getElementById('rq-topbar-count').textContent = '0 pending';
+      return;
+    }
+
+    document.getElementById('rq-topbar-count').textContent =
+      rqSubmissions.length + ' pending review';
+
+    document.getElementById('rq-tabs').innerHTML = rqSubmissions.map((s, i) => {
+      const pct = s.percentage ? Math.round(s.percentage) : '?';
+      const cls = pct >= 75 ? 'badge-green' : pct >= 50 ? 'badge-amber' : 'badge-red';
+      return '<button class="tab ' + (i===0?'active':'') + '" onclick="rqShowSubmission(' + i + ',this)">' +
+        s.student_name + ' <span class="badge ' + cls + '" style="margin-left:6px;">' + pct + '%</span></button>';
+    }).join('');
+
+    rqCurrentIdx = 0;
+    rqRenderPanel(0);
+  } catch(e) {
+    document.getElementById('rq-loading').textContent = 'Failed to load: ' + e.message;
+  }
+}
+
+function rqShowSubmission(idx, btn) {
+  rqCurrentIdx = idx;
+  document.querySelectorAll('#rq-tabs .tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  rqRenderPanel(idx);
+}
+
+function rqNav(dir) {
+  const next = rqCurrentIdx + dir;
+  if (next < 0 || next >= rqSubmissions.length) return;
+  const tabs = document.querySelectorAll('#rq-tabs .tab');
+  rqShowSubmission(next, tabs[next]);
+}
+
+async function rqRenderPanel(idx) {
+  const s = rqSubmissions[idx];
+  document.getElementById('rq-panel').style.display = 'block';
+  document.getElementById('rq-release-msg').style.display = 'none';
+  document.getElementById('rq-release-err').style.display = 'none';
+  document.getElementById('rq-release-btn').disabled = false;
+  document.getElementById('rq-release-btn').textContent = '✓ Approve & Release';
+
+  document.getElementById('rq-student-label').textContent = 'Answer Sheet — ' + s.student_name;
+  document.getElementById('rq-submitted-at').textContent =
+    'Submitted ' + (s.submitted_at ? new Date(s.submitted_at).toLocaleString('en-IN') : '');
+
+  // Load answer sheet images via SAS
+  const imagesEl = document.getElementById('rq-images');
+  imagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px;">Loading images...</div>';
+  try {
+    const sasRes  = await fetch('/api/teacher/sas-url', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ urls: s.answer_sheet_urls })
+    });
+    const sasData = await sasRes.json();
+    if (sasData.ok && sasData.sas_urls.length) {
+      imagesEl.innerHTML = sasData.sas_urls.map((url, i) =>
+        '<div><div style="font-size:10px;color:var(--muted);margin-bottom:4px;">Page ' + (i+1) + '</div>' +
+        '<img src="' + url + '" style="width:100%;border-radius:8px;border:1px solid var(--border);" ' +
+        'onclick="window.open(this.src,\'_blank\')" title="Click to open full size" loading="lazy" style="cursor:pointer"/></div>'
+      ).join('');
+    } else {
+      imagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px;">📄 Answer sheet not viewable</div>';
+    }
+  } catch(e) {
+    imagesEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">Could not load image</div>';
+  }
+
+  document.getElementById('rq-ai-total').textContent =
+    'AI gave ' + s.total_awarded + '/' + s.total_max + ' · Override if needed';
+
+  // Render questions
+  const questionsEl = document.getElementById('rq-questions');
+  questionsEl.innerHTML = (s.questions || []).map(q => {
+    const flagColor = q.ai_flag_review ? 'var(--amber)' : 'var(--green)';
+    const flagText  = q.ai_flag_review ? '⚠️ Review recommended' : '✓ High confidence';
+    const conf      = q.ai_confidence ? Math.round(q.ai_confidence * 100) + '%' : '—';
+    return '<div class="card-sm" style="margin-bottom:12px;' + (q.ai_flag_review?'border-color:var(--amber)':'') + '">' +
+      '<div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:10px;gap:12px;flex-wrap:wrap;">' +
+      '<div><div style="font-size:13.5px;font-weight:700;color:var(--text);">' + q.question_number + ' — ' + q.chapter + ' (' + q.max_marks + ' marks)</div>' +
+      '<div style="font-size:11px;color:' + flagColor + ';margin-top:3px;">' + flagText + ' · Confidence ' + conf + '</div></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+      '<div style="font-size:11px;color:var(--muted);">AI gave</div>' +
+      '<div style="font-family:var(--serif);font-size:20px;color:var(--blue);">' + q.ai_marks_awarded + '/' + q.max_marks + '</div>' +
+      '<div style="font-size:11px;color:var(--muted);">Override:</div>' +
+      '<input class="mark-input" type="number" value="' + q.ai_marks_awarded + '" min="0" max="' + q.max_marks + '" data-sqid="' + q.sq_id + '" oninput="rqUpdateTotal()" style="width:52px;"/>' +
+      '<div style="font-size:13px;color:var(--muted);">/' + q.max_marks + '</div></div></div>' +
+      '<div style="font-size:12.5px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:10px;line-height:1.7;">' + q.latex_content + '</div>' +
+      (q.ai_step_breakdown ? '<div style="font-size:12px;color:var(--muted);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:6px;line-height:1.6;"><strong>📋 Step Breakdown:</strong> ' + q.ai_step_breakdown + '</div>' : '') +
+      (q.ai_strength ? '<div style="font-size:12px;color:var(--green);background:var(--green-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>💪 Strength:</strong> ' + q.ai_strength + '</div>' : '') +
+      (q.ai_weakness ? '<div style="font-size:12px;color:var(--amber);background:var(--amber-l);padding:8px 10px;border-radius:8px;margin-bottom:6px;"><strong>⚠️ Weakness:</strong> ' + q.ai_weakness + '</div>' : '') +
+      (q.ai_model_solution ? '<div style="font-size:12px;color:var(--blue);background:var(--blue-l);padding:8px 10px;border-radius:8px;margin-bottom:10px;"><strong>📖 Model Solution:</strong> ' + q.ai_model_solution + '</div>' : '') +
+      '<input class="form-input" type="text" data-feedback="' + q.sq_id + '" placeholder="Teacher feedback (optional — shown to student)" style="font-size:12.5px;padding:8px 12px;margin-top:4px;"/>' +
+      '</div>';
+  }).join('');
+
+  if (window.renderMath) renderMath(questionsEl);
+  rqUpdateTotal();
+}
+
+function rqUpdateTotal() {
+  const s = rqSubmissions[rqCurrentIdx];
+  if (!s) return;
+  let total = 0, max = 0;
+  s.questions.forEach(q => {
+    const input = document.querySelector('.mark-input[data-sqid="' + q.sq_id + '"]');
+    const val   = input ? Math.min(parseInt(input.value)||0, q.max_marks) : q.ai_marks_awarded;
+    total += val; max += q.max_marks;
+  });
+  const pct   = max > 0 ? Math.round(total / max * 100) : 0;
+  const grade = pct>=90?'A+':pct>=75?'A':pct>=60?'B+':pct>=50?'B':pct>=40?'C':pct>=33?'D':'F';
+  document.getElementById('rq-final-total').innerHTML = total + ' <span style="font-size:16px;color:var(--muted);">/ ' + max + '</span>';
+  document.getElementById('rq-final-pct').textContent   = pct + '%';
+  document.getElementById('rq-final-grade').textContent = 'Grade ' + grade;
+}
+
+async function rqApproveRelease() {
+  const s   = rqSubmissions[rqCurrentIdx];
+  const btn = document.getElementById('rq-release-btn');
+  btn.disabled = true;
+  btn.textContent = 'Releasing...';
+  document.getElementById('rq-release-msg').style.display = 'none';
+  document.getElementById('rq-release-err').style.display = 'none';
+
+  const overrides = (s.questions || []).map(q => {
+    const input    = document.querySelector('.mark-input[data-sqid="' + q.sq_id + '"]');
+    const feedback = document.querySelector('input[data-feedback="' + q.sq_id + '"]');
+    return {
+      sq_id          : q.sq_id,
+      teacher_marks  : input ? (parseInt(input.value)||0) : q.ai_marks_awarded,
+      teacher_feedback: feedback ? feedback.value : ''
+    };
+  });
+
+  try {
+    const res  = await fetch('/api/teacher/approve-release/' + s.submission_id, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ overrides })
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      document.getElementById('rq-release-err').textContent = data.error;
+      document.getElementById('rq-release-err').style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '✓ Approve & Release';
+      return;
+    }
+
+    document.getElementById('rq-release-msg').textContent =
+      '✅ Released! Final: ' + data.total_awarded + '/' + data.total_max + ' · ' + data.percentage + '% · Grade ' + data.grade;
+    document.getElementById('rq-release-msg').style.display = 'block';
+    btn.textContent = '✅ Released';
+
+    setTimeout(() => { loadReviewQueue(); }, 2000);
+  } catch(e) {
+    document.getElementById('rq-release-err').textContent = 'An error occurred.';
+    document.getElementById('rq-release-err').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '✓ Approve & Release';
+  }
 }
 
 // ── CHAPTER DATA (CBSE) ──

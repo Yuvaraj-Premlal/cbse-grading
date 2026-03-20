@@ -808,6 +808,8 @@ def get_questions():
                     q.chapter,
                     q.difficulty,
                     q.max_marks,
+                    q.type,
+                    q.model_solution,
                     q.source,
                     q.year,
                     q.approved,
@@ -1274,7 +1276,7 @@ def student_dashboard():
                 JOIN papers p ON a.paper_id = p.paper_id
                 LEFT JOIN submissions s ON a.assignment_id = s.assignment_id
                 WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
-                AND a.status IN ('submitted', 'graded')
+                AND a.status NOT IN ('released')
                 ORDER BY s.submitted_at DESC
             """), {"sid": student_id}).fetchall()
 
@@ -1859,7 +1861,7 @@ def get_students():
                      FROM assignments a
                      JOIN papers p ON a.paper_id = p.paper_id
                      WHERE a.student_id = s.student_id
-                     AND a.status IN ('submitted', 'graded')
+                     AND a.status NOT IN ('released')
                     ) as blocked_by
                 FROM users u
                 JOIN students s ON s.user_id = u.user_id
@@ -1996,7 +1998,7 @@ def create_assignment():
                     FROM assignments a
                     JOIN papers p ON a.paper_id = p.paper_id
                     WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
-                    AND a.status IN ('submitted', 'graded')
+                    AND a.status NOT IN ('released')
                 """), {"sid": str(sid)}).fetchone()
 
                 if unreleased:

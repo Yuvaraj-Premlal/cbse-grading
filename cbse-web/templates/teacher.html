@@ -453,6 +453,9 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
               <div class="form-group">
                 <label class="form-label">Class</label>
                 <select class="form-input" id="pb-class">
+                  <option value="6">Class 6</option>
+                  <option value="7">Class 7</option>
+                  <option value="8">Class 8</option>
                   <option value="9">Class 9</option>
                   <option value="10">Class 10</option>
                   <option value="11">Class 11</option>
@@ -531,29 +534,47 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
   <div class="content-area">
     <div style="max-width:700px;">
       <div class="page-title">Assign a Paper</div>
-      <div class="page-sub">Select a published paper, choose students, set a due date.</div>
+      <div class="page-sub">Select a class, choose a paper, pick students and set a due date.</div>
 
+      <!-- Step 1 — Select Class -->
       <div class="card" style="margin-bottom:20px;">
-        <div class="section-label">Step 1 — Select Paper</div>
+        <div class="section-label">Step 1 — Select Class</div>
+        <select class="form-input" id="assign-class-select" style="max-width:200px;" onchange="onAssignClassChange()">
+          <option value="">— Select class —</option>
+          <option value="6">Class 6</option>
+          <option value="7">Class 7</option>
+          <option value="8">Class 8</option>
+          <option value="9">Class 9</option>
+          <option value="10">Class 10</option>
+          <option value="11">Class 11</option>
+          <option value="12">Class 12</option>
+        </select>
+      </div>
+
+      <!-- Step 2 — Select Paper -->
+      <div class="card" style="margin-bottom:20px;" id="assign-paper-card" style="display:none;">
+        <div class="section-label">Step 2 — Select Paper</div>
         <div id="assign-paper-list">
-          <div style="text-align:center;padding:24px;color:var(--muted);">Loading papers...</div>
+          <div style="text-align:center;padding:24px;color:var(--muted);">Select a class first.</div>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:20px;">
-        <div class="section-label">Step 2 — Select Students</div>
+      <!-- Step 3 — Select Students -->
+      <div class="card" style="margin-bottom:20px;" id="assign-students-card">
+        <div class="section-label">Step 3 — Select Students</div>
         <div style="display:flex;gap:10px;margin-bottom:14px;">
           <button class="btn btn-secondary btn-sm" onclick="assignSelectAll()">Select All</button>
           <button class="btn btn-ghost btn-sm" onclick="assignClearAll()">Clear All</button>
           <span id="assign-student-count" style="font-size:13px;color:var(--muted);line-height:36px;margin-left:4px;"></span>
         </div>
-        <div id="assign-student-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
-          <div style="color:var(--muted);font-size:13px;padding:8px;">Loading students...</div>
+        <div id="assign-student-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+          <div style="color:var(--muted);font-size:13px;padding:8px;">Select a class first.</div>
         </div>
       </div>
 
+      <!-- Step 4 — Due Date -->
       <div class="card" style="margin-bottom:20px;">
-        <div class="section-label">Step 3 — Set Due Date</div>
+        <div class="section-label">Step 4 — Set Due Date</div>
         <div class="grid-2">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Due Date</label>
@@ -943,6 +964,9 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <div class="form-group">
         <label class="form-label">Class</label>
         <select class="form-input" id="q-class" onchange="updateChapters()">
+          <option value="6">Class 6</option>
+          <option value="7">Class 7</option>
+          <option value="8">Class 8</option>
           <option value="9">Class 9</option>
           <option value="10">Class 10</option>
           <option value="11">Class 11</option>
@@ -2120,60 +2144,69 @@ async function loadAssignPage() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   document.getElementById('assign-due-date').value = tomorrow.toISOString().split('T')[0];
+  // Reset class select
+  document.getElementById('assign-class-select').value = '';
+  document.getElementById('assign-paper-list').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">Select a class first.</div>';
+  document.getElementById('assign-student-grid').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">Select a class first.</div>';
+}
 
-  // Load papers and students in parallel
+async function onAssignClassChange() {
+  const cls = document.getElementById('assign-class-select').value;
+  if (!cls) return;
+
+  document.getElementById('assign-paper-list').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">Loading...</div>';
+  document.getElementById('assign-student-grid').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">Loading...</div>';
+
   try {
     const [papersRes, studentsRes] = await Promise.all([
-      fetch('/api/teacher/published-papers'),
-      fetch('/api/teacher/students')
+      fetch('/api/teacher/published-papers?class=' + cls),
+      fetch('/api/teacher/students?class=' + cls)
     ]);
     const papersData   = await papersRes.json();
     const studentsData = await studentsRes.json();
 
-    // Render papers
+    // Render papers filtered by class
     assignPapers = papersData.ok ? papersData.papers : [];
     const paperList = document.getElementById('assign-paper-list');
     if (!assignPapers.length) {
-      paperList.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No published papers yet. Publish a paper from Paper Builder first.</div>';
+      paperList.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No published papers for Class ' + cls + '. Create one in Paper Builder first.</div>';
     } else {
-      paperList.innerHTML = assignPapers.map((p, i) => `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <label onclick="assignHighlightPaper(this)" style="display:flex;align-items:center;gap:14px;padding:14px;border:${i===0?'2px solid var(--blue)':'1.5px solid var(--border)'};border-radius:11px;${i===0?'background:var(--blue-l);':''}cursor:pointer;flex:1;">
-            <input type="radio" name="assign-paper" value="${p.paper_id}" ${i===0?'checked':''} style="accent-color:var(--blue);"/>
-            <div style="flex:1;">
-              <div style="font-size:14px;font-weight:600;color:var(--text);">${p.title}</div>
-              <div style="font-size:12px;color:var(--muted);">${p.question_count} questions · ${p.total_marks} marks · ${p.subject} · Class ${p.class}</div>
-            </div>
-            <span class="badge badge-green">Published</span>
-          </label>
-          <button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="pbViewPaper('${p.paper_id}')">👁 Preview</button>
-        </div>`).join('');
+      paperList.innerHTML = assignPapers.map((p, i) =>
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+        '<label onclick="assignHighlightPaper(this)" style="display:flex;align-items:center;gap:14px;padding:14px;border:' + (i===0?'2px solid var(--blue)':'1.5px solid var(--border)') + ';border-radius:11px;' + (i===0?'background:var(--blue-l);':'') + 'cursor:pointer;flex:1;">' +
+        '<input type="radio" name="assign-paper" value="' + p.paper_id + '" ' + (i===0?'checked':'') + ' style="accent-color:var(--blue);"/>' +
+        '<div style="flex:1;"><div style="font-size:14px;font-weight:600;color:var(--text);">' + p.title + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);">' + p.question_count + ' questions · ' + p.total_marks + ' marks · ' + p.subject + ' · Class ' + p.class + '</div></div>' +
+        '<span class="badge badge-green">Published</span></label>' +
+        '<button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="pbViewPaper(\'' + p.paper_id + '\')">👁 Preview</button></div>'
+      ).join('');
     }
 
-    // Render students
+    // Render students filtered by class
     assignStudents = studentsData.ok ? studentsData.students : [];
     const blocked  = studentsData.ok ? (studentsData.blocked || []) : [];
     const grid = document.getElementById('assign-student-grid');
-
     let html = '';
+
     if (!assignStudents.length && !blocked.length) {
-      html = '<div style="color:var(--muted);font-size:13px;padding:8px;">No students found.</div>';
+      html = '<div style="color:var(--muted);font-size:13px;padding:8px;">No students found for Class ' + cls + '.</div>';
     } else {
       if (assignStudents.length) {
-        html += assignStudents.map(s =>
-          '<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" onchange="updateAssignCount()">' +
-          '<input type="checkbox" value="' + s.student_id + '" style="accent-color:var(--blue);"/>' +
-          s.name + '</label>'
-        ).join('');
+        html += assignStudents.map(s => {
+          const label = s.name + (s.system_reg_number ? ' / ' + s.system_reg_number : '');
+          return '<label style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" onchange="updateAssignCount()">' +
+            '<input type="checkbox" value="' + s.student_id + '" style="accent-color:var(--blue);"/>' +
+            label + '</label>';
+        }).join('');
       }
       if (blocked.length) {
         html += '<div style="grid-column:1/-1;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:12px;margin-bottom:4px;">Cannot assign — pending grade release</div>';
-        html += blocked.map(s =>
-          '<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;opacity:0.5;background:var(--bg);" title="Blocked: ' + s.blocked_by + '">' +
-          '🔒 ' + s.name +
-          '<span style="font-size:11px;color:var(--muted);margin-left:auto;">' + s.blocked_by + '</span>' +
-          '</div>'
-        ).join('');
+        html += blocked.map(s => {
+          const label = s.name + (s.system_reg_number ? ' / ' + s.system_reg_number : '');
+          return '<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;opacity:0.5;background:var(--bg);" title="Blocked: ' + s.blocked_by + '">' +
+            '🔒 ' + label +
+            '<span style="font-size:11px;color:var(--muted);margin-left:auto;">' + s.blocked_by + '</span></div>';
+        }).join('');
       }
     }
     grid.innerHTML = html;
@@ -2195,7 +2228,7 @@ function assignHighlightPaper(label) {
 function updateAssignCount() {
   const checked = document.querySelectorAll('#assign-student-grid input:checked').length;
   const total   = document.querySelectorAll('#assign-student-grid input').length;
-  document.getElementById('assign-student-count').textContent = checked ? `${checked} of ${total} selected` : '';
+  document.getElementById('assign-student-count').textContent = checked ? checked + ' of ' + total + ' selected' : '';
 }
 
 function assignSelectAll() {

@@ -2491,7 +2491,8 @@ def get_performance():
         with engine.connect() as conn:
             # Get all students
             students = conn.execute(text("""
-                SELECT s.student_id, u.name, s.class, s.system_reg_number
+                SELECT CAST(s.student_id AS NVARCHAR(36)) as student_id,
+                       u.name, s.class, s.system_reg_number
                 FROM students s
                 JOIN users u ON s.user_id = u.user_id
                 WHERE u.role = 'student' AND u.is_active = 1

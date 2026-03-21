@@ -1562,6 +1562,10 @@ async function loadPracticeQuestions() {
     attEl.textContent = remaining > 0 ? `${remaining} of ${data.daily_limit} remaining today` : '0 remaining — resets at midnight';
     attEl.style.color = remaining > 0 ? 'var(--blue)' : 'var(--red)';
 
+    // Also update dashboard stat card if visible
+    const statEl = document.getElementById('stat-practice-remaining');
+    if (statEl) statEl.textContent = remaining;
+
     if (!practiceQuestions.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">No questions found for your filters.</div>';
       return;
@@ -1686,7 +1690,7 @@ function showPracticeResult(data) {
 
   function showBox(secId, textId, val) {
     if (val) {
-      document.getElementById(textId).textContent = val;
+      document.getElementById(textId).innerHTML = val;
       document.getElementById(secId).style.display = 'block';
     } else {
       document.getElementById(secId).style.display = 'none';

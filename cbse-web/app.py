@@ -877,6 +877,7 @@ def get_questions():
     subject    = request.args.get("subject", "")
     chapter    = request.args.get("chapter", "")
     difficulty = request.args.get("difficulty", "")
+    class_num  = request.args.get("class_num", "")
     try:
         engine = get_engine()
         with engine.connect() as conn:
@@ -892,6 +893,7 @@ def get_questions():
                     q.model_solution,
                     q.source,
                     q.year,
+                    q.class,
                     q.approved,
                     CONVERT(VARCHAR, q.created_at, 120) as created_at
                 FROM questions q
@@ -907,6 +909,9 @@ def get_questions():
             if difficulty:
                 query += " AND q.difficulty = :difficulty"
                 params["difficulty"] = difficulty
+            if class_num:
+                query += " AND q.class = :class_num"
+                params["class_num"] = int(class_num)
             query += " ORDER BY q.created_at DESC"
 
             rows = conn.execute(text(query), params).fetchall()
@@ -2111,16 +2116,45 @@ def submit_practice():
                 return jsonify({"ok": False, "error": "Question not found"})
             q = dict(q_row._mapping)
 
-        # Generate SAS URL for GPT-4o
-        sas_url = get_sas_url(img_url, expiry_hours=1)
+        # Generate SAS URLs for all images (multi-page support)
+        try:
+            raw_urls = json.loads(img_url) if img_url.startswith('[') else [img_url]
+        except Exception:
+            raw_urls = [img_url]
+        sas_urls = [get_sas_url(u, expiry_hours=1) for u in raw_urls if u]
 
         # Single pass grading for practice
         client = get_openai_client()
         model_sol = (q.get("model_solution") or "").strip()
         model_sol_text = (
-            f"Model Solution (one valid approach only — award full marks for any correct alternate method): {model_sol}"
+            f"Model Solution (one valid approach only): {model_sol}"
             if model_sol else
-            "No model solution provided — solve this question independently before grading. Award full marks for any correct method."
+            "No model solution provided — solve this question independently."
+        )
+        q_text = f"""
+Q1. [{q['chapter']} · {q['max_marks']} marks]
+Question: {q['latex_content']}
+{model_sol_text}
+---"""
+
+        image_contents = [{"type": "text", "text": f"""Grade this student's practice answer:
+{q_text}
+Return a JSON array with ONE object with fields: question_number, max_marks, ai_marks_awarded, ai_strict_marks, ai_strict_reason, ai_irrelevant, ai_concept, ai_formula, ai_calculation, ai_model_solution, ai_coaching_tip, ai_confidence, ai_flag_review.
+Return ONLY the JSON array."""}]
+        for sas_url in sas_urls:
+            image_contents.append({"type": "image_url", "image_url": {"url": sas_url, "detail": "high"}})
+
+        p1_response = client.chat.completions.create(
+            model      = secrets["oai_deploy"],
+            messages   = [
+                {"role": "system", "content": """You are an expert CBSE Mathematics and Science examiner.
+Grade this practice question. Follow CBSE marking rules. Award marks for correct steps.
+LATEX: ALL math expressions MUST be wrapped in $ delimiters. NEVER raw LaTeX without $.
+RESPOND ONLY with valid JSON array, one object. No preamble, no markdown."""},
+                {"role": "user", "content": image_contents}
+            ],
+            max_tokens  = 2000,
+            temperature = 0.1
         )
         q_text = f"""
 Q1. [{q['chapter']} · {q['max_marks']} marks]

@@ -1389,6 +1389,14 @@ def student_dashboard():
                 AND status = 'open'
             """), {"sid": student_id}).fetchone()[0]
 
+            # Practice attempts today
+            from datetime import date as date_cls
+            practice_today = conn.execute(text("""
+                SELECT COUNT(*) FROM practice_attempts
+                WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND CAST(attempted_at AS DATE) = :today
+            """), {"sid": student_id, "today": date_cls.today()}).fetchone()[0]
+
         return jsonify({
             "ok": True,
             "dashboard": {
@@ -1398,10 +1406,12 @@ def student_dashboard():
                 "under_review"   : [dict(r._mapping) for r in under_review],
                 "released"       : [dict(r._mapping) for r in released],
                 "stats": {
-                    "total_assigned"  : total_assigned,
-                    "total_submitted" : total_submitted,
-                    "avg_score"       : round(float(avg_score), 1) if avg_score else None,
-                    "open_disputes"   : open_disputes
+                    "total_assigned"   : total_assigned,
+                    "total_submitted"  : total_submitted,
+                    "avg_score"        : round(float(avg_score), 1) if avg_score else None,
+                    "open_disputes"    : open_disputes,
+                    "practice_today"   : practice_today,
+                    "practice_remaining": max(0, 3 - practice_today)
                 }
             }
         })

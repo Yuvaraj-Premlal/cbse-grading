@@ -293,6 +293,15 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
   .q-card-body { display:block !important; }
   nav { box-shadow:none; border-bottom:1px solid #ccc; }
 }
+@media print {
+  nav, .bottom-nav, #submit-btn, .btn, .upload-zone { display: none !important; }
+  .page { display: block !important; }
+  .page:not(#page-report) { display: none !important; }
+  body { background: white; }
+  .card, .q-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+  .feedback-box { break-inside: avoid; }
+  #report-header { margin-bottom: 16px; }
+}
 </style>
 </head>
 <body>
@@ -372,6 +381,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
       <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
       <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+      <button class="bn-item" onclick="showPage('page-profile')"><div class="bn-icon">👤</div>Profile</button>
     </div>
   </div>
 </div>
@@ -508,6 +518,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       <button class="bn-item active" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
       <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
       <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+      <button class="bn-item" onclick="showPage('page-profile')"><div class="bn-icon">👤</div>Profile</button>
     </div>
   </div>
 </div>
@@ -544,7 +555,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
           <p id="report-subject-grade"></p>
           <div class="score-hero-stats">
             <div class="shs"><div class="shs-val" id="report-q-count">—</div><div class="shs-lbl">Questions</div></div>
-            <div class="shs"><div class="shs-val" id="report-grade">—</div><div class="shs-lbl" id="report-grade-lbl">Grade</div></div>
+
             <div class="shs"><div class="shs-val" id="report-disputes">—</div><div class="shs-lbl">Disputes</div></div>
           </div>
         </div>
@@ -581,6 +592,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
       <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
       <button class="bn-item active" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+      <button class="bn-item" onclick="showPage('page-profile')"><div class="bn-icon">👤</div>Profile</button>
     </div>
   </div>
 </div>
@@ -596,273 +608,99 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
     </div>
   </nav>
   <div class="wrap">
-    <div style="margin-bottom:24px;">
-      <div class="page-title">Practice Section</div>
-      <div class="page-sub">Timed questions · Instant AI feedback · Builds on your exam weaknesses</div>
+    <div style="margin-bottom:20px;">
+      <div class="page-title">Practice</div>
+      <div class="page-sub" id="practice-sub">Tough & Very Tough questions · AI graded · 3 attempts per day</div>
     </div>
 
-    <!-- TABS -->
-    <div class="practice-tabs">
-      <button class="ptab active" onclick="switchTab('today',this)">Today's Queue</button>
-      <button class="ptab" onclick="switchTab('browse',this)">Browse</button>
-      <button class="ptab" onclick="switchTab('simulation',this)">Exam Simulation</button>
-      <button class="ptab" onclick="switchTab('progress',this)">My Progress</button>
+    <!-- Daily limit indicator -->
+    <div id="practice-limit-bar" style="background:var(--blue-l);border:1px solid var(--blue-m);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;font-weight:600;">Today's Attempts</div>
+      <div id="practice-attempts-display" style="font-size:13px;color:var(--blue);font-weight:700;">Loading...</div>
     </div>
 
-    <!-- TODAY'S QUEUE -->
-    <div id="tab-today">
-      <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:24px;">
-        <div class="coaching-ico">🎯</div>
-        <div class="coaching-text">
-          <span class="cl" style="color:var(--blue);">Today's Focus</span>
-          Based on your Unit Test 3 results, focus on Calculus — Integration by Parts. 3 questions ready below. Also 2 spaced repetition topics due today.
+    <!-- Filters -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+      <select id="practice-subject-filter" class="form-input" style="flex:1;min-width:140px;" onchange="loadPracticeQuestions()">
+        <option value="">All Subjects</option>
+        <option value="Mathematics">Mathematics</option>
+        <option value="Science">Science</option>
+        <option value="Physics">Physics</option>
+        <option value="Chemistry">Chemistry</option>
+        <option value="Biology">Biology</option>
+      </select>
+      <input type="text" id="practice-chapter-filter" class="form-input" placeholder="Filter by chapter..." style="flex:2;" oninput="loadPracticeQuestions()"/>
+    </div>
+
+    <!-- Question list -->
+    <div id="practice-question-list">
+      <div style="text-align:center;padding:40px;color:var(--muted);">Loading questions...</div>
+    </div>
+
+    <!-- Practice attempt modal -->
+    <div id="practice-attempt-section" style="display:none;margin-top:20px;">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;" id="pq-meta"></div>
+        <div id="pq-text" style="font-size:14px;line-height:1.8;margin-bottom:16px;"></div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Upload your answer:</div>
+        <div class="upload-zone" id="practice-upload-zone" onclick="document.getElementById('practice-file-input').click()" style="padding:20px;">
+          <div class="uz-icon" style="font-size:24px;">📸</div>
+          <p style="font-size:13px;margin-top:4px;">Tap to upload your answer sheet</p>
+          <input type="file" id="practice-file-input" style="display:none;" accept=".jpg,.jpeg,.png,.pdf" onchange="practiceFileSelected(this)"/>
         </div>
-      </div>
-
-      <div class="section-label">AI Recommended — From Your Last Exam</div>
-
-      <!-- ACTIVE PRACTICE QUESTION -->
-      <div class="q-practice-card active" id="practice-q1">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="badge badge-red">Calculus</div>
-            <div class="badge badge-amber">Medium</div>
-            <div class="badge badge-muted">5 marks</div>
-          </div>
-          <div style="font-size:12px;color:var(--muted);">⏱️ 12 min total · 10 min attempt + 2 min upload</div>
-        </div>
-
-        <div style="font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px;line-height:1.6;">
-          Find: <strong>∫ x · eˣ dx</strong>
-        </div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Show all working steps. Identify u and dv using ILATE rule. Evaluate the definite integral.</div>
-
-        <!-- TIMER STRIP -->
-        <div class="timer-strip" id="ts1">
-          <div class="ts-left">
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;">Attempt Timer</div>
-              <div class="ts-timer" id="practice-timer">10:00</div>
-            </div>
-            <div>
-              <div class="ts-label"><strong>Allowed</strong>10 min attempt</div>
-              <div class="ts-label">Soft stop — keeps running if you need more time</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="startTimer()" id="start-btn">▶ Start Timer</button>
-            <button class="btn btn-ghost btn-sm" style="display:none;" id="done-btn" onclick="doneWriting()">✋ Done Writing</button>
-          </div>
-        </div>
-
-        <!-- UPLOAD (hidden until done writing) -->
-        <div id="upload-phase" style="display:none;">
-          <div class="timer-strip" style="background:var(--amber-l);">
-            <div class="ts-left">
-              <div>
-                <div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;">Upload Timer</div>
-                <div class="ts-timer" id="upload-timer" style="color:var(--amber);">2:00</div>
-              </div>
-              <div class="ts-label"><strong>Upload your answer now</strong>2 min to photograph and upload</div>
-            </div>
-            <button class="btn btn-sm" style="background:var(--amber);color:#fff;" onclick="showResult()">📸 Upload Answer</button>
-          </div>
-        </div>
-
-        <!-- RESULT (hidden until submitted) -->
-        <div id="practice-result" style="display:none;">
-          <div class="divider"></div>
-          <div class="dual-score">
-            <div class="ds-box" style="background:var(--amber-l);">
-              <div class="ds-label" style="color:var(--amber);">Marks Score</div>
-              <div class="ds-val" style="color:var(--amber);">3<span style="font-size:16px;">/5</span></div>
-              <div class="ds-sub">60% · Good attempt</div>
-            </div>
-            <div class="ds-box" style="background:var(--green-l);">
-              <div class="ds-label" style="color:var(--green);">Time Score</div>
-              <div class="ds-val" style="color:var(--green);">✅</div>
-              <div class="ds-sub">9m 42s / 10m · On time</div>
-            </div>
-          </div>
-
-          <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-top:16px;">
-            <div class="coaching-ico">🧠</div>
-            <div class="coaching-text">
-              <span class="cl" style="color:var(--blue);">AI Coaching</span>
-              You're moving at the right speed but the ILATE selection is still wrong. u should be x (Algebraic) before eˣ (Exponential). Practice 2 more — this pattern needs to be automatic.
-            </div>
-          </div>
-
-          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="resetPractice()">✓ I understood this</button>
-            <button class="btn btn-secondary btn-sm" onclick="resetPractice()">↺ Try again</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- MORE QUESTIONS IN QUEUE -->
-      <div class="section-label" style="margin-top:8px;">Spaced Repetition Due Today</div>
-      <div class="grid-2">
-        <div class="q-practice-card" style="cursor:pointer;" onclick="alert('Start this question')">
-          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-            <div class="badge badge-blue">Vectors</div>
-            <div class="badge badge-muted">3 marks</div>
-          </div>
-          <div style="font-size:14px;font-weight:500;color:var(--ink);margin-bottom:6px;">Find the angle between vectors a = 2î + ĵ and b = î − 2ĵ</div>
-          <div style="font-size:12px;color:var(--muted);">Last practiced 7 days ago · Score was 2/3</div>
-          <div style="margin-top:14px;"><button class="btn btn-secondary btn-sm">▶ Start · 8 min</button></div>
-        </div>
-        <div class="q-practice-card" style="cursor:pointer;" onclick="alert('Start this question')">
-          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-            <div class="badge badge-amber">Matrices</div>
-            <div class="badge badge-muted">5 marks</div>
-          </div>
-          <div style="font-size:14px;font-weight:500;color:var(--ink);margin-bottom:6px;">Find the inverse of matrix A = [[2,1],[5,3]] using adjoint method</div>
-          <div style="font-size:12px;color:var(--muted);">Last practiced 3 days ago · Score was 3/5</div>
-          <div style="margin-top:14px;"><button class="btn btn-secondary btn-sm">▶ Start · 12 min</button></div>
+        <div id="practice-file-name" style="display:none;font-size:12px;color:var(--green);margin-top:8px;font-weight:600;"></div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="practice-submit-btn" onclick="submitPracticeAnswer()" style="display:none;">Submit for AI Grading →</button>
+          <button class="btn btn-ghost" onclick="closePracticeAttempt()">Cancel</button>
         </div>
       </div>
     </div>
 
-    <!-- BROWSE TAB -->
-    <div id="tab-browse" style="display:none;">
-      <div class="grid-2" style="margin-bottom:20px;">
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Subject</label>
-          <select class="form-input">
-            <option>Mathematics</option>
-            <option>Physics</option>
-            <option>Chemistry</option>
-            <option>Biology</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Chapter</label>
-          <select class="form-input">
-            <option>All Chapters</option>
-            <option>Integration</option>
-            <option>Differentiation</option>
-            <option>Matrices</option>
-            <option>Probability</option>
-            <option>Vectors</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Difficulty</label>
-          <select class="form-input">
-            <option>All Levels</option>
-            <option>Easy</option>
-            <option>Medium</option>
-            <option>Hard</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Source</label>
-          <select class="form-input">
-            <option>All Sources</option>
-            <option>CBSE 2015–2024 Past Papers</option>
-            <option>Teacher Created</option>
-          </select>
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:24px;">
-        <button class="btn btn-primary btn-sm">🔍 Search Questions</button>
-        <button class="btn btn-ghost btn-sm">Reset Filters</button>
-      </div>
-      <div class="card" style="text-align:center;padding:48px;">
-        <div style="font-size:32px;margin-bottom:12px;">📚</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;">CBSE Past Papers 2015–2024 + Teacher Questions</div>
-        <div style="font-size:13px;color:var(--muted);">Select filters above and search to browse the question bank</div>
-      </div>
-    </div>
-
-    <!-- SIMULATION TAB -->
-    <div id="tab-simulation" style="display:none;">
-      <div class="coaching" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:24px;">
-        <div class="coaching-ico">🎯</div>
-        <div class="coaching-text">
-          <span class="cl" style="color:var(--blue);">Exam Simulation</span>
-          Full timed paper under exam conditions. Same timer formula — marks × 2 min per question. Complete the paper, upload once at the end. Get a full time management report.
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="card-sm" style="cursor:pointer;border:2px solid var(--border);transition:border-color .2s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-size:24px;margin-bottom:10px;">📋</div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">CBSE 2023 — Mathematics</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Mathematics · 80 marks · 180 min official · 10 questions</div>
-          <button class="btn btn-primary btn-sm">▶ Start Simulation</button>
-        </div>
-        <div class="card-sm" style="cursor:pointer;border:2px solid var(--border);transition:border-color .2s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
-          <div style="font-size:24px;margin-bottom:10px;">📋</div>
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">CBSE 2022 — Mathematics</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Mathematics · 80 marks · 180 min official · 10 questions</div>
-          <button class="btn btn-secondary btn-sm">▶ Start Simulation</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- PROGRESS TAB -->
-    <div id="tab-progress" style="display:none;">
-      <div class="grid-2">
-        <div>
-          <div class="section-label">Practice Streak — March 2026</div>
-          <div class="card-sm" style="margin-bottom:16px;">
-            <div class="streak-grid">
-              <div class="streak-day" style="background:var(--green);color:#fff;">M</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">T</div>
-              <div class="streak-day" style="background:var(--border);color:var(--muted);">W</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">T</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">F</div>
-              <div class="streak-day" style="background:var(--border);color:var(--muted);">S</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">S</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">M</div>
-              <div class="streak-day" style="background:var(--border);color:var(--muted);">T</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">W</div>
-              <div class="streak-day" style="background:var(--green);color:#fff;">T</div>
-              <div class="streak-day" style="background:var(--blue);color:#fff;">F</div>
-              <div class="streak-day" style="background:var(--border);color:var(--muted);">S</div>
-              <div class="streak-day" style="background:var(--border);color:var(--muted);">S</div>
-            </div>
-            <div style="font-size:12px;color:var(--muted);margin-top:8px;">🔥 6 day streak · 24 questions this week</div>
-          </div>
-
-          <div class="section-label">Time Performance</div>
-          <div class="card-sm">
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Calculus</div><div class="topic-sub">Avg +4m 20s overtime</div></div>
-              <div class="badge badge-red">Slow</div>
-            </div>
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Probability</div><div class="topic-sub">Avg −2m 15s under</div></div>
-              <div class="badge badge-green">Fast</div>
-            </div>
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Matrices</div><div class="topic-sub">Avg +0m 45s overtime</div></div>
-              <div class="badge badge-blue">On time</div>
-            </div>
+    <!-- Practice result -->
+    <div id="practice-result-section" style="display:none;margin-top:20px;">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div id="pr-score-circle" style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:16px;font-weight:700;" id="pr-score-text"></div>
+            <div style="font-size:12px;color:var(--muted);" id="pr-chapter-text"></div>
           </div>
         </div>
-
-        <div>
-          <div class="section-label">Topic Improvement</div>
-          <div class="card-sm">
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Calculus</div><div class="topic-sub">13 questions · avg 52%</div></div>
-              <div style="width:70px;"><div class="progress-track"><div class="progress-fill red" style="width:52%"></div></div></div>
-            </div>
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Vectors</div><div class="topic-sub">8 questions · avg 68%</div></div>
-              <div style="width:70px;"><div class="progress-track"><div class="progress-fill amber" style="width:68%"></div></div></div>
-            </div>
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Probability</div><div class="topic-sub">4 questions · avg 91%</div></div>
-              <div style="width:70px;"><div class="progress-track"><div class="progress-fill green" style="width:91%"></div></div></div>
-            </div>
-            <div class="topic-row">
-              <div style="flex:1;"><div class="topic-name">Matrices</div><div class="topic-sub">6 questions · avg 74%</div></div>
-              <div style="width:70px;"><div class="progress-track"><div class="progress-fill" style="width:74%"></div></div></div>
-            </div>
+        <!-- Strict warning -->
+        <div id="pr-strict-warn" style="display:none;background:#FEE2E2;border:1px solid #FCA5A5;border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🔴 Strict Examiner Note</div>
+          <div id="pr-strict-text" style="font-size:13px;color:#7F1D1D;"></div>
+        </div>
+        <!-- Feedback boxes -->
+        <div id="pr-concept" style="display:none;" class="feedback-box" style="background:var(--bg);">
+          <div class="fb-label">🧠 Concept Analysis</div>
+          <div id="pr-concept-text"></div>
+        </div>
+        <div id="pr-formula" style="display:none;" class="feedback-box" style="background:var(--blue-l);">
+          <div class="fb-label" style="color:var(--blue);">📐 Formula Usage</div>
+          <div id="pr-formula-text"></div>
+        </div>
+        <div id="pr-calc" style="display:none;" class="feedback-box" style="background:var(--amber-l);">
+          <div class="fb-label" style="color:var(--amber);">🔢 Calculation</div>
+          <div id="pr-calc-text"></div>
+        </div>
+        <div id="pr-model" style="display:none;" class="feedback-box" style="background:var(--green-l);">
+          <div class="fb-label" style="color:var(--green);">📖 Model Solution</div>
+          <div id="pr-model-text"></div>
+        </div>
+        <div id="pr-tip" style="display:none;" class="feedback-box" style="background:var(--purple-l);">
+          <div class="fb-label" style="color:var(--purple);">💡 Coaching Tip</div>
+          <div id="pr-tip-text"></div>
+        </div>
+        <!-- Doubt section -->
+        <div id="pr-doubt-section" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Still confused? Raise a doubt for your teacher:</div>
+          <textarea id="pr-doubt-text" class="form-input" placeholder="Describe your specific doubt — e.g. I understood the factorization but don't understand why we reject the negative root..." style="width:100%;height:80px;resize:vertical;" rows="3"></textarea>
+          <div style="display:flex;gap:10px;margin-top:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="submitDoubt()">🙋 Raise Doubt</button>
+            <button class="btn btn-ghost btn-sm" onclick="closePracticeResult()">Try Another →</button>
           </div>
+          <div id="pr-doubt-confirm" style="display:none;font-size:12px;color:var(--green);margin-top:8px;font-weight:600;">✅ Doubt raised — your teacher will address this in the next session.</div>
         </div>
       </div>
     </div>
@@ -874,6 +712,67 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
       <button class="bn-item active" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
       <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+      <button class="bn-item" onclick="showPage('page-profile')"><div class="bn-icon">👤</div>Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE PAGE -->
+<div id="page-profile" class="page">
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">CBSE AI <span>STUDENT</span></div>
+      <div class="nav-right">
+        <button class="btn btn-ghost btn-sm" onclick="showPage('page-dashboard')">← Dashboard</button>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap" style="max-width:480px;margin:0 auto;">
+    <div style="margin-bottom:24px;">
+      <div class="page-title">My Profile</div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Account Details</div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Registration Number</div>
+        <div id="profile-reg-num" style="font-size:15px;font-weight:700;color:var(--blue);letter-spacing:1px;">—</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">Full Name</label>
+        <input type="text" id="profile-name" class="form-input" style="width:100%;"/>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
+        <input type="text" id="profile-email" class="form-input" style="width:100%;background:var(--bg);" disabled/>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">Class</label>
+        <select id="profile-class" class="form-input" style="width:100%;">
+          <option value="6">Class 6</option>
+          <option value="7">Class 7</option>
+          <option value="8">Class 8</option>
+          <option value="9">Class 9</option>
+          <option value="10">Class 10</option>
+          <option value="11">Class 11</option>
+          <option value="12" selected>Class 12</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="saveProfile()">Save Changes</button>
+      <div id="profile-save-msg" style="display:none;font-size:12px;margin-top:8px;text-align:center;"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Change Password</div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">Current Password</label>
+        <input type="password" id="profile-cur-pw" class="form-input" style="width:100%;"/>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px;">New Password</label>
+        <input type="password" id="profile-new-pw" class="form-input" style="width:100%;"/>
+      </div>
+      <button class="btn btn-secondary btn-full" onclick="changePassword()">Update Password</button>
+      <div id="pw-save-msg" style="display:none;font-size:12px;margin-top:8px;text-align:center;"></div>
     </div>
   </div>
 </div>
@@ -883,8 +782,10 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const p = document.getElementById(id);
-  p.classList.add('active');
+  if (p) p.classList.add('active');
   window.scrollTo(0,0);
+  if (id === 'page-practice') loadPracticeQuestions();
+  if (id === 'page-profile')  loadProfile();
 }
 
 // ── REPORT ───────────────────────────────────────────
@@ -947,11 +848,10 @@ async function loadReport(submissionId) {
       ? r.total_awarded + ' out of ' + r.total_max + ' marks'
       : r.ai_failed ? 'Pending manual review' : 'Awaiting grading';
     document.getElementById('report-subject-grade').textContent =
-      r.subject + (hasMarks ? (isReleased ? ' · Grade ' + r.grade : ' · Awaiting teacher review') : '');
+      r.subject + (hasMarks ? (isReleased ? '' : ' · Awaiting teacher review') : '');
     document.getElementById('report-q-count').textContent = r.questions.length;
 
-    document.getElementById('report-grade').textContent = isReleased ? r.grade : (hasMarks ? r.grade : '—');
-    document.getElementById('report-grade-lbl').textContent = isReleased ? 'Grade' : (hasMarks ? 'AI Grade*' : 'Grade');
+
     document.getElementById('report-disputes').textContent = r.disputes_count;
 
     // Three states: ai_failed / graded-not-released / released
@@ -1625,7 +1525,7 @@ async function loadDashboard() {
           <div class="hr-icon" style="background:var(--green-l);">📊</div>
           <div class="hr-body">
             <div class="hr-title">${e.title}</div>
-            <div class="hr-sub">Released ${e.released_at ? new Date(e.released_at).toLocaleDateString('en-IN') : '—'} · Grade ${e.grade || '—'}</div>
+            <div class="hr-sub">Released ${e.released_at ? new Date(e.released_at).toLocaleDateString('en-IN') : '—'} </div>
           </div>
           <div class="hr-score">
             <div class="hr-marks">${e.total_awarded}/${e.total_marks}</div>
@@ -1639,6 +1539,272 @@ async function loadDashboard() {
   } catch(err) {
     document.getElementById('dash-sub').textContent = 'Could not load dashboard data.';
     console.error(err);
+  }
+}
+
+// ── PRACTICE ──────────────────────────────────────────
+let practiceQuestions    = [];
+let currentPracticeQ     = null;
+let currentPracticeFile  = null;
+let currentAttemptId     = null;
+let currentAttemptQId    = null;
+
+async function loadPracticeQuestions() {
+  const subject = document.getElementById('practice-subject-filter').value;
+  const chapter = document.getElementById('practice-chapter-filter').value;
+  const listEl  = document.getElementById('practice-question-list');
+  listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">Loading...</div>';
+  try {
+    const res  = await fetch(`/api/student/practice/questions?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    practiceQuestions = data.questions;
+    const remaining   = data.daily_limit - data.attempts_today;
+    const attEl       = document.getElementById('practice-attempts-display');
+    attEl.textContent = remaining > 0 ? `${remaining} of ${data.daily_limit} remaining today` : '0 remaining — resets at midnight';
+    attEl.style.color = remaining > 0 ? 'var(--blue)' : 'var(--red)';
+
+    if (!practiceQuestions.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">No questions found for your filters.</div>';
+      return;
+    }
+
+    listEl.innerHTML = practiceQuestions.map(q => `
+      <div class="card" style="margin-bottom:12px;padding:14px 16px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="flex:1;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+              ${q.chapter} · ${q.max_marks} marks ·
+              <span style="color:${q.difficulty==='very_hard'||q.difficulty==='very_tough'?'var(--red)':'var(--amber)'};">${q.difficulty.replace('_',' ').toUpperCase()}</span>
+            </div>
+            <div style="font-size:13.5px;line-height:1.7;">${q.latex_content}</div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="flex-shrink:0;margin-top:4px;"
+            onclick="startPracticeAttempt('${q.question_id}')" ${remaining <= 0 ? 'disabled' : ''}>
+            ${remaining > 0 ? 'Attempt →' : 'No attempts left'}
+          </button>
+        </div>
+      </div>`).join('');
+
+    if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([listEl]);
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--red);padding:16px;">Failed to load questions: ${e.message}</div>`;
+  }
+}
+
+function startPracticeAttempt(questionId) {
+  currentPracticeQ    = practiceQuestions.find(q => q.question_id === questionId);
+  currentPracticeFile = null;
+  currentAttemptQId   = questionId;
+  if (!currentPracticeQ) return;
+
+  document.getElementById('pq-meta').textContent =
+    `${currentPracticeQ.chapter} · ${currentPracticeQ.max_marks} marks · ${(currentPracticeQ.difficulty||'').replace('_',' ').toUpperCase()}`;
+  const textEl = document.getElementById('pq-text');
+  textEl.textContent = currentPracticeQ.latex_content;
+  if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([textEl]);
+
+  document.getElementById('practice-file-name').style.display  = 'none';
+  document.getElementById('practice-submit-btn').style.display = 'none';
+  document.getElementById('practice-upload-zone').style.display = 'block';
+  document.getElementById('practice-attempt-section').style.display = 'block';
+  document.getElementById('practice-result-section').style.display  = 'none';
+  document.getElementById('practice-question-list').style.display   = 'none';
+  document.querySelector('.practice-filters')?.style && (document.getElementById('practice-question-list').style.display = 'none');
+
+  document.getElementById('practice-attempt-section').scrollIntoView({behavior:'smooth'});
+}
+
+function practiceFileSelected(input) {
+  if (!input.files.length) return;
+  currentPracticeFile = input.files[0];
+  document.getElementById('practice-file-name').textContent = '✅ ' + currentPracticeFile.name;
+  document.getElementById('practice-file-name').style.display  = 'block';
+  document.getElementById('practice-submit-btn').style.display = 'inline-flex';
+  document.getElementById('practice-upload-zone').style.display = 'none';
+}
+
+async function submitPracticeAnswer() {
+  if (!currentPracticeFile || !currentAttemptQId) return;
+  const btn = document.getElementById('practice-submit-btn');
+  btn.textContent = 'Uploading...';
+  btn.disabled    = true;
+  try {
+    // Upload file
+    const formData = new FormData();
+    formData.append('files[]', currentPracticeFile);
+    const upRes  = await fetch('/api/student/upload', {method:'POST', body: formData});
+    const upData = await upRes.json();
+    if (!upData.ok || !upData.urls || !upData.urls.length)
+      throw new Error(upData.error || 'Upload failed');
+
+    btn.textContent = 'AI Grading...';
+    const imgUrl = upData.urls[0].url;
+
+    // Submit for grading
+    const res  = await fetch('/api/student/practice/submit', {
+      method : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify({ question_id: currentAttemptQId, answer_sheet_url: imgUrl })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    currentAttemptId = data.attempt_id;
+    showPracticeResult(data);
+  } catch(e) {
+    btn.textContent = 'Submit for AI Grading →';
+    btn.disabled    = false;
+    alert('Error: ' + e.message);
+  }
+}
+
+function showPracticeResult(data) {
+  document.getElementById('practice-attempt-section').style.display = 'none';
+  document.getElementById('practice-result-section').style.display  = 'block';
+  document.getElementById('practice-question-list').style.display   = 'none';
+
+  const pct   = data.max_marks > 0 ? Math.round((data.marks / data.max_marks) * 100) : 0;
+  const color = pct >= 75 ? 'var(--green)' : pct >= 45 ? 'var(--amber)' : 'var(--red)';
+  const bg    = pct >= 75 ? 'var(--green-l)' : pct >= 45 ? 'var(--amber-l)' : '#FEE2E2';
+
+  const circle = document.getElementById('pr-score-circle');
+  circle.textContent   = `${data.marks}/${data.max_marks}`;
+  circle.style.background = bg;
+  circle.style.color      = color;
+
+  document.getElementById('pr-score-text').textContent   = `${pct}% · ${data.marks}/${data.max_marks} marks`;
+  document.getElementById('pr-chapter-text').textContent = data.chapter || '';
+
+  // Strict warning
+  const strictEl = document.getElementById('pr-strict-warn');
+  if (data.ai_strict_marks !== null && data.ai_strict_marks !== undefined && data.ai_strict_marks < data.marks) {
+    document.getElementById('pr-strict-text').textContent =
+      `A strict examiner may have awarded only ${data.ai_strict_marks}/${data.max_marks}. ${data.ai_strict_reason || ''}`;
+    strictEl.style.display = 'block';
+  } else {
+    strictEl.style.display = 'none';
+  }
+
+  function showBox(secId, textId, val) {
+    if (val) {
+      document.getElementById(textId).textContent = val;
+      document.getElementById(secId).style.display = 'block';
+    } else {
+      document.getElementById(secId).style.display = 'none';
+    }
+  }
+
+  showBox('pr-concept', 'pr-concept-text', data.ai_irrelevant ? null : data.ai_concept);
+  showBox('pr-formula', 'pr-formula-text', data.ai_irrelevant ? null : data.ai_formula);
+  showBox('pr-calc',    'pr-calc-text',    data.ai_irrelevant ? null : data.ai_calculation);
+  showBox('pr-model',   'pr-model-text',   data.ai_model_solution);
+  showBox('pr-tip',     'pr-tip-text',     data.ai_coaching_tip);
+
+  document.getElementById('pr-doubt-text').value    = '';
+  document.getElementById('pr-doubt-confirm').style.display = 'none';
+
+  const resultEl = document.getElementById('practice-result-section');
+  if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([resultEl]);
+  resultEl.scrollIntoView({behavior:'smooth'});
+
+  // Refresh daily counter
+  loadPracticeQuestions();
+}
+
+async function submitDoubt() {
+  const text = document.getElementById('pr-doubt-text').value.trim();
+  if (!text) { alert('Please describe your doubt first.'); return; }
+  if (!currentAttemptId || !currentAttemptQId) return;
+  try {
+    const res  = await fetch('/api/student/practice/doubt', {
+      method : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify({
+        attempt_id  : currentAttemptId,
+        question_id : currentAttemptQId,
+        doubt_text  : text,
+        chapter     : currentPracticeQ?.chapter || ''
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('pr-doubt-confirm').style.display = 'block';
+      document.getElementById('pr-doubt-text').disabled = true;
+    } else {
+      alert('Could not raise doubt: ' + data.error);
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function closePracticeAttempt() {
+  document.getElementById('practice-attempt-section').style.display = 'none';
+  document.getElementById('practice-question-list').style.display   = 'block';
+}
+
+function closePracticeResult() {
+  document.getElementById('practice-result-section').style.display  = 'none';
+  document.getElementById('practice-question-list').style.display   = 'block';
+  document.getElementById('pr-doubt-text').disabled = false;
+}
+
+// ── PROFILE ───────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const res  = await fetch('/api/student/profile');
+    const data = await res.json();
+    if (!data.ok) return;
+    const p = data.profile;
+    document.getElementById('profile-reg-num').textContent = p.system_reg_number || '—';
+    document.getElementById('profile-name').value          = p.name || '';
+    document.getElementById('profile-email').value         = p.email || '';
+    const cls = document.getElementById('profile-class');
+    if (p.class) cls.value = String(p.class);
+  } catch(e) { console.error(e); }
+}
+
+async function saveProfile() {
+  const name = document.getElementById('profile-name').value.trim();
+  const cls  = document.getElementById('profile-class').value;
+  const msg  = document.getElementById('profile-save-msg');
+  try {
+    const res  = await fetch('/api/student/profile', {
+      method : 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify({ name, class: parseInt(cls) })
+    });
+    const data = await res.json();
+    msg.style.display = 'block';
+    msg.style.color   = data.ok ? 'var(--green)' : 'var(--red)';
+    msg.textContent   = data.ok ? '✅ Profile updated successfully' : '❌ ' + data.error;
+  } catch(e) {
+    msg.style.display = 'block';
+    msg.style.color   = 'var(--red)';
+    msg.textContent   = '❌ Error saving profile';
+  }
+}
+
+async function changePassword() {
+  const cur = document.getElementById('profile-cur-pw').value;
+  const nw  = document.getElementById('profile-new-pw').value;
+  const msg = document.getElementById('pw-save-msg');
+  if (!cur || !nw) { msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent='Both fields required.'; return; }
+  try {
+    const res  = await fetch('/api/student/profile', {
+      method : 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify({ current_password: cur, new_password: nw })
+    });
+    const data = await res.json();
+    msg.style.display = 'block';
+    msg.style.color   = data.ok ? 'var(--green)' : 'var(--red)';
+    msg.textContent   = data.ok ? '✅ Password updated' : '❌ ' + data.error;
+    if (data.ok) { document.getElementById('profile-cur-pw').value=''; document.getElementById('profile-new-pw').value=''; }
+  } catch(e) {
+    msg.style.display='block'; msg.style.color='var(--red)'; msg.textContent='❌ Error updating password';
   }
 }
 

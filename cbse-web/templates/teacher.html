@@ -732,9 +732,12 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <!-- Student selector -->
       <div class="card" style="margin-bottom:20px;">
         <div class="section-label">Select Student</div>
-        <select id="perf-student-select" class="form-input" style="width:100%;max-width:360px;" onchange="loadStudentPerformance()">
-          <option value="">— Select a student —</option>
-        </select>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <select id="perf-student-select" class="form-input" style="flex:1;max-width:400px;" onchange="loadStudentPerformance()">
+            <option value="">— Select a student —</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="loadStudentPerformance()">View Performance →</button>
+        </div>
       </div>
 
       <!-- Performance content -->
@@ -2617,7 +2620,7 @@ async function loadPerformancePage() {
     const sel = document.getElementById('perf-student-select');
     sel.innerHTML = '<option value="">— Select a student —</option>' +
       data.students.map(s =>
-        `<option value="${s.student_id}">${s.name} · Class ${s.class||'?'} · ${s.system_reg_number||''}</option>`
+        `<option value="${s.student_id}">${s.name} · ${s.system_reg_number || 'No Reg#'} · Class ${s.class||'?'}</option>`
       ).join('');
   } catch(e) { console.error(e); }
 }

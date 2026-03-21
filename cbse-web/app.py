@@ -897,7 +897,7 @@ def save_question():
         required = ["latex_content", "subject", "chapter", "class_num", "difficulty", "type", "max_marks", "source"]
         if not all(data.get(f) for f in required):
             return jsonify({"ok": False, "error": "All fields required"})
-        if data["difficulty"] not in ["easy", "medium", "hard"]:
+        if data["difficulty"] not in ["easy", "medium", "hard", "very_hard"]:
             return jsonify({"ok": False, "error": "Invalid difficulty"})
         if data["source"] not in ["past_paper", "teacher"]:
             return jsonify({"ok": False, "error": "Invalid source"})
@@ -1196,7 +1196,7 @@ def update_question(question_id):
         required = ["latex_content", "subject", "chapter", "class_num", "difficulty", "type", "max_marks", "source"]
         if not all(data.get(f) for f in required):
             return jsonify({"ok": False, "error": "All fields required"})
-        if data["difficulty"] not in ["easy", "medium", "hard"]:
+        if data["difficulty"] not in ["easy", "medium", "hard", "very_hard"]:
             return jsonify({"ok": False, "error": "Invalid difficulty"})
         if data["source"] not in ["past_paper", "teacher"]:
             return jsonify({"ok": False, "error": "Invalid source"})
@@ -1447,8 +1447,8 @@ def get_student_paper(paper_id):
 @require_role("student")
 def upload_answer():
     try:
-        files = request.files.getlist('files')
-        if not files:
+        files = request.files.getlist('files') or request.files.getlist('files[]')
+        if not files or all(f.filename == '' for f in files):
             return jsonify({"ok": False, "error": "No files provided"})
 
         allowed = {'jpg', 'jpeg', 'png', 'pdf'}
@@ -1978,9 +1978,8 @@ def get_practice_questions():
                 SELECT q.question_id, q.latex_content, q.subject, q.chapter,
                        q.difficulty, q.max_marks, q.type, q.class
                 FROM questions q
-                WHERE q.difficulty IN ('hard', 'very_hard', 'tough', 'very_tough', 'medium')
+                WHERE LOWER(q.difficulty) IN ('hard', 'very_hard', 'very hard')
                 AND (q.class = :cls OR q.class IS NULL)
-                AND q.approved = 1
             """
             params = {"cls": student_class}
             if chapter:

@@ -644,10 +644,10 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
         <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Upload your answer:</div>
         <div class="upload-zone" id="practice-upload-zone" onclick="document.getElementById('practice-file-input').click()" style="padding:20px;">
           <div class="uz-icon" style="font-size:24px;">📸</div>
-          <p style="font-size:13px;margin-top:4px;">Tap to upload your answer sheet</p>
-          <input type="file" id="practice-file-input" style="display:none;" accept=".jpg,.jpeg,.png,.pdf" onchange="practiceFileSelected(this)"/>
+          <p style="font-size:13px;margin-top:4px;">Tap to upload your answer sheet · Multiple pages supported</p>
+          <input type="file" id="practice-file-input" style="display:none;" accept=".jpg,.jpeg,.png,.pdf" multiple onchange="practiceFilesSelected(this)"/>
         </div>
-        <div id="practice-file-name" style="display:none;font-size:12px;color:var(--green);margin-top:8px;font-weight:600;"></div>
+        <div id="practice-file-list" style="display:none;margin-top:8px;"></div>
         <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
           <button class="btn btn-primary" id="practice-submit-btn" onclick="submitPracticeAnswer()" style="display:none;">Submit for AI Grading →</button>
           <button class="btn btn-ghost" onclick="closePracticeAttempt()">Cancel</button>
@@ -1566,7 +1566,7 @@ function wrapLatex(text) {
 // ── PRACTICE ──────────────────────────────────────────
 let practiceQuestions    = [];
 let currentPracticeQ     = null;
-let currentPracticeFile  = null;
+let currentPracticeFiles = [];
 let currentAttemptId     = null;
 let currentAttemptQId    = null;
 
@@ -1620,8 +1620,8 @@ async function loadPracticeQuestions() {
 
 function startPracticeAttempt(questionId) {
   currentPracticeQ    = practiceQuestions.find(q => q.question_id === questionId);
-  currentPracticeFile = null;
-  currentAttemptQId   = questionId;
+  currentPracticeFiles = [];
+  currentAttemptQId    = questionId;
   if (!currentPracticeQ) return;
 
   document.getElementById('pq-meta').textContent =
@@ -1630,7 +1630,7 @@ function startPracticeAttempt(questionId) {
   textEl.textContent = currentPracticeQ.latex_content;
   if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([textEl]);
 
-  document.getElementById('practice-file-name').style.display  = 'none';
+  document.getElementById('practice-file-list').style.display  = 'none';
   document.getElementById('practice-submit-btn').style.display = 'none';
   document.getElementById('practice-upload-zone').style.display = 'block';
   document.getElementById('practice-attempt-section').style.display = 'block';
@@ -1641,31 +1641,61 @@ function startPracticeAttempt(questionId) {
   document.getElementById('practice-attempt-section').scrollIntoView({behavior:'smooth'});
 }
 
-function practiceFileSelected(input) {
+function practiceFilesSelected(input) {
   if (!input.files.length) return;
-  currentPracticeFile = input.files[0];
-  document.getElementById('practice-file-name').textContent = '✅ ' + currentPracticeFile.name;
-  document.getElementById('practice-file-name').style.display  = 'block';
+  const newFiles = Array.from(input.files);
+  // Merge with existing, sort by filename
+  const existing = currentPracticeFiles.map(f => f.name);
+  const toAdd = newFiles.filter(f => !existing.includes(f.name));
+  currentPracticeFiles = [...currentPracticeFiles, ...toAdd].sort((a,b) =>
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  );
+  renderPracticeFileList();
+}
+
+function renderPracticeFileList() {
+  const listEl = document.getElementById('practice-file-list');
+  if (!currentPracticeFiles.length) {
+    listEl.style.display = 'none';
+    document.getElementById('practice-submit-btn').style.display = 'none';
+    document.getElementById('practice-upload-zone').style.display = 'block';
+    return;
+  }
+  document.getElementById('practice-upload-zone').style.display = 'block';
+  listEl.style.display = 'block';
+  listEl.innerHTML = currentPracticeFiles.map((f, i) =>
+    '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px;">' +
+    '<span style="background:var(--blue-l);color:var(--blue);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0;">' + (i+1) + '</span>' +
+    '<span style="flex:1;color:var(--green);font-weight:600;">✅ ' + f.name + '</span>' +
+    '<button onclick="removePracticeFile(' + i + ')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;">✕</button>' +
+    '</div>'
+  ).join('') +
+  '<div style="font-size:11px;color:var(--muted);margin-top:4px;">Tap upload zone to add more pages</div>';
   document.getElementById('practice-submit-btn').style.display = 'inline-flex';
-  document.getElementById('practice-upload-zone').style.display = 'none';
+}
+
+function removePracticeFile(idx) {
+  currentPracticeFiles.splice(idx, 1);
+  renderPracticeFileList();
+  document.getElementById('practice-file-input').value = '';
 }
 
 async function submitPracticeAnswer() {
-  if (!currentPracticeFile || !currentAttemptQId) return;
+  if (!currentPracticeFiles.length || !currentAttemptQId) return;
   const btn = document.getElementById('practice-submit-btn');
   btn.textContent = 'Uploading...';
   btn.disabled    = true;
   try {
-    // Upload file
+    // Upload files (sorted by filename)
     const formData = new FormData();
-    formData.append('files', currentPracticeFile);
+    currentPracticeFiles.forEach(f => formData.append('files', f));
     const upRes  = await fetch('/api/student/upload', {method:'POST', body: formData});
     const upData = await upRes.json();
     if (!upData.ok || !upData.urls || !upData.urls.length)
       throw new Error(upData.error || 'Upload failed');
 
     btn.textContent = 'AI Grading...';
-    const imgUrl = upData.urls[0].url;
+    const imgUrl = JSON.stringify(upData.urls.map(u => u.url));
 
     // Submit for grading
     const res  = await fetch('/api/student/practice/submit', {

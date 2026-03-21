@@ -2286,9 +2286,10 @@ def raise_doubt():
 @app.route("/api/teacher/students", methods=["GET"])
 @require_role("teacher")
 def get_students():
+    class_filter = request.args.get("class", "")
     try:
         engine = get_engine()
-        # Auto-create missing student records for users with role='student'
+        # Auto-create missing student records
         with engine.begin() as conn:
             missing = conn.execute(text("""
                 SELECT u.user_id FROM users u
@@ -2302,9 +2303,9 @@ def get_students():
                 """), {"uid": str(row[0])})
 
         with engine.connect() as conn:
-            rows = conn.execute(text("""
-                SELECT s.student_id, u.name, u.email,
-                    -- Check if student has any unreleased assignment
+            query = """
+                SELECT CAST(s.student_id AS NVARCHAR(36)) as student_id,
+                       u.name, u.email, s.class, s.system_reg_number,
                     (SELECT TOP 1 p.title
                      FROM assignments a
                      JOIN papers p ON a.paper_id = p.paper_id
@@ -2314,10 +2315,14 @@ def get_students():
                 FROM users u
                 JOIN students s ON s.user_id = u.user_id
                 WHERE u.role = 'student' AND u.is_active = 1
-                ORDER BY u.name
-            """)).fetchall()
+            """
+            params = {}
+            if class_filter:
+                query += " AND s.class = :cls"
+                params["cls"] = int(class_filter)
+            query += " ORDER BY u.name"
+            rows = conn.execute(text(query), params).fetchall()
 
-        # Separate assignable vs blocked
         assignable = []
         blocked    = []
         for r in rows:
@@ -2386,20 +2391,24 @@ def debug_students():
 @app.route("/api/teacher/published-papers", methods=["GET"])
 @require_role("teacher")
 def get_published_papers():
+    class_filter = request.args.get("class", "")
     try:
         engine = get_engine()
         with engine.connect() as conn:
-            rows = conn.execute(text("""
+            query = """
                 SELECT p.paper_id, p.title, p.subject, p.class,
                        p.total_marks, p.duration_minutes,
                        COUNT(pq.question_id) as question_count
                 FROM papers p
                 LEFT JOIN paper_questions pq ON p.paper_id = pq.paper_id
                 WHERE p.is_active = 1
-                GROUP BY p.paper_id, p.title, p.subject, p.class,
-                         p.total_marks, p.duration_minutes
-                ORDER BY p.title
-            """)).fetchall()
+            """
+            params = {}
+            if class_filter:
+                query += " AND p.class = :cls"
+                params["cls"] = int(class_filter)
+            query += " GROUP BY p.paper_id, p.title, p.subject, p.class, p.total_marks, p.duration_minutes ORDER BY p.title"
+            rows = conn.execute(text(query), params).fetchall()
         return jsonify({"ok": True, "papers": [dict(r._mapping) for r in rows]})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})

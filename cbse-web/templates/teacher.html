@@ -1061,6 +1061,16 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="modal-sub" id="pick-q-section-label">Adding to Section A</div>
     <!-- Filters -->
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <select class="form-input" id="pick-filter-class" style="flex:1;min-width:110px;" onchange="loadPickQuestions()">
+        <option value="">All Classes</option>
+        <option value="6">Class 6</option>
+        <option value="7">Class 7</option>
+        <option value="8">Class 8</option>
+        <option value="9">Class 9</option>
+        <option value="10">Class 10</option>
+        <option value="11">Class 11</option>
+        <option value="12">Class 12</option>
+      </select>
       <select class="form-input" id="pick-filter-subject" style="flex:1;min-width:130px;" onchange="loadPickQuestions()">
         <option value="">All Subjects</option>
         <option value="Mathematics">Mathematics</option>
@@ -1072,7 +1082,7 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <option value="easy">Easy</option>
         <option value="medium">Medium</option>
         <option value="hard">Hard</option>
-            <option value="very_hard">Very Hard</option>
+        <option value="very_hard">Very Hard</option>
       </select>
       <input class="form-input" id="pick-filter-chapter" style="flex:2;min-width:160px;" placeholder="Search chapter..." oninput="debouncePickFilter()"/>
     </div>
@@ -1713,6 +1723,7 @@ function pbOpenPicker(section) {
   pickTargetSection = section;
   pickSelectedMap   = {};
   document.getElementById('pick-q-section-label').textContent = `Adding to Section ${section}`;
+  document.getElementById('pick-filter-class').value      = '';
   document.getElementById('pick-filter-subject').value    = '';
   document.getElementById('pick-filter-difficulty').value = '';
   document.getElementById('pick-filter-chapter').value   = '';
@@ -1727,6 +1738,7 @@ function debouncePickFilter() {
 }
 
 async function loadPickQuestions() {
+  const cls        = document.getElementById('pick-filter-class').value;
   const subject    = document.getElementById('pick-filter-subject').value;
   const difficulty = document.getElementById('pick-filter-difficulty').value;
   const chapter    = document.getElementById('pick-filter-chapter').value;
@@ -1734,6 +1746,7 @@ async function loadPickQuestions() {
   list.innerHTML   = '<div style="text-align:center;padding:20px;color:var(--muted);">Loading...</div>';
   const alreadyAdded = new Set((pbState.questions[pickTargetSection]||[]).map(q=>q.question_id));
   const params = new URLSearchParams();
+  if (cls)        params.append('class_num', cls);
   if (subject)    params.append('subject', subject);
   if (difficulty) params.append('difficulty', difficulty);
   if (chapter)    params.append('chapter', chapter);

@@ -1251,6 +1251,18 @@ def delete_question(question_id):
 # STUDENT API
 # ══════════════════════════════════════════════════════
 
+def generate_system_reg_number(conn):
+    """Generate unique ever-incrementing registration number: SKT-YYYY-NNNN"""
+    year = datetime.now().year
+    row  = conn.execute(text("""
+        SELECT MAX(CAST(SUBSTRING(system_reg_number, 10, 4) AS INT))
+        FROM students
+        WHERE system_reg_number LIKE 'SKT-____-____'
+    """)).fetchone()
+    last_seq = row[0] if row and row[0] else 0
+    seq      = last_seq + 1
+    return f"SKT-{year}-{seq:04d}"
+
 def get_student_id(conn, user):
     """Resolve user email -> user_id -> student_id. Auto-creates student record if missing."""
     user_row = conn.execute(text(
@@ -1269,10 +1281,11 @@ def get_student_id(conn, user):
         # Auto-create student record using a new write connection
         engine = get_engine()
         with engine.begin() as write_conn:
+            reg_num = generate_system_reg_number(write_conn)
             write_conn.execute(text("""
-                INSERT INTO students (student_id, user_id, class)
-                VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER), 12)
-            """), {"uid": user_id})
+                INSERT INTO students (student_id, user_id, class, system_reg_number)
+                VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER), 12, :reg_num)
+            """), {"uid": user_id, "reg_num": reg_num})
         student_row = conn.execute(text(
             "SELECT student_id FROM students WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)"
         ), {"uid": user_id}).fetchone()
@@ -1879,8 +1892,334 @@ def student_sas_urls():
         return jsonify({"ok": False, "error": str(e)[:200], "sas_urls": []})
 
 
+@app.route("/api/student/profile", methods=["GET"])
+@require_role("student")
+def get_student_profile():
+    user = get_current_user(request)
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT u.name, u.email, s.class, s.system_reg_number, s.registration_number
+                FROM users u
+                JOIN students s ON s.user_id = u.user_id
+                WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            if not row:
+                return jsonify({"ok": False, "error": "Profile not found"})
+            return jsonify({"ok": True, "profile": dict(row._mapping)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+@app.route("/api/student/profile", methods=["PUT"])
+@require_role("student")
+def update_student_profile():
+    user = get_current_user(request)
+    data = request.json
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            # Update name
+            if data.get("name"):
+                conn.execute(text(
+                    "UPDATE users SET name = :name WHERE email = :email"
+                ), {"name": data["name"], "email": user["email"]})
+            # Update class (6-12 only)
+            if data.get("class"):
+                cls = int(data["class"])
+                if cls < 6 or cls > 12:
+                    return jsonify({"ok": False, "error": "Class must be between 6 and 12"})
+                conn.execute(text("""
+                    UPDATE students SET class = :class
+                    WHERE user_id = (SELECT user_id FROM users WHERE email = :email)
+                """), {"class": cls, "email": user["email"]})
+            # Change password
+            if data.get("new_password"):
+                if not data.get("current_password"):
+                    return jsonify({"ok": False, "error": "Current password required"})
+                user_row = conn.execute(text(
+                    "SELECT password_hash FROM users WHERE email = :email"
+                ), {"email": user["email"]}).fetchone()
+                if not user_row or not verify_password(data["current_password"], user_row[0]):
+                    return jsonify({"ok": False, "error": "Current password incorrect"})
+                conn.execute(text(
+                    "UPDATE users SET password_hash = :hash WHERE email = :email"
+                ), {"hash": hash_password(data["new_password"]), "email": user["email"]})
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+
+# ── PRACTICE API ──────────────────────────────────────
+@app.route("/api/student/practice/questions", methods=["GET"])
+@require_role("student")
+def get_practice_questions():
+    """Get tough/very tough questions for practice, filtered by class and chapter."""
+    user = get_current_user(request)
+    chapter = request.args.get("chapter", "")
+    subject = request.args.get("subject", "")
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Get student's class
+            s_row = conn.execute(text("""
+                SELECT s.class FROM students s
+                JOIN users u ON s.user_id = u.user_id
+                WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            student_class = s_row[0] if s_row else 12
+
+            query = """
+                SELECT q.question_id, q.latex_content, q.subject, q.chapter,
+                       q.difficulty, q.max_marks, q.type, q.class
+                FROM questions q
+                WHERE q.difficulty IN ('hard', 'very_hard', 'tough', 'very_tough', 'medium')
+                AND (q.class = :cls OR q.class IS NULL)
+                AND q.approved = 1
+            """
+            params = {"cls": student_class}
+            if chapter:
+                query += " AND q.chapter LIKE :chapter"
+                params["chapter"] = f"%{chapter}%"
+            if subject:
+                query += " AND q.subject = :subject"
+                params["subject"] = subject
+            query += " ORDER BY q.difficulty DESC, NEWID()"
+
+            rows = conn.execute(text(query), params).fetchall()
+
+            # Get today's attempt count
+            today = datetime.now().date()
+            s_row2 = conn.execute(text("""
+                SELECT s.student_id FROM students s
+                JOIN users u ON s.user_id = u.user_id
+                WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            attempts_today = 0
+            if s_row2:
+                cnt = conn.execute(text("""
+                    SELECT COUNT(*) FROM practice_attempts
+                    WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                    AND CAST(attempted_at AS DATE) = :today
+                """), {"sid": str(s_row2[0]), "today": today}).fetchone()
+                attempts_today = cnt[0] if cnt else 0
+
+            return jsonify({
+                "ok"            : True,
+                "questions"     : [dict(r._mapping) for r in rows],
+                "attempts_today": attempts_today,
+                "daily_limit"   : 3
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+@app.route("/api/student/practice/submit", methods=["POST"])
+@require_role("student")
+def submit_practice():
+    """Submit a practice answer — single pass AI grading."""
+    user    = get_current_user(request)
+    data    = request.json
+    q_id    = data.get("question_id")
+    img_url = data.get("answer_sheet_url")  # already uploaded blob URL
+    if not q_id or not img_url:
+        return jsonify({"ok": False, "error": "question_id and answer_sheet_url required"})
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Check daily limit
+            s_row = conn.execute(text("""
+                SELECT s.student_id FROM students s
+                JOIN users u ON s.user_id = u.user_id
+                WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            if not s_row:
+                return jsonify({"ok": False, "error": "Student not found"})
+            student_id = str(s_row[0])
+            today = datetime.now().date()
+            cnt = conn.execute(text("""
+                SELECT COUNT(*) FROM practice_attempts
+                WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND CAST(attempted_at AS DATE) = :today
+            """), {"sid": student_id, "today": today}).fetchone()
+            if cnt and cnt[0] >= 3:
+                return jsonify({"ok": False, "error": "Daily limit of 3 practice attempts reached. Try again tomorrow."})
+
+            # Get question
+            q_row = conn.execute(text("""
+                SELECT question_id, latex_content, chapter, subject,
+                       max_marks, model_solution, difficulty, type
+                FROM questions WHERE question_id = CAST(:qid AS UNIQUEIDENTIFIER)
+            """), {"qid": q_id}).fetchone()
+            if not q_row:
+                return jsonify({"ok": False, "error": "Question not found"})
+            q = dict(q_row._mapping)
+
+        # Generate SAS URL for GPT-4o
+        sas_url = get_sas_url(img_url, expiry_hours=1)
+
+        # Single pass grading for practice
+        client = get_openai_client()
+        model_sol = (q.get("model_solution") or "").strip()
+        model_sol_text = (
+            f"Model Solution (one valid approach only — award full marks for any correct alternate method): {model_sol}"
+            if model_sol else
+            "No model solution provided — solve this question independently before grading. Award full marks for any correct method."
+        )
+        q_text = f"""
+Q1. [{q['chapter']} · {q['max_marks']} marks]
+Question: {q['latex_content']}
+{model_sol_text}
+---"""
+
+        p1_response = client.chat.completions.create(
+            model      = secrets["oai_deploy"],
+            messages   = [
+                {"role": "system", "content": open('/dev/stdin').read() if False else """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
+Grade this single practice question. Follow all CBSE marking rules. Award marks for correct steps.
+If student used alternate valid method, award full marks.
+LATEX RULES: Use LaTeX ONLY for math expressions. Never wrap English in LaTeX.
+RESPOND ONLY with a valid JSON array containing one object. No preamble, no markdown."""},
+                {"role": "user", "content": [
+                    {"type": "text", "text": f"""Grade this student's practice answer:
+{q_text}
+Return a JSON array with ONE object containing:
+- question_number: "Q1"
+- max_marks: integer
+- ai_marks_awarded: integer
+- ai_strict_marks: integer
+- ai_strict_reason: string
+- ai_irrelevant: boolean
+- ai_concept: string
+- ai_formula: string
+- ai_calculation: string
+- ai_model_solution: string
+- ai_coaching_tip: string
+- ai_confidence: float 0 to 1
+- ai_flag_review: boolean
+Return ONLY the JSON array."""},
+                    {"type": "image_url", "image_url": {"url": sas_url, "detail": "high"}}
+                ]}
+            ],
+            max_tokens  = 2000,
+            temperature = 0.1
+        )
+        raw = p1_response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        results = json.loads(raw.strip())
+        r = results[0] if isinstance(results, list) else results
+
+        # Safeguards
+        marks      = min(max(int(r.get("ai_marks_awarded", 0)), 0), q["max_marks"])
+        confidence = min(max(float(r.get("ai_confidence", 0.8)), 0.0), 1.0)
+        irrelevant = str(r.get("ai_irrelevant", "false")).lower() in ("true", "1")
+        flag       = bool(r.get("ai_flag_review", False)) or confidence < 0.85
+        strict_marks = min(max(int(r.get("ai_strict_marks", marks)), 0), q["max_marks"])
+        pct        = round((marks / q["max_marks"] * 100), 2) if q["max_marks"] > 0 else 0
+
+        # Store attempt
+        with engine.begin() as conn:
+            attempt_id = str(uuid.uuid4())
+            conn.execute(text("""
+                INSERT INTO practice_attempts
+                    (attempt_id, student_id, question_id, marks_awarded, max_marks,
+                     percentage, difficulty_used, answer_image_url,
+                     ai_concept, ai_formula, ai_calculation, ai_model_solution,
+                     ai_coaching_tip, ai_confidence, ai_strict_marks, ai_strict_reason,
+                     ai_irrelevant, attempted_at, attempt_date)
+                VALUES
+                    (CAST(:aid AS UNIQUEIDENTIFIER), CAST(:sid AS UNIQUEIDENTIFIER),
+                     CAST(:qid AS UNIQUEIDENTIFIER), :marks, :max_marks,
+                     :pct, :diff, :img_url,
+                     :concept, :formula, :calc, :model_sol,
+                     :tip, :conf, :strict_marks, :strict_reason,
+                     :irrelevant, GETDATE(), CAST(GETDATE() AS DATE))
+            """), {
+                "aid"          : attempt_id,
+                "sid"          : student_id,
+                "qid"          : q_id,
+                "marks"        : marks,
+                "max_marks"    : q["max_marks"],
+                "pct"          : pct,
+                "diff"         : q.get("difficulty", ""),
+                "img_url"      : img_url,
+                "concept"      : r.get("ai_concept", ""),
+                "formula"      : r.get("ai_formula", ""),
+                "calc"         : r.get("ai_calculation", ""),
+                "model_sol"    : r.get("ai_model_solution", ""),
+                "tip"          : r.get("ai_coaching_tip", ""),
+                "conf"         : confidence,
+                "strict_marks" : strict_marks,
+                "strict_reason": r.get("ai_strict_reason", ""),
+                "irrelevant"   : irrelevant
+            })
+
+        return jsonify({
+            "ok"          : True,
+            "attempt_id"  : attempt_id,
+            "marks"       : marks,
+            "max_marks"   : q["max_marks"],
+            "percentage"  : pct,
+            "ai_concept"  : r.get("ai_concept", ""),
+            "ai_formula"  : r.get("ai_formula", ""),
+            "ai_calculation"  : r.get("ai_calculation", ""),
+            "ai_model_solution": r.get("ai_model_solution", ""),
+            "ai_coaching_tip" : r.get("ai_coaching_tip", ""),
+            "ai_strict_marks" : strict_marks,
+            "ai_strict_reason": r.get("ai_strict_reason", ""),
+            "ai_irrelevant"   : irrelevant,
+            "ai_confidence"   : confidence,
+            "ai_flag_review"  : flag,
+            "chapter"     : q["chapter"]
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e)[:300], "trace": traceback.format_exc()[-500:]})
+
+
+@app.route("/api/student/practice/doubt", methods=["POST"])
+@require_role("student")
+def raise_doubt():
+    """Raise a doubt after a practice attempt."""
+    user = get_current_user(request)
+    data = request.json
+    attempt_id  = data.get("attempt_id")
+    question_id = data.get("question_id")
+    doubt_text  = data.get("doubt_text", "").strip()
+    chapter     = data.get("chapter", "")
+    if not attempt_id or not question_id or not doubt_text:
+        return jsonify({"ok": False, "error": "attempt_id, question_id and doubt_text required"})
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            s_row = conn.execute(text("""
+                SELECT s.student_id FROM students s
+                JOIN users u ON s.user_id = u.user_id
+                WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            if not s_row:
+                return jsonify({"ok": False, "error": "Student not found"})
+            conn.execute(text("""
+                INSERT INTO doubts (doubt_id, student_id, question_id, practice_attempt_id, doubt_text, chapter)
+                VALUES (NEWID(), CAST(:sid AS UNIQUEIDENTIFIER), CAST(:qid AS UNIQUEIDENTIFIER),
+                        CAST(:aid AS UNIQUEIDENTIFIER), :doubt_text, :chapter)
+            """), {
+                "sid"       : str(s_row[0]),
+                "qid"       : question_id,
+                "aid"       : attempt_id,
+                "doubt_text": doubt_text,
+                "chapter"   : chapter
+            })
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
 
 
 # ── GET STUDENTS LIST ─────────────────────────────────
@@ -2097,3 +2436,158 @@ def create_assignment():
                         "skipped": skipped_count, "blocked": blocked_students})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+# ── TEACHER DOUBTS API ────────────────────────────────
+@app.route("/api/teacher/doubts", methods=["GET"])
+@require_role("teacher")
+def get_doubts():
+    """Get all doubts aggregated by chapter."""
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT d.doubt_id, d.doubt_text, d.chapter, d.raised_at,
+                       u.name as student_name,
+                       q.latex_content, q.max_marks,
+                       pa.marks_awarded, pa.max_marks as q_max_marks
+                FROM doubts d
+                JOIN students s  ON d.student_id = s.student_id
+                JOIN users u     ON s.user_id = u.user_id
+                JOIN questions q ON d.question_id = q.question_id
+                LEFT JOIN practice_attempts pa ON d.practice_attempt_id = pa.attempt_id
+                ORDER BY d.raised_at DESC
+            """)).fetchall()
+
+            doubts = [dict(r._mapping) for r in rows]
+
+            # Aggregate by chapter
+            agg = {}
+            for d in doubts:
+                ch = d.get("chapter") or "Unknown"
+                if ch not in agg:
+                    agg[ch] = {"chapter": ch, "count": 0, "students": set()}
+                agg[ch]["count"] += 1
+                agg[ch]["students"].add(d["student_name"])
+
+            summary = [
+                {"chapter": k, "count": v["count"], "student_count": len(v["students"])}
+                for k, v in sorted(agg.items(), key=lambda x: -x[1]["count"])
+            ]
+
+            return jsonify({"ok": True, "doubts": doubts, "summary": summary})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+# ── TEACHER PERFORMANCE DASHBOARD API ────────────────
+@app.route("/api/teacher/performance", methods=["GET"])
+@require_role("teacher")
+def get_performance():
+    """Get performance data for all students or a specific student."""
+    student_id = request.args.get("student_id", "")
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Get all students
+            students = conn.execute(text("""
+                SELECT s.student_id, u.name, s.class, s.system_reg_number
+                FROM students s
+                JOIN users u ON s.user_id = u.user_id
+                WHERE u.role = 'student' AND u.is_active = 1
+                ORDER BY u.name
+            """)).fetchall()
+
+            if not student_id:
+                return jsonify({"ok": True, "students": [dict(r._mapping) for r in students]})
+
+            # Per-student performance
+            submissions = conn.execute(text("""
+                SELECT sub.submission_id, sub.total_awarded, sub.total_max,
+                       sub.percentage, sub.submitted_at, sub.final_released,
+                       p.title as paper_title, p.subject
+                FROM submissions sub
+                JOIN assignments a ON sub.submission_id = a.submission_id
+                JOIN papers p      ON a.paper_id = p.paper_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND sub.graded_at IS NOT NULL
+                ORDER BY sub.submitted_at DESC
+            """), {"sid": student_id}).fetchall()
+
+            # Per-question performance
+            questions = conn.execute(text("""
+                SELECT sq.question_number, sq.max_marks, sq.final_marks, sq.ai_marks_awarded,
+                       sq.ai_concept, sq.ai_coaching_tip, q.chapter, q.subject, q.type,
+                       p.title as paper_title, sub.submitted_at
+                FROM submission_questions sq
+                JOIN submissions sub ON sq.submission_id = sub.submission_id
+                JOIN questions q     ON sq.question_id = q.question_id
+                JOIN assignments a   ON sub.submission_id = a.submission_id
+                JOIN papers p        ON a.paper_id = p.paper_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND sub.graded_at IS NOT NULL
+                ORDER BY sub.submitted_at DESC
+            """), {"sid": student_id}).fetchall()
+
+            # Practice performance
+            practice = conn.execute(text("""
+                SELECT pa.marks_awarded, pa.max_marks, pa.percentage,
+                       pa.difficulty_used, pa.attempted_at,
+                       q.chapter, q.subject
+                FROM practice_attempts pa
+                JOIN questions q ON pa.question_id = q.question_id
+                WHERE pa.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                ORDER BY pa.attempted_at DESC
+            """), {"sid": student_id}).fetchall()
+
+            # Mark-wise performance aggregation
+            mark_wise = {}
+            for q in questions:
+                mk = q.max_marks
+                if mk not in mark_wise:
+                    mark_wise[mk] = {"total": 0, "awarded": 0, "count": 0}
+                final = q.final_marks if q.final_marks is not None else q.ai_marks_awarded
+                if final is not None:
+                    mark_wise[mk]["total"]   += mk
+                    mark_wise[mk]["awarded"] += final
+                    mark_wise[mk]["count"]   += 1
+
+            # Chapter-wise performance
+            chapter_wise = {}
+            for q in questions:
+                ch = q.chapter or "Unknown"
+                if ch not in chapter_wise:
+                    chapter_wise[ch] = {"total": 0, "awarded": 0, "count": 0}
+                final = q.final_marks if q.final_marks is not None else q.ai_marks_awarded
+                if final is not None:
+                    chapter_wise[ch]["total"]   += q.max_marks
+                    chapter_wise[ch]["awarded"] += final
+                    chapter_wise[ch]["count"]   += 1
+
+            # Student name
+            s_name = next((dict(r._mapping)["name"] for r in students
+                          if str(dict(r._mapping)["student_id"]) == student_id), "Student")
+
+            return jsonify({
+                "ok"          : True,
+                "student_name": s_name,
+                "submissions" : [dict(r._mapping) for r in submissions],
+                "questions"   : [dict(r._mapping) for r in questions],
+                "practice"    : [dict(r._mapping) for r in practice],
+                "mark_wise"   : [
+                    {"marks": k, "avg_pct": round(v["awarded"]/v["total"]*100, 1) if v["total"] > 0 else 0,
+                     "count": v["count"]}
+                    for k, v in sorted(mark_wise.items())
+                ],
+                "chapter_wise": [
+                    {"chapter": k, "avg_pct": round(v["awarded"]/v["total"]*100, 1) if v["total"] > 0 else 0,
+                     "count": v["count"], "total": v["total"], "awarded": v["awarded"]}
+                    for k, v in sorted(chapter_wise.items(), key=lambda x: -x[1]["awarded"]/x[1]["total"] if x[1]["total"] > 0 else 0)
+                ]
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)

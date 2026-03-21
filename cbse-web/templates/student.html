@@ -347,11 +347,11 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
         <div class="sc-val" id="stat-avg">—</div>
         <div class="sc-sub">From released results</div>
       </div>
-      <div class="stat-card">
-        <div class="sc-icon">⚖️</div>
-        <div class="sc-label">Open Disputes</div>
-        <div class="sc-val" id="stat-disputes" style="color:var(--red);">—</div>
-        <div class="sc-sub">Awaiting resolution</div>
+      <div class="stat-card" style="cursor:pointer;" onclick="showPage('page-practice')">
+        <div class="sc-icon">📚</div>
+        <div class="sc-label">Practice</div>
+        <div class="sc-val" style="color:var(--blue);" id="stat-practice-remaining">3</div>
+        <div class="sc-sub">attempts left today · Tap to start</div>
       </div>
     </div>
 
@@ -555,8 +555,6 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
           <p id="report-subject-grade"></p>
           <div class="score-hero-stats">
             <div class="shs"><div class="shs-val" id="report-q-count">—</div><div class="shs-lbl">Questions</div></div>
-
-            <div class="shs"><div class="shs-val" id="report-disputes">—</div><div class="shs-lbl">Disputes</div></div>
           </div>
         </div>
       </div>
@@ -852,7 +850,6 @@ async function loadReport(submissionId) {
     document.getElementById('report-q-count').textContent = r.questions.length;
 
 
-    document.getElementById('report-disputes').textContent = r.disputes_count;
 
     // Three states: ai_failed / graded-not-released / released
     const questionsEl = document.getElementById('report-questions');
@@ -1462,7 +1459,7 @@ async function loadDashboard() {
     document.getElementById('stat-assigned').textContent  = d.stats.total_assigned;
     document.getElementById('stat-submitted').textContent = d.stats.total_submitted;
     document.getElementById('stat-avg').textContent       = d.stats.avg_score ? d.stats.avg_score + '%' : '—';
-    document.getElementById('stat-disputes').textContent  = d.stats.open_disputes;
+    document.getElementById('stat-practice-remaining').textContent = d.stats.practice_remaining ?? 3;
 
     // Pending exams
     const pendingEl = document.getElementById('dash-pending');
@@ -1633,7 +1630,7 @@ async function submitPracticeAnswer() {
   try {
     // Upload file
     const formData = new FormData();
-    formData.append('files[]', currentPracticeFile);
+    formData.append('files', currentPracticeFile);
     const upRes  = await fetch('/api/student/upload', {method:'POST', body: formData});
     const upData = await upRes.json();
     if (!upData.ok || !upData.urls || !upData.urls.length)

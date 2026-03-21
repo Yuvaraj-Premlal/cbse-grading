@@ -196,6 +196,14 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 .annot-tool { background:var(--white);border:1.5px solid var(--border);color:var(--text);font-size:14px;font-weight:700;width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center; }
 .annot-tool.active { background:var(--blue);border-color:var(--blue);color:#fff; }
 #annot-canvas { display:block; }
+@media print {
+  .sidebar, .topbar, .btn, select, input { display: none !important; }
+  .page { display: block !important; }
+  .page:not(#page-performance) { display: none !important; }
+  .content-area { margin-left: 0 !important; padding: 16px !important; }
+  .card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+  body { background: white; }
+}
 </style>
 </head>
 <body>
@@ -230,14 +238,15 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <div class="nav-section-label">Grading</div>
       <button class="nav-item" onclick="showPage('page-review',this)">
         <span class="ni-icon">🔍</span> Review Queue
-        <span class="ni-badge">3</span>
+        <span class="ni-badge" id="review-queue-badge" style="display:none;">0</span>
       </button>
-      <button class="nav-item" onclick="showPage('page-disputes',this)">
-        <span class="ni-icon">⚖️</span> Disputes
-        <span class="ni-badge">2</span>
+      <div class="nav-section-label">Students</div>
+      <button class="nav-item" onclick="showPage('page-performance',this)">
+        <span class="ni-icon">📊</span> Performance
       </button>
-      <button class="nav-item" onclick="showPage('page-release',this)">
-        <span class="ni-icon">✅</span> Grade Release
+      <button class="nav-item" onclick="showPage('page-doubts',this)">
+        <span class="ni-icon">🙋</span> Doubts
+        <span class="ni-badge" id="doubts-badge" style="display:none;">0</span>
       </button>
     </div>
     <div class="sidebar-footer">
@@ -286,12 +295,6 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         <div class="sc-label">Pending Review</div>
         <div class="sc-val" id="stat-pending" style="color:var(--amber);">—</div>
         <div class="sc-sub">AI graded, awaiting you</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-icon">⚖️</div>
-        <div class="sc-label">Open Disputes</div>
-        <div class="sc-val" id="stat-disputes" style="color:var(--red);">—</div>
-        <div class="sc-sub" id="stat-disputes-sub">—</div>
       </div>
       <div class="stat-card">
         <div class="sc-icon">👥</div>
@@ -711,192 +714,102 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 <!-- ══════════════════════════════════════
      PAGE 6 — DISPUTES
 ══════════════════════════════════════ -->
-<div id="page-disputes" class="page">
+
+
+<!-- PERFORMANCE PAGE -->
+<div id="page-performance" class="page">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-      <div class="topbar-title">Dispute Resolution</div>
+      <div class="topbar-title">Student Performance</div>
     </div>
     <div class="topbar-actions">
-      <span style="font-size:13px;color:var(--red);font-weight:600;">⚠️ 1 expires in 8 hours</span>
+      <button class="btn btn-secondary btn-sm" onclick="printPerformance()" id="perf-print-btn" style="display:none;">⬇ Download PDF</button>
     </div>
   </div>
   <div class="content-area">
-    <div style="max-width:760px;">
-      <div class="page-sub" style="margin-bottom:24px;">Students can raise up to 3 disputes per exam. Each must be resolved within 48 hours. One dispute per question only.</div>
+    <div style="max-width:900px;">
+      <!-- Student selector -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-label">Select Student</div>
+        <select id="perf-student-select" class="form-input" style="width:100%;max-width:360px;" onchange="loadStudentPerformance()">
+          <option value="">— Select a student —</option>
+        </select>
+      </div>
 
-      <!-- URGENT -->
-      <div class="section-label">Urgent — Expires Soon</div>
-      <div class="dispute-card urgent">
-        <div class="dc-header">
-          <span>⚠️ Expires in 8h 14m · Raised Mar 9 at 11:20 PM</span>
-          <span class="badge badge-red">Open</span>
+      <!-- Performance content -->
+      <div id="perf-content" style="display:none;">
+        <div id="perf-student-name" style="font-size:20px;font-weight:700;margin-bottom:4px;"></div>
+        <div id="perf-student-reg" style="font-size:12px;color:var(--muted);margin-bottom:20px;"></div>
+
+        <!-- Summary stats -->
+        <div class="grid-3" style="margin-bottom:20px;">
+          <div class="stat-card"><div class="sc-icon">📝</div><div class="sc-label">Exams Taken</div><div class="sc-val" id="perf-exam-count">—</div></div>
+          <div class="stat-card"><div class="sc-icon">📊</div><div class="sc-label">Average Score</div><div class="sc-val" id="perf-avg-score">—</div></div>
+          <div class="stat-card"><div class="sc-icon">📚</div><div class="sc-label">Practice Attempts</div><div class="sc-val" id="perf-practice-count">—</div></div>
         </div>
-        <div class="dc-question">Aryan Mehta · Q2 — Integration by Parts</div>
-        <div class="dc-reason">"I used the correct method — the formula setup was right and I clearly showed u = x and dv = eˣdx. The limits were substituted correctly on the next page which the AI may have missed."</div>
-        <div class="dc-scores">
-          <div class="dc-score-box">
-            <div class="dc-score-val">3</div>
-            <div class="dc-score-lbl">Original</div>
-          </div>
-          <div style="display:flex;align-items:center;font-size:20px;color:var(--muted);">→</div>
-          <div class="dc-score-box" style="background:var(--blue-l);">
-            <div class="dc-score-val" style="color:var(--blue);">?</div>
-            <div class="dc-score-lbl">Revised</div>
-          </div>
-          <div class="dc-score-box">
-            <div class="dc-score-val">8</div>
-            <div class="dc-score-lbl">Max</div>
-          </div>
+
+        <!-- Mark-wise performance -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-label">Mark-wise Performance</div>
+          <div id="perf-markwise-chart" style="margin-bottom:12px;"></div>
+          <table class="tbl" id="perf-markwise-table">
+            <thead><tr><th>Question Type</th><th>Attempts</th><th>Avg Score</th><th>Performance</th></tr></thead>
+            <tbody id="perf-markwise-tbody"></tbody>
+          </table>
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Revised Marks</label>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <input class="mark-input" type="number" min="0" max="8" placeholder="0"/>
-            <span style="color:var(--muted);">/ 8</span>
-            <span style="font-size:12px;color:var(--muted);">(original: 3/8)</span>
-          </div>
+
+        <!-- Chapter-wise performance -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-label">Chapter-wise Performance</div>
+          <div id="perf-chapter-bars" style="margin-bottom:12px;"></div>
+          <table class="tbl">
+            <thead><tr><th>Chapter</th><th>Questions</th><th>Score</th><th>Avg %</th><th>Status</th></tr></thead>
+            <tbody id="perf-chapter-tbody"></tbody>
+          </table>
         </div>
-        <div class="form-group" style="margin-bottom:14px;">
-          <label class="form-label">Resolution Note (shown to student)</label>
-          <textarea class="form-input" placeholder="Explain your decision clearly — student will see this...">After reviewing the answer sheet, the ILATE selection was incorrect as the AI noted. However, the limit substitution on page 2 was partially correct — awarding 1 additional mark for method.</textarea>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-green btn-sm" onclick="resolveDispute(this)">✓ Resolve — Award Revised Marks</button>
-          <button class="btn btn-ghost btn-sm">👁 View Answer Sheet</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red);">Escalate</button>
+
+        <!-- Exam history -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-label">Exam History</div>
+          <table class="tbl">
+            <thead><tr><th>Paper</th><th>Subject</th><th>Score</th><th>%</th><th>Date</th></tr></thead>
+            <tbody id="perf-exams-tbody"></tbody>
+          </table>
         </div>
       </div>
 
-      <!-- REGULAR -->
-      <div class="section-label" style="margin-top:24px;">Open Disputes</div>
-      <div class="dispute-card">
-        <div class="dc-header">
-          <span>Raised Mar 10 at 2:15 PM · 32h remaining</span>
-          <span class="badge badge-blue">Open</span>
-        </div>
-        <div class="dc-question">Sneha Iyer · Q4 — Matrices</div>
-        <div class="dc-reason">"I showed all the steps for finding the adjoint correctly. The sign error the AI flagged was in the original question paper's notation, not in my working."</div>
-        <div class="dc-scores">
-          <div class="dc-score-box"><div class="dc-score-val">4</div><div class="dc-score-lbl">Original</div></div>
-          <div style="display:flex;align-items:center;font-size:20px;color:var(--muted);">→</div>
-          <div class="dc-score-box" style="background:var(--blue-l);"><div class="dc-score-val" style="color:var(--blue);">?</div><div class="dc-score-lbl">Revised</div></div>
-          <div class="dc-score-box"><div class="dc-score-val">8</div><div class="dc-score-lbl">Max</div></div>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-dispute-resolve')">Resolve →</button>
-          <button class="btn btn-ghost btn-sm">👁 View Answer Sheet</button>
-        </div>
-      </div>
-
-      <!-- RESOLVED -->
-      <div class="section-label" style="margin-top:24px;">Resolved</div>
-      <div class="dispute-card" style="opacity:.7;">
-        <div class="dc-header">
-          <span>Resolved Mar 8 at 4:45 PM</span>
-          <span class="badge badge-green">Resolved</span>
-        </div>
-        <div class="dc-question">Rahul Das · Q1 — Probability</div>
-        <div class="dc-reason">Student claimed partial credit for method. Teacher reviewed — original marks upheld. AI assessment was correct.</div>
-        <div style="font-size:13px;color:var(--muted);">Original: 2/5 · Revised: 2/5 (no change) · Resolution: Working shown was incomplete — AI marks upheld.</div>
-      </div>
+      <div id="perf-empty" style="text-align:center;padding:40px;color:var(--muted);">Select a student to view their performance.</div>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     PAGE 7 — GRADE RELEASE
-══════════════════════════════════════ -->
-<div id="page-release" class="page">
+<!-- DOUBTS PAGE -->
+<div id="page-doubts" class="page">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-      <div class="topbar-title">Grade Release</div>
-    </div>
-    <div class="topbar-actions">
-      <button class="btn btn-green" onclick="openModal('modal-release-all')">✅ Release All Grades</button>
+      <div class="topbar-title">Student Doubts</div>
     </div>
   </div>
   <div class="content-area">
-    <div style="max-width:800px;">
-      <div class="page-title">Mathematics — Unit Test 3</div>
-      <div class="page-sub">28 students · All reviewed · No open disputes · Ready to release</div>
+    <div style="max-width:860px;">
+      <div class="page-sub" style="margin-bottom:20px;">Doubts raised by students during practice sessions. Address these in your weekend or offline sessions.</div>
 
-      <!-- SUMMARY BANNER -->
-      <div style="background:linear-gradient(135deg,var(--blue-d),var(--blue));border-radius:16px;padding:24px 28px;color:#fff;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;">
-        <div>
-          <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:4px;">Class Average</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:36px;">68%</div>
-          <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:2px;">↑ Up 6% from last test</div>
-        </div>
-        <div style="display:flex;gap:24px;">
-          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">28</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Students</div></div>
-          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">28</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Reviewed</div></div>
-          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">0</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Disputes Open</div></div>
-          <div style="text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:24px;">28</div><div style="font-size:11px;color:rgba(255,255,255,.65);">Parent Emails</div></div>
-        </div>
-      </div>
-
-      <!-- CHECKLIST -->
+      <!-- Chapter summary -->
       <div class="card" style="margin-bottom:20px;">
-        <div class="section-label">Pre-Release Checklist</div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> All 28 submissions reviewed by teacher</div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> No open disputes remaining</div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> AI model solutions generated for all questions</div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> Teacher feedback added for flagged submissions</div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;"><span style="color:var(--green);font-size:18px;">✅</span> Parent CC email configured (28 students have parent email set)</div>
-        </div>
+        <div class="section-label">By Chapter</div>
+        <div id="doubts-summary" style="color:var(--muted);font-size:13px;">Loading...</div>
       </div>
 
-      <!-- INDIVIDUAL GRADES -->
-      <div class="section-label">Individual Grades</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-        <div class="release-card">
-          <div class="rc-avatar">A</div>
-          <div class="rc-body">
-            <div class="rc-name">Aryan Mehta</div>
-            <div class="rc-meta">Reviewed · No disputes · Parent email: yes</div>
-          </div>
-          <div>
-            <div class="rc-score">21/28</div>
-            <div class="rc-pct">75% · Grade A</div>
-          </div>
-          <span class="badge badge-green">Ready</span>
-        </div>
-        <div class="release-card">
-          <div class="rc-avatar">S</div>
-          <div class="rc-body">
-            <div class="rc-name">Sneha Iyer</div>
-            <div class="rc-meta">Reviewed · Dispute resolved · Parent email: yes</div>
-          </div>
-          <div>
-            <div class="rc-score">19/28</div>
-            <div class="rc-pct">68% · Grade B+</div>
-          </div>
-          <span class="badge badge-green">Ready</span>
-        </div>
-        <div class="release-card">
-          <div class="rc-avatar">R</div>
-          <div class="rc-body">
-            <div class="rc-name">Rahul Das</div>
-            <div class="rc-meta">Reviewed · No disputes · Parent email: yes</div>
-          </div>
-          <div>
-            <div class="rc-score">11/28</div>
-            <div class="rc-pct">39% · Grade D</div>
-          </div>
-          <span class="badge badge-amber">⚠️ Low Score</span>
-        </div>
+      <!-- Filter -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <input type="text" id="doubts-search" class="form-input" placeholder="Search by student or chapter..." style="flex:1;" oninput="filterDoubts()"/>
       </div>
 
-      <div style="background:var(--blue-l);border:1px solid var(--blue-m);border-radius:12px;padding:16px;margin-bottom:20px;font-size:13px;color:var(--text);line-height:1.7;">
-        📧 <strong>On release:</strong> Each student gets access to their full report with step-by-step breakdown and teacher feedback. Parents of all 28 students will receive a grade summary email. Practice section unlocks for students who haven't yet attempted an exam.
-      </div>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn btn-green btn-full" onclick="openModal('modal-release-all')" style="max-width:280px;">✅ Release All 28 Grades →</button>
-        <button class="btn btn-secondary" onclick="openModal('modal-release-all')">Release Selected Only</button>
+      <!-- Doubts list -->
+      <div id="doubts-list">
+        <div style="text-align:center;padding:40px;color:var(--muted);">Loading doubts...</div>
       </div>
     </div>
   </div>
@@ -1181,10 +1094,12 @@ function showPage(id, navBtn) {
   }
   if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
   // Auto-load data for pages that need it
-  if(id === 'page-questions') loadQuestions();
-  if(id === 'page-papers')    loadPapers();
-  if(id === 'page-assign')    loadAssignPage();
-  if(id === 'page-review')    loadReviewQueue();
+  if(id === 'page-questions')   loadQuestions();
+  if(id === 'page-papers')      loadPapers();
+  if(id === 'page-assign')      loadAssignPage();
+  if(id === 'page-review')      loadReviewQueue();
+  if(id === 'page-performance') loadPerformancePage();
+  if(id === 'page-doubts')      loadDoubts();
 }
 
 // ── SIDEBAR TOGGLE (mobile) ──
@@ -2284,12 +2199,18 @@ async function loadDashboard() {
     document.getElementById('sidebar-name').textContent = d.name;
     document.getElementById('sidebar-avatar').textContent = d.name.charAt(0).toUpperCase();
 
+    // Review queue badge — show actual count
+    const badge = document.getElementById('review-queue-badge');
+    if (d.pending_review > 0) {
+      badge.textContent = d.pending_review;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+
     // Stats
     document.getElementById('stat-active-exams').textContent = d.active_exams;
     document.getElementById('stat-pending').textContent      = d.pending_review;
-    document.getElementById('stat-disputes').textContent     = d.open_disputes;
-    document.getElementById('stat-disputes-sub').textContent =
-      d.urgent_disputes > 0 ? `${d.urgent_disputes} expires soon` : 'No urgent disputes';
     document.getElementById('stat-students').textContent     = d.total_students;
 
     // Pending review table
@@ -2683,6 +2604,184 @@ function annotGetJSON() {
     Object.keys(annotPageData).forEach(idx => { canvasWidths[idx] = baseWidth; });
   }
   return JSON.stringify({ pages: annotPageData, canvasWidths });
+}
+
+// ── PERFORMANCE DASHBOARD ────────────────────────────
+let allDoubtsData = [];
+
+async function loadPerformancePage() {
+  try {
+    const res  = await fetch('/api/teacher/performance');
+    const data = await res.json();
+    if (!data.ok) return;
+    const sel = document.getElementById('perf-student-select');
+    sel.innerHTML = '<option value="">— Select a student —</option>' +
+      data.students.map(s =>
+        `<option value="${s.student_id}">${s.name} · Class ${s.class||'?'} · ${s.system_reg_number||''}</option>`
+      ).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadStudentPerformance() {
+  const sid = document.getElementById('perf-student-select').value;
+  if (!sid) {
+    document.getElementById('perf-content').style.display = 'none';
+    document.getElementById('perf-empty').style.display   = 'block';
+    document.getElementById('perf-print-btn').style.display = 'none';
+    return;
+  }
+  try {
+    const res  = await fetch(`/api/teacher/performance?student_id=${sid}`);
+    const data = await res.json();
+    if (!data.ok) return;
+
+    document.getElementById('perf-content').style.display  = 'block';
+    document.getElementById('perf-empty').style.display    = 'none';
+    document.getElementById('perf-print-btn').style.display = 'inline-flex';
+    document.getElementById('perf-student-name').textContent = data.student_name;
+
+    // Summary stats
+    document.getElementById('perf-exam-count').textContent     = data.submissions.length;
+    document.getElementById('perf-practice-count').textContent = data.practice.length;
+    const avgPct = data.submissions.length
+      ? Math.round(data.submissions.reduce((s,r) => s + (r.percentage||0), 0) / data.submissions.length)
+      : 0;
+    document.getElementById('perf-avg-score').textContent = avgPct + '%';
+
+    // Mark-wise chart + table
+    const mwBars = data.mark_wise.map(m => {
+      const color = m.avg_pct >= 75 ? 'var(--green)' : m.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+          <span>${m.marks}-mark questions</span>
+          <span style="font-weight:600;color:${color};">${m.avg_pct}%</span>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+          <div style="width:${m.avg_pct}%;height:100%;background:${color};border-radius:4px;"></div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('perf-markwise-chart').innerHTML = mwBars;
+    document.getElementById('perf-markwise-tbody').innerHTML = data.mark_wise.map(m => {
+      const color = m.avg_pct >= 75 ? 'var(--green)' : m.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<tr>
+        <td>${m.marks}-mark questions</td><td>${m.count}</td>
+        <td style="color:${color};font-weight:600;">${m.avg_pct}%</td>
+        <td>${m.avg_pct>=75?'✅ Strong':m.avg_pct>=50?'⚠️ Average':'❌ Needs Work'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">No data</td></tr>';
+
+    // Chapter-wise chart + table
+    const chBars = data.chapter_wise.map(c => {
+      const color = c.avg_pct >= 75 ? 'var(--green)' : c.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+          <span>${c.chapter}</span>
+          <span style="font-weight:600;color:${color};">${c.avg_pct}%</span>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+          <div style="width:${c.avg_pct}%;height:100%;background:${color};border-radius:4px;"></div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('perf-chapter-bars').innerHTML = chBars;
+    document.getElementById('perf-chapter-tbody').innerHTML = data.chapter_wise.map(c => {
+      const color = c.avg_pct >= 75 ? 'var(--green)' : c.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<tr>
+        <td>${c.chapter}</td><td>${c.count}</td>
+        <td>${c.awarded}/${c.total}</td>
+        <td style="color:${color};font-weight:600;">${c.avg_pct}%</td>
+        <td>${c.avg_pct>=75?'✅ Strong':c.avg_pct>=50?'⚠️ Needs Practice':'❌ Weak Area'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No data</td></tr>';
+
+    // Exam history
+    document.getElementById('perf-exams-tbody').innerHTML = data.submissions.map(s => {
+      const pct   = s.percentage ? Math.round(s.percentage) : 0;
+      const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      const date  = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('en-IN') : '—';
+      return `<tr>
+        <td>${s.paper_title}</td><td>${s.subject||'—'}</td>
+        <td>${s.total_awarded||0}/${s.total_max||0}</td>
+        <td style="color:${color};font-weight:600;">${pct}%</td>
+        <td>${date}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No exams yet</td></tr>';
+
+  } catch(e) { console.error('Performance error:', e); }
+}
+
+function printPerformance() { window.print(); }
+
+// ── DOUBTS ────────────────────────────────────────────
+async function loadDoubts() {
+  try {
+    const res  = await fetch('/api/teacher/doubts');
+    const data = await res.json();
+    if (!data.ok) return;
+    allDoubtsData = data.doubts;
+
+    // Badge
+    const badge = document.getElementById('doubts-badge');
+    if (data.doubts.length > 0) {
+      badge.textContent    = data.doubts.length;
+      badge.style.display  = 'inline-block';
+    } else {
+      badge.style.display  = 'none';
+    }
+
+    // Chapter summary
+    const summaryEl = document.getElementById('doubts-summary');
+    if (data.summary.length) {
+      summaryEl.innerHTML = data.summary.map(s =>
+        `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:1;font-size:13px;font-weight:600;">${s.chapter}</div>
+          <div style="font-size:12px;color:var(--muted);">${s.student_count} student${s.student_count>1?'s':''}</div>
+          <div style="background:var(--red-l);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">${s.count} doubt${s.count>1?'s':''}</div>
+        </div>`).join('');
+    } else {
+      summaryEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No doubts raised yet.</div>';
+    }
+
+    renderDoubts(data.doubts);
+  } catch(e) { console.error('Doubts error:', e); }
+}
+
+function filterDoubts() {
+  const q        = document.getElementById('doubts-search').value.toLowerCase();
+  const filtered = allDoubtsData.filter(d =>
+    (d.student_name||'').toLowerCase().includes(q) ||
+    (d.chapter||'').toLowerCase().includes(q) ||
+    (d.doubt_text||'').toLowerCase().includes(q)
+  );
+  renderDoubts(filtered);
+}
+
+function renderDoubts(doubts) {
+  const listEl = document.getElementById('doubts-list');
+  if (!doubts.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">No doubts found.</div>';
+    return;
+  }
+  listEl.innerHTML = doubts.map(d => {
+    const date  = d.raised_at ? new Date(d.raised_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '—';
+    const score = (d.marks_awarded !== null && d.marks_awarded !== undefined && d.q_max_marks)
+      ? `· Got ${d.marks_awarded}/${d.q_max_marks}` : '';
+    return `<div class="card" style="margin-bottom:12px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(d.student_name||'?').charAt(0).toUpperCase()}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;">${d.student_name||'—'}</div>
+          <div style="font-size:11px;color:var(--muted);">${d.chapter||'—'} · ${date} ${score}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Question</div>
+      <div style="font-size:13px;background:var(--bg);padding:8px 12px;border-radius:8px;margin-bottom:10px;">${d.latex_content||'—'}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Student's Doubt</div>
+      <div style="font-size:13px;font-style:italic;color:var(--text);">"${d.doubt_text}"</div>
+    </div>`;
+  }).join('');
+  if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([listEl]);
 }
 
 </script>

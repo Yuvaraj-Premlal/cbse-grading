@@ -123,6 +123,48 @@ def get_openai_client():
         api_version    = "2024-02-01"
     )
 
+def wrap_latex(text):
+    """Ensure LaTeX expressions are wrapped in $ delimiters for MathJax rendering.
+    If text already has $ or \\( delimiters, return as-is.
+    If text contains raw LaTeX commands without delimiters, wrap math segments."""
+    if not text:
+        return text
+    # Already has delimiters
+    import re
+    if '$' in text or r'\(' in text or r'\[' in text:
+        return text
+    # No LaTeX at all
+    if not re.search(r'\\[a-zA-Z]', text):
+        return text
+    # Has raw LaTeX — wrap segments that look like math expressions
+    # Strategy: split on sentence boundaries, wrap segments containing LaTeX
+    def wrap_segment(s):
+        s = s.strip()
+        if not s:
+            return s
+        if re.search(r'\\[a-zA-Z]|_\{|\^\{|\^[0-9]', s):
+            if not s.startswith('$'):
+                return '$' + s + '$'
+        return s
+
+    # Split into sentences/clauses and process each
+    parts = re.split(r'(\. |\.\n|\n\n)', text)
+    result = []
+    for part in parts:
+        if re.search(r'\\[a-zA-Z]', part) and not re.match(r'^[\s.,;:]+$', part):
+            # Mixed text and math — wrap inline math patterns
+            # Find continuous math segments (sequences with \cmd or _ or ^)
+            processed = re.sub(
+                r'((?:\\[a-zA-Z]+(?:\{[^}]*\})*|\$[^$]+\$|[_^]\{[^}]*\}|[_^][0-9a-zA-Z])+(?:\s+(?:\\[a-zA-Z]+(?:\{[^}]*\})*|[_^]\{[^}]*\}|[_^][0-9a-zA-Z])+)*)',
+                lambda m: '$' + m.group(0) + '$' if not m.group(0).startswith('$') else m.group(0),
+                part
+            )
+            result.append(processed)
+        else:
+            result.append(part)
+    return ''.join(result)
+
+
 def grade_submission(questions, answer_sheet_urls):
     """
     Grade student answer sheet using GPT-4o vision — 2-pass approach.
@@ -458,15 +500,15 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                     "breakdown"    : r.get('ai_step_breakdown', ''),
                     "strength"     : r.get('ai_strength', ''),
                     "weakness"     : r.get('ai_weakness', ''),
-                    "model_sol"    : r.get('ai_model_solution', ''),
-                    "tip"          : r.get('ai_coaching_tip', ''),
+                    "model_sol"    : wrap_latex(r.get('ai_model_solution', '')),
+                    "tip"          : wrap_latex(r.get('ai_coaching_tip', '')),
                     "confidence"   : confidence,
                     "flag"         : flag,
                     "strict_marks" : strict_marks,
                     "strict_reason": r.get('ai_strict_reason', ''),
-                    "concept"      : r.get('ai_concept', ''),
-                    "formula"      : r.get('ai_formula', ''),
-                    "calculation"  : r.get('ai_calculation', ''),
+                    "concept"      : wrap_latex(r.get('ai_concept', '')),
+                    "formula"      : wrap_latex(r.get('ai_formula', '')),
+                    "calculation"  : wrap_latex(r.get('ai_calculation', '')),
                     "irrelevant"   : irrelevant
                 })
 
@@ -1910,14 +1952,27 @@ def get_student_profile():
         engine = get_engine()
         with engine.connect() as conn:
             row = conn.execute(text("""
-                SELECT u.name, u.email, s.class, s.system_reg_number, s.registration_number
+                SELECT u.name, u.email, s.class, s.system_reg_number, s.registration_number,
+                       CAST(s.student_id AS NVARCHAR(36)) as student_id
                 FROM users u
                 JOIN students s ON s.user_id = u.user_id
                 WHERE u.email = :email
             """), {"email": user["email"]}).fetchone()
             if not row:
                 return jsonify({"ok": False, "error": "Profile not found"})
-            return jsonify({"ok": True, "profile": dict(row._mapping)})
+            profile = dict(row._mapping)
+
+        # Auto-generate reg number if missing
+        if not profile.get("system_reg_number"):
+            with engine.begin() as conn:
+                reg_num = generate_system_reg_number(conn)
+                conn.execute(text("""
+                    UPDATE students SET system_reg_number = :reg_num
+                    WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                """), {"reg_num": reg_num, "sid": profile["student_id"]})
+            profile["system_reg_number"] = reg_num
+
+        return jsonify({"ok": True, "profile": profile})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
 
@@ -2162,11 +2217,11 @@ Return ONLY the JSON array."""},
                 "pct"          : pct,
                 "diff"         : q.get("difficulty", ""),
                 "img_url"      : img_url,
-                "concept"      : r.get("ai_concept", ""),
-                "formula"      : r.get("ai_formula", ""),
-                "calc"         : r.get("ai_calculation", ""),
-                "model_sol"    : r.get("ai_model_solution", ""),
-                "tip"          : r.get("ai_coaching_tip", ""),
+                "concept"      : wrap_latex(r.get("ai_concept", "")),
+                "formula"      : wrap_latex(r.get("ai_formula", "")),
+                "calc"         : wrap_latex(r.get("ai_calculation", "")),
+                "model_sol"    : wrap_latex(r.get("ai_model_solution", "")),
+                "tip"          : wrap_latex(r.get("ai_coaching_tip", "")),
                 "conf"         : confidence,
                 "strict_marks" : strict_marks,
                 "strict_reason": r.get("ai_strict_reason", ""),
@@ -2179,11 +2234,11 @@ Return ONLY the JSON array."""},
             "marks"       : marks,
             "max_marks"   : q["max_marks"],
             "percentage"  : pct,
-            "ai_concept"  : r.get("ai_concept", ""),
-            "ai_formula"  : r.get("ai_formula", ""),
-            "ai_calculation"  : r.get("ai_calculation", ""),
-            "ai_model_solution": r.get("ai_model_solution", ""),
-            "ai_coaching_tip" : r.get("ai_coaching_tip", ""),
+            "ai_concept"  : wrap_latex(r.get("ai_concept", "")),
+            "ai_formula"  : wrap_latex(r.get("ai_formula", "")),
+            "ai_calculation"  : wrap_latex(r.get("ai_calculation", "")),
+            "ai_model_solution": wrap_latex(r.get("ai_model_solution", "")),
+            "ai_coaching_tip" : wrap_latex(r.get("ai_coaching_tip", "")),
             "ai_strict_marks" : strict_marks,
             "ai_strict_reason": r.get("ai_strict_reason", ""),
             "ai_irrelevant"   : irrelevant,

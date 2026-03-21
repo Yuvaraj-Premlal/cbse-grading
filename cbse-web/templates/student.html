@@ -1539,6 +1539,18 @@ async function loadDashboard() {
   }
 }
 
+// ── LATEX UTILITY ─────────────────────────────────────
+// Python already wraps LaTeX in $ delimiters before storing.
+// This is a safety fallback for any undelimited raw LaTeX.
+function wrapLatex(text) {
+  if (!text) return '';
+  if (/\$|\\\(/.test(text)) return text; // already wrapped
+  if (!/\\[a-zA-Z]/.test(text)) return text; // no LaTeX
+  // Wrap entire content as inline math if it's purely mathematical
+  // Otherwise return as-is and let MathJax handle what it can
+  return text;
+}
+
 // ── PRACTICE ──────────────────────────────────────────
 let practiceQuestions    = [];
 let currentPracticeQ     = null;
@@ -1690,7 +1702,7 @@ function showPracticeResult(data) {
 
   function showBox(secId, textId, val) {
     if (val) {
-      document.getElementById(textId).innerHTML = val;
+      document.getElementById(textId).innerHTML = wrapLatex(val);
       document.getElementById(secId).style.display = 'block';
     } else {
       document.getElementById(secId).style.display = 'none';

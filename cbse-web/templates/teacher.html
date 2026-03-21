@@ -244,6 +244,12 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <button class="nav-item" onclick="showPage('page-performance',this)">
         <span class="ni-icon">📊</span> Performance
       </button>
+      <button class="nav-item" onclick="showPage('page-student-reports',this)">
+        <span class="ni-icon">📋</span> Student Reports
+      </button>
+      <button class="nav-item" onclick="showPage('page-error-analysis',this)">
+        <span class="ni-icon">🔍</span> Error Analysis
+      </button>
       <button class="nav-item" onclick="showPage('page-doubts',this)">
         <span class="ni-icon">🙋</span> Doubts
         <span class="ni-badge" id="doubts-badge" style="display:none;">0</span>
@@ -318,38 +324,6 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
         </div>
       </div>
 
-      <!-- CLASS PERFORMANCE -->
-      <div>
-        <div class="section-label">Paper Performance — Unit Test 3</div>
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-            <div>
-              <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--ink);">68%</div>
-              <div style="font-size:12px;color:var(--muted);">Paper average · 28 students</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:13px;font-weight:600;color:var(--green);">↑ 6% from last test</div>
-              <div style="font-size:12px;color:var(--muted);">Previous avg: 62%</div>
-            </div>
-          </div>
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>A (≥75%)</span><span>9 students</span></div>
-            <div class="progress-track"><div class="progress-fill green" style="width:32%"></div></div>
-          </div>
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>B (60–74%)</span><span>12 students</span></div>
-            <div class="progress-track"><div class="progress-fill" style="width:43%"></div></div>
-          </div>
-          <div style="margin-bottom:14px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>C (45–59%)</span><span>5 students</span></div>
-            <div class="progress-track"><div class="progress-fill amber" style="width:18%"></div></div>
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;"><span>Below C (&lt;45%)</span><span>2 students</span></div>
-            <div class="progress-track"><div class="progress-fill red" style="width:7%"></div></div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ACTIVE ASSIGNMENTS -->
@@ -743,8 +717,19 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
 
       <!-- Performance content -->
       <div id="perf-content" style="display:none;">
-        <div id="perf-student-name" style="font-size:20px;font-weight:700;margin-bottom:4px;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+          <div id="perf-student-name" style="font-size:20px;font-weight:700;"></div>
+          <button class="btn btn-secondary btn-sm" onclick="generateAINarrative()" id="perf-ai-btn">🤖 Generate AI Summary</button>
+        </div>
         <div id="perf-student-reg" style="font-size:12px;color:var(--muted);margin-bottom:20px;"></div>
+
+        <!-- AI Narrative -->
+        <div id="perf-ai-section" style="display:none;margin-bottom:20px;">
+          <div class="card" style="background:var(--blue-l);border:1px solid var(--blue-m);">
+            <div class="section-label" style="color:var(--blue);">🤖 AI Performance Summary</div>
+            <div id="perf-ai-text" style="font-size:13.5px;line-height:1.8;color:var(--text);"></div>
+          </div>
+        </div>
 
         <!-- Summary stats -->
         <div class="grid-3" style="margin-bottom:20px;">
@@ -753,11 +738,17 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
           <div class="stat-card"><div class="sc-icon">📚</div><div class="sc-label">Practice Attempts</div><div class="sc-val" id="perf-practice-count">—</div></div>
         </div>
 
+        <!-- Score trend -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-label">Score Trend (Exam by Exam)</div>
+          <div id="perf-trend-chart" style="padding:8px 0;"></div>
+        </div>
+
         <!-- Mark-wise performance -->
         <div class="card" style="margin-bottom:16px;">
           <div class="section-label">Mark-wise Performance</div>
           <div id="perf-markwise-chart" style="margin-bottom:12px;"></div>
-          <table class="tbl" id="perf-markwise-table">
+          <table class="tbl">
             <thead><tr><th>Question Type</th><th>Attempts</th><th>Avg Score</th><th>Performance</th></tr></thead>
             <tbody id="perf-markwise-tbody"></tbody>
           </table>
@@ -773,6 +764,15 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
           </table>
         </div>
 
+        <!-- Practice performance -->
+        <div class="card" style="margin-bottom:16px;" id="perf-practice-card">
+          <div class="section-label">Practice Performance</div>
+          <table class="tbl">
+            <thead><tr><th>Chapter</th><th>Question</th><th>Score</th><th>Difficulty</th><th>Date</th></tr></thead>
+            <tbody id="perf-practice-tbody"></tbody>
+          </table>
+        </div>
+
         <!-- Exam history -->
         <div class="card" style="margin-bottom:16px;">
           <div class="section-label">Exam History</div>
@@ -784,6 +784,75 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       </div>
 
       <div id="perf-empty" style="text-align:center;padding:40px;color:var(--muted);">Select a student to view their performance.</div>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENT REPORTS PAGE -->
+<div id="page-student-reports" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Student Reports</div>
+    </div>
+  </div>
+  <div class="content-area">
+    <div style="max-width:900px;">
+      <!-- Student + Submission selector -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="section-label">Select Student</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <select id="sr-student-select" class="form-input" style="flex:1;max-width:360px;" onchange="loadStudentSubmissions()">
+            <option value="">— Select a student —</option>
+          </select>
+        </div>
+        <div id="sr-submissions-list" style="display:none;margin-top:16px;">
+          <div class="section-label">Select Exam</div>
+          <div id="sr-submissions" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+      <!-- Report content -->
+      <div id="sr-report" style="display:none;"></div>
+      <div id="sr-empty" style="text-align:center;padding:40px;color:var(--muted);">Select a student to view their reports.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ERROR ANALYSIS PAGE -->
+<div id="page-error-analysis" class="page">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title">Error Analysis Engine</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" id="ea-generate-btn" onclick="generateErrorAnalysis()">🔍 Generate Analysis</button>
+    </div>
+  </div>
+  <div class="content-area">
+    <div style="max-width:900px;">
+      <div class="page-sub" style="margin-bottom:20px;">AI-powered analysis of recurring error patterns across all students' exam submissions.</div>
+
+      <!-- Last generated info -->
+      <div id="ea-meta" style="display:none;font-size:12px;color:var(--muted);margin-bottom:16px;"></div>
+
+      <!-- Loading state -->
+      <div id="ea-loading" style="display:none;text-align:center;padding:40px;">
+        <div style="font-size:14px;color:var(--muted);">🤖 Analysing all student submissions... This may take 30-60 seconds.</div>
+      </div>
+
+      <!-- Results -->
+      <div id="ea-results" style="display:none;">
+        <!-- View toggle -->
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+          <button id="ea-tab-chapter" class="btn btn-primary btn-sm" onclick="switchEATab('chapter')">By Chapter</button>
+          <button id="ea-tab-error" class="btn btn-ghost btn-sm" onclick="switchEATab('error')">By Error Type</button>
+        </div>
+        <div id="ea-chapter-view"></div>
+        <div id="ea-error-view" style="display:none;"></div>
+      </div>
+
+      <div id="ea-empty" style="text-align:center;padding:40px;color:var(--muted);">Click "Generate Analysis" to analyse error patterns across all student submissions.</div>
     </div>
   </div>
 </div>
@@ -1103,12 +1172,14 @@ function showPage(id, navBtn) {
   }
   if(window.innerWidth<=900) document.getElementById('sidebar').classList.remove('open');
   // Auto-load data for pages that need it
-  if(id === 'page-questions')   loadQuestions();
-  if(id === 'page-papers')      loadPapers();
-  if(id === 'page-assign')      loadAssignPage();
-  if(id === 'page-review')      loadReviewQueue();
-  if(id === 'page-performance') loadPerformancePage();
-  if(id === 'page-doubts')      loadDoubts();
+  if(id === 'page-questions')      loadQuestions();
+  if(id === 'page-papers')         loadPapers();
+  if(id === 'page-assign')         loadAssignPage();
+  if(id === 'page-review')         loadReviewQueue();
+  if(id === 'page-performance')    loadPerformancePage();
+  if(id === 'page-doubts')         loadDoubts();
+  if(id === 'page-student-reports') loadStudentReportsPage();
+  if(id === 'page-error-analysis') loadErrorAnalysisPage();
 }
 
 // ── SIDEBAR TOGGLE (mobile) ──
@@ -2731,6 +2802,385 @@ async function addressQuestion(btn) {
     if (data.ok) { allDoubtsGroups.splice(groupIdx, 1); renderDoubtGroups(allDoubtsGroups); loadDoubts(); }
     else alert('Error: ' + data.error);
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── PERFORMANCE DASHBOARD ────────────────────────────
+let perfCurrentData = null;
+
+async function loadPerformancePage() {
+  try {
+    const res  = await fetch('/api/teacher/performance');
+    const data = await res.json();
+    if (!data.ok) return;
+    const sel = document.getElementById('perf-student-select');
+    sel.innerHTML = '<option value="">— Select a student —</option>' +
+      data.students.map(function(s) {
+        return '<option value="' + s.student_id + '">' +
+          s.name + ' · ' + (s.system_reg_number || 'No Reg#') + ' · Class ' + (s.class || '?') + '</option>';
+      }).join('');
+  } catch(e) { console.error('Performance load error:', e); }
+}
+
+async function loadStudentPerformance() {
+  const sid = document.getElementById('perf-student-select').value;
+  if (!sid) {
+    document.getElementById('perf-content').style.display = 'none';
+    document.getElementById('perf-empty').style.display   = 'block';
+    document.getElementById('perf-print-btn').style.display = 'none';
+    return;
+  }
+  document.getElementById('perf-empty').innerHTML = '<div style="color:var(--muted);padding:40px;text-align:center;">Loading...</div>';
+  document.getElementById('perf-empty').style.display = 'block';
+  document.getElementById('perf-content').style.display = 'none';
+  try {
+    const res  = await fetch('/api/teacher/performance?student_id=' + sid);
+    const data = await res.json();
+    if (!data.ok) { alert('Error: ' + data.error); return; }
+    perfCurrentData = data;
+
+    document.getElementById('perf-content').style.display  = 'block';
+    document.getElementById('perf-empty').style.display    = 'none';
+    document.getElementById('perf-print-btn').style.display = 'inline-flex';
+    document.getElementById('perf-ai-section').style.display = 'none';
+
+    document.getElementById('perf-student-name').textContent = data.student_name;
+    document.getElementById('perf-student-reg').textContent  =
+      (data.system_reg_number || '') + (data.student_class ? ' · Class ' + data.student_class : '');
+
+    // Summary stats
+    document.getElementById('perf-exam-count').textContent     = data.submissions.length;
+    document.getElementById('perf-practice-count').textContent = data.practice.length;
+    const avgPct = data.submissions.length
+      ? Math.round(data.submissions.reduce(function(s,r){ return s + (r.percentage||0); }, 0) / data.submissions.length)
+      : 0;
+    document.getElementById('perf-avg-score').textContent = avgPct + '%';
+
+    // Score trend
+    renderTrend(data.submissions);
+
+    // Mark-wise
+    const mwBars = data.mark_wise.map(function(m) {
+      const color = m.avg_pct >= 75 ? 'var(--green)' : m.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return '<div style="margin-bottom:8px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">' +
+        '<span>' + m.marks + '-mark questions</span>' +
+        '<span style="font-weight:600;color:' + color + ';">' + m.avg_pct + '%</span></div>' +
+        '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">' +
+        '<div style="width:' + m.avg_pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width .5s;"></div></div></div>';
+    }).join('');
+    document.getElementById('perf-markwise-chart').innerHTML = mwBars;
+    document.getElementById('perf-markwise-tbody').innerHTML = data.mark_wise.map(function(m) {
+      const color = m.avg_pct >= 75 ? 'var(--green)' : m.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return '<tr><td>' + m.marks + '-mark questions</td><td>' + m.count + '</td>' +
+        '<td style="color:' + color + ';font-weight:600;">' + m.avg_pct + '%</td>' +
+        '<td>' + (m.avg_pct>=75?'✅ Strong':m.avg_pct>=50?'⚠️ Average':'❌ Needs Work') + '</td></tr>';
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">No data yet</td></tr>';
+
+    // Chapter-wise
+    const chBars = data.chapter_wise.map(function(c) {
+      const color = c.avg_pct >= 75 ? 'var(--green)' : c.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return '<div style="margin-bottom:8px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">' +
+        '<span>' + c.chapter + '</span>' +
+        '<span style="font-weight:600;color:' + color + ';">' + c.avg_pct + '%</span></div>' +
+        '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">' +
+        '<div style="width:' + c.avg_pct + '%;height:100%;background:' + color + ';border-radius:4px;transition:width .5s;"></div></div></div>';
+    }).join('');
+    document.getElementById('perf-chapter-bars').innerHTML = chBars;
+    document.getElementById('perf-chapter-tbody').innerHTML = data.chapter_wise.map(function(c) {
+      const color = c.avg_pct >= 75 ? 'var(--green)' : c.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      return '<tr><td>' + c.chapter + '</td><td>' + c.count + '</td>' +
+        '<td>' + c.awarded + '/' + c.total + '</td>' +
+        '<td style="color:' + color + ';font-weight:600;">' + c.avg_pct + '%</td>' +
+        '<td>' + (c.avg_pct>=75?'✅ Strong':c.avg_pct>=50?'⚠️ Needs Practice':'❌ Weak Area') + '</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No data yet</td></tr>';
+
+    // Practice
+    document.getElementById('perf-practice-tbody').innerHTML = data.practice.length
+      ? data.practice.map(function(p) {
+          const pct   = p.percentage ? Math.round(p.percentage) : 0;
+          const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+          const date  = p.attempted_at ? new Date(p.attempted_at).toLocaleDateString('en-IN') : '—';
+          return '<tr><td>' + (p.chapter||'—') + '</td>' +
+            '<td style="font-size:12px;">' + (p.latex_content||'—').substring(0,60) + (p.latex_content&&p.latex_content.length>60?'...':'') + '</td>' +
+            '<td style="color:' + color + ';font-weight:600;">' + (p.marks_awarded||0) + '/' + (p.max_marks||0) + '</td>' +
+            '<td>' + (p.difficulty_used||'—') + '</td>' +
+            '<td>' + date + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No practice attempts yet</td></tr>';
+
+    // Exam history
+    document.getElementById('perf-exams-tbody').innerHTML = data.submissions.length
+      ? data.submissions.map(function(s) {
+          const pct   = s.percentage ? Math.round(s.percentage) : 0;
+          const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+          const date  = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('en-IN') : '—';
+          return '<tr><td>' + (s.paper_title||'—') + '</td><td>' + (s.subject||'—') + '</td>' +
+            '<td>' + (s.total_awarded||0) + '/' + (s.total_max||0) + '</td>' +
+            '<td style="color:' + color + ';font-weight:600;">' + pct + '%</td>' +
+            '<td>' + date + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No exams yet</td></tr>';
+
+  } catch(e) { console.error('Performance error:', e); }
+}
+
+function renderTrend(submissions) {
+  const trendEl = document.getElementById('perf-trend-chart');
+  if (!submissions.length) {
+    trendEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px;">No exam history yet.</div>';
+    return;
+  }
+  // Simple bar trend chart
+  const sorted = submissions.slice().reverse(); // oldest first
+  const maxPct = 100;
+  const bars = sorted.map(function(s, i) {
+    const pct   = s.percentage ? Math.round(s.percentage) : 0;
+    const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+    const date  = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '';
+    return '<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:40px;">' +
+      '<div style="font-size:11px;font-weight:600;color:' + color + ';margin-bottom:4px;">' + pct + '%</div>' +
+      '<div style="width:100%;background:var(--border);border-radius:4px 4px 0 0;height:80px;display:flex;align-items:flex-end;">' +
+      '<div style="width:100%;height:' + pct + '%;background:' + color + ';border-radius:4px 4px 0 0;transition:height .5s;min-height:4px;"></div></div>' +
+      '<div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (s.paper_title||'') + '">' + date + '</div>' +
+      '</div>';
+  }).join('');
+  trendEl.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;padding:8px 0;">' + bars + '</div>';
+}
+
+async function generateAINarrative() {
+  if (!perfCurrentData) return;
+  const btn = document.getElementById('perf-ai-btn');
+  btn.textContent = '🤖 Generating...';
+  btn.disabled    = true;
+  try {
+    const res  = await fetch('/api/teacher/performance/narrative', {
+      method : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify({ student_id: document.getElementById('perf-student-select').value })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('perf-ai-text').textContent = data.narrative;
+      document.getElementById('perf-ai-section').style.display = 'block';
+      btn.textContent = '🤖 Regenerate Summary';
+    } else {
+      alert('Error: ' + data.error);
+      btn.textContent = '🤖 Generate AI Summary';
+    }
+  } catch(e) {
+    btn.textContent = '🤖 Generate AI Summary';
+    alert('Error: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function printPerformance() { window.print(); }
+
+// ── STUDENT REPORTS ──────────────────────────────────
+async function loadStudentReportsPage() {
+  try {
+    const res  = await fetch('/api/teacher/student-submissions');
+    const data = await res.json();
+    if (!data.ok) return;
+    const sel = document.getElementById('sr-student-select');
+    sel.innerHTML = '<option value="">— Select a student —</option>' +
+      data.students.map(s =>
+        '<option value="' + s.student_id + '">' +
+        s.name + ' · ' + (s.system_reg_number||'No Reg#') + ' · Class ' + (s.class||'?') + '</option>'
+      ).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadStudentSubmissions() {
+  const sid = document.getElementById('sr-student-select').value;
+  document.getElementById('sr-report').style.display          = 'none';
+  document.getElementById('sr-submissions-list').style.display = 'none';
+  document.getElementById('sr-empty').style.display           = 'block';
+  if (!sid) return;
+  try {
+    const res  = await fetch('/api/teacher/student-submissions?student_id=' + sid);
+    const data = await res.json();
+    if (!data.ok) return;
+    if (!data.submissions.length) {
+      document.getElementById('sr-empty').innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center;">No graded submissions yet for this student.</div>';
+      return;
+    }
+    document.getElementById('sr-empty').style.display = 'none';
+    document.getElementById('sr-submissions-list').style.display = 'block';
+    document.getElementById('sr-submissions').innerHTML = data.submissions.map(s => {
+      const pct   = s.percentage ? Math.round(s.percentage) : 0;
+      const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      const date  = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('en-IN') : '—';
+      const status = s.final_released ? '<span class="badge badge-green">Released</span>' : '<span class="badge badge-amber">Under Review</span>';
+      return '<div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="loadSubmissionReport(\'' + s.submission_id + '\')">' +
+        '<div style="flex:1;">' +
+        '<div style="font-size:13px;font-weight:600;">' + s.paper_title + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);">' + (s.subject||'') + ' · ' + date + '</div></div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:14px;font-weight:700;color:' + color + ';">' + (s.total_awarded||0) + '/' + (s.total_max||0) + ' · ' + pct + '%</div>' +
+        status + '</div>' +
+        '<div style="color:var(--muted);">→</div></div>';
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadSubmissionReport(submissionId) {
+  const reportEl = document.getElementById('sr-report');
+  reportEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">Loading report...</div>';
+  reportEl.style.display = 'block';
+  try {
+    const res  = await fetch('/api/teacher/student-report/' + submissionId);
+    const data = await res.json();
+    if (!data.ok) { reportEl.innerHTML = '<div style="color:var(--red);">Error: ' + data.error + '</div>'; return; }
+    const s   = data.submission;
+    const pct = s.percentage ? Math.round(s.percentage) : 0;
+    const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+
+    let html = '<div class="card" style="margin-bottom:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+      '<div><div style="font-size:18px;font-weight:700;">' + s.student_name + '</div>' +
+      '<div style="font-size:12px;color:var(--muted);">' + (s.system_reg_number||'') + ' · Class ' + (s.class||'') + '</div></div>' +
+      '<div style="text-align:right;"><div style="font-size:20px;font-weight:700;color:' + color + ';">' + (s.total_awarded||0) + '/' + (s.total_max||0) + '</div>' +
+      '<div style="font-size:13px;color:' + color + ';">' + pct + '%</div></div></div>' +
+      '<div style="font-size:13px;color:var(--muted);margin-top:8px;">' + s.paper_title + ' · ' + (s.subject||'') + '</div>' +
+      '</div>';
+
+    html += data.questions.map(q => {
+      const marks = q.final_marks !== null && q.final_marks !== undefined ? q.final_marks : q.ai_marks_awarded;
+      const qPct  = q.max_marks > 0 ? Math.round(marks/q.max_marks*100) : 0;
+      const qColor = qPct >= 75 ? 'var(--green)' : qPct >= 50 ? 'var(--amber)' : 'var(--red)';
+      const confPct = Math.round((q.ai_confidence||0.8)*100);
+      const confColor = confPct >= 85 ? 'var(--green)' : confPct >= 75 ? 'var(--amber)' : 'var(--red)';
+
+      let qHtml = '<div class="card" style="margin-bottom:12px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+        '<div style="width:36px;height:36px;border-radius:50%;background:' + qColor.replace('var(--','var(--').replace(')','-l)') + ';color:' + qColor + ';font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;">' + q.question_number + '</div>' +
+        '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + (q.chapter||'') + ' · Section ' + (q.section||'') + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);">AI Confidence: <span style="color:' + confColor + ';font-weight:600;">' + confPct + '%</span>' +
+        (q.ai_strict_marks !== null && q.ai_strict_marks < marks ? ' · Strict would give ' + q.ai_strict_marks + '/' + q.max_marks : '') + '</div></div>' +
+        '<div style="font-size:18px;font-weight:700;color:' + qColor + ';">' + marks + '/' + q.max_marks + '</div></div>' +
+        '<div style="font-size:13px;line-height:1.7;margin-bottom:10px;">' + (q.latex_content||'') + '</div>';
+
+      if (q.ai_irrelevant) qHtml += '<div class="feedback-box" style="background:var(--amber-l);"><div class="fb-label" style="color:var(--amber);">⚠️ Irrelevant Answer</div>Student response does not address this question.</div>';
+      if (q.ai_concept)    qHtml += '<div class="feedback-box" style="background:var(--bg);"><div class="fb-label">🧠 Concept</div>' + q.ai_concept + '</div>';
+      if (q.ai_formula)    qHtml += '<div class="feedback-box" style="background:var(--blue-l);"><div class="fb-label" style="color:var(--blue);">📐 Formula</div>' + q.ai_formula + '</div>';
+      if (q.ai_calculation) qHtml += '<div class="feedback-box" style="background:var(--amber-l);"><div class="fb-label" style="color:var(--amber);">🔢 Calculation</div>' + q.ai_calculation + '</div>';
+      if (q.ai_model_solution) qHtml += '<div class="feedback-box" style="background:var(--green-l);"><div class="fb-label" style="color:var(--green);">📖 Model Solution</div>' + q.ai_model_solution + '</div>';
+      if (q.teacher_feedback) qHtml += '<div class="feedback-box" style="background:var(--purple-l);"><div class="fb-label" style="color:var(--purple);">💬 Teacher Feedback</div>' + q.teacher_feedback + '</div>';
+      qHtml += '</div>';
+      return qHtml;
+    }).join('');
+
+    reportEl.innerHTML = html;
+    if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([reportEl]);
+    reportEl.scrollIntoView({behavior:'smooth'});
+  } catch(e) { reportEl.innerHTML = '<div style="color:var(--red);">Error loading report.</div>'; }
+}
+
+// ── ERROR ANALYSIS ────────────────────────────────────
+let currentEATab = 'chapter';
+
+async function loadErrorAnalysisPage() {
+  try {
+    const res  = await fetch('/api/teacher/error-analysis');
+    const data = await res.json();
+    if (!data.ok) return;
+    if (data.analysis) {
+      showEAResults(data.analysis, data.generated_at);
+    } else {
+      document.getElementById('ea-empty').style.display   = 'block';
+      document.getElementById('ea-results').style.display = 'none';
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function generateErrorAnalysis() {
+  const btn = document.getElementById('ea-generate-btn');
+  btn.textContent = '⏳ Analysing...';
+  btn.disabled    = true;
+  document.getElementById('ea-loading').style.display  = 'block';
+  document.getElementById('ea-results').style.display  = 'none';
+  document.getElementById('ea-empty').style.display    = 'none';
+  try {
+    const res  = await fetch('/api/teacher/error-analysis/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    const data = await res.json();
+    if (data.ok) {
+      showEAResults(data.analysis, data.generated_at);
+    } else {
+      alert('Error: ' + data.error);
+      document.getElementById('ea-empty').style.display = 'block';
+    }
+  } catch(e) { alert('Error: ' + e.message); }
+  document.getElementById('ea-loading').style.display = 'none';
+  btn.textContent = '🔍 Regenerate Analysis';
+  btn.disabled    = false;
+}
+
+function showEAResults(analysis, generatedAt) {
+  document.getElementById('ea-results').style.display = 'block';
+  document.getElementById('ea-empty').style.display   = 'none';
+  document.getElementById('ea-loading').style.display = 'none';
+
+  if (generatedAt) {
+    const d = new Date(generatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const metaEl = document.getElementById('ea-meta');
+    metaEl.textContent = 'Last generated: ' + d;
+    metaEl.style.display = 'block';
+  }
+
+  // Summary
+  let summaryHtml = '';
+  if (analysis.summary) {
+    summaryHtml = '<div class="card" style="background:var(--blue-l);border:1px solid var(--blue-m);margin-bottom:16px;">' +
+      '<div class="section-label" style="color:var(--blue);">📌 Summary</div>' +
+      '<div style="font-size:13.5px;line-height:1.8;">' + analysis.summary + '</div></div>';
+  }
+
+  // By Chapter
+  let chapterHtml = summaryHtml;
+  const byChapter = analysis.by_chapter || {};
+  Object.keys(byChapter).forEach(function(ch) {
+    const bullets = byChapter[ch];
+    if (!bullets || !bullets.length) return;
+    chapterHtml += '<div class="card" style="margin-bottom:12px;">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:10px;">' + ch + '</div>' +
+      '<ul style="margin:0;padding-left:18px;">' +
+      bullets.map(function(b) { return '<li style="font-size:13px;line-height:1.7;margin-bottom:4px;">' + b + '</li>'; }).join('') +
+      '</ul></div>';
+  });
+  document.getElementById('ea-chapter-view').innerHTML = chapterHtml || '<div style="color:var(--muted);">No chapter data found.</div>';
+
+  // By Error Type
+  let errorHtml = summaryHtml;
+  const byError = analysis.by_error_type || {};
+  const errorColors = {
+    'Conceptual Errors'   : 'var(--red)',
+    'Calculation Errors'  : 'var(--amber)',
+    'Formula Errors'      : 'var(--blue)',
+    'Incomplete Solutions': 'var(--purple)'
+  };
+  Object.keys(byError).forEach(function(et) {
+    const bullets = byError[et];
+    if (!bullets || !bullets.length) return;
+    const color = errorColors[et] || 'var(--text)';
+    errorHtml += '<div class="card" style="margin-bottom:12px;">' +
+      '<div style="font-size:13px;font-weight:700;color:' + color + ';margin-bottom:10px;">' + et + '</div>' +
+      '<ul style="margin:0;padding-left:18px;">' +
+      bullets.map(function(b) { return '<li style="font-size:13px;line-height:1.7;margin-bottom:4px;">' + b + '</li>'; }).join('') +
+      '</ul></div>';
+  });
+  document.getElementById('ea-error-view').innerHTML = errorHtml || '<div style="color:var(--muted);">No error type data found.</div>';
+
+  switchEATab(currentEATab);
+}
+
+function switchEATab(tab) {
+  currentEATab = tab;
+  document.getElementById('ea-tab-chapter').className = tab === 'chapter' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('ea-tab-error').className   = tab === 'error'   ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('ea-chapter-view').style.display = tab === 'chapter' ? 'block' : 'none';
+  document.getElementById('ea-error-view').style.display   = tab === 'error'   ? 'block' : 'none';
 }
 
 </script>

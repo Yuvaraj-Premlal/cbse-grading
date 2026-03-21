@@ -795,23 +795,26 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
       <div class="topbar-title">Student Doubts</div>
     </div>
+    <div class="topbar-actions">
+      <span id="doubts-total-label" style="font-size:13px;color:var(--muted);"></span>
+    </div>
   </div>
   <div class="content-area">
     <div style="max-width:860px;">
-      <div class="page-sub" style="margin-bottom:20px;">Doubts raised by students during practice sessions. Address these in your weekend or offline sessions.</div>
+      <div class="page-sub" style="margin-bottom:20px;">Grouped by question · Sorted by most recent · Address in weekend sessions</div>
 
-      <!-- Chapter summary -->
-      <div class="card" style="margin-bottom:20px;">
-        <div class="section-label">By Chapter</div>
-        <div id="doubts-summary" style="color:var(--muted);font-size:13px;">Loading...</div>
+      <!-- Tabs: Open / Addressed -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <button id="doubts-tab-open" class="btn btn-primary btn-sm" onclick="switchDoubtsTab('open')">Open Doubts</button>
+        <button id="doubts-tab-addressed" class="btn btn-ghost btn-sm" onclick="switchDoubtsTab('addressed')">Addressed</button>
       </div>
 
-      <!-- Filter -->
-      <div style="display:flex;gap:10px;margin-bottom:16px;">
-        <input type="text" id="doubts-search" class="form-input" placeholder="Search by student or chapter..." style="flex:1;" oninput="filterDoubts()"/>
+      <!-- Search -->
+      <div style="margin-bottom:16px;">
+        <input type="text" id="doubts-search" class="form-input" placeholder="Search by chapter, question or student..." style="width:100%;" oninput="filterDoubts()"/>
       </div>
 
-      <!-- Doubts list -->
+      <!-- Grouped doubts list -->
       <div id="doubts-list">
         <div style="text-align:center;padding:40px;color:var(--muted);">Loading doubts...</div>
       </div>
@@ -2613,181 +2616,121 @@ function annotGetJSON() {
 }
 
 // ── PERFORMANCE DASHBOARD ────────────────────────────
-let allDoubtsData = [];
+let allDoubtsGroups  = [];
+let currentDoubtsTab = 'open';
 
-async function loadPerformancePage() {
-  try {
-    const res  = await fetch('/api/teacher/performance');
-    const data = await res.json();
-    if (!data.ok) return;
-    const sel = document.getElementById('perf-student-select');
-    sel.innerHTML = '<option value="">— Select a student —</option>' +
-      data.students.map(s =>
-        `<option value="${s.student_id}">${s.name} · ${s.system_reg_number || 'No Reg#'} · Class ${s.class||'?'}</option>`
-      ).join('');
-  } catch(e) { console.error(e); }
-}
-
-async function loadStudentPerformance() {
-  const sid = document.getElementById('perf-student-select').value;
-  if (!sid) {
-    document.getElementById('perf-content').style.display = 'none';
-    document.getElementById('perf-empty').style.display   = 'block';
-    document.getElementById('perf-print-btn').style.display = 'none';
-    return;
-  }
-  try {
-    const res  = await fetch(`/api/teacher/performance?student_id=${sid}`);
-    const data = await res.json();
-    if (!data.ok) return;
-
-    document.getElementById('perf-content').style.display  = 'block';
-    document.getElementById('perf-empty').style.display    = 'none';
-    document.getElementById('perf-print-btn').style.display = 'inline-flex';
-    document.getElementById('perf-student-name').textContent = data.student_name;
-
-    // Summary stats
-    document.getElementById('perf-exam-count').textContent     = data.submissions.length;
-    document.getElementById('perf-practice-count').textContent = data.practice.length;
-    const avgPct = data.submissions.length
-      ? Math.round(data.submissions.reduce((s,r) => s + (r.percentage||0), 0) / data.submissions.length)
-      : 0;
-    document.getElementById('perf-avg-score').textContent = avgPct + '%';
-
-    // Mark-wise chart + table
-    const mwBars = data.mark_wise.map(m => {
-      const color = m.avg_pct >= 75 ? 'var(--green)' : m.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
-      return `<div style="margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-          <span>${m.marks}-mark questions</span>
-          <span style="font-weight:600;color:${color};">${m.avg_pct}%</span>
-        </div>
-        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
-          <div style="width:${m.avg_pct}%;height:100%;background:${color};border-radius:4px;"></div>
-        </div>
-      </div>`;
-    }).join('');
-    document.getElementById('perf-markwise-chart').innerHTML = mwBars;
-    document.getElementById('perf-markwise-tbody').innerHTML = data.mark_wise.map(m => {
-      const color = m.avg_pct >= 75 ? 'var(--green)' : m.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
-      return `<tr>
-        <td>${m.marks}-mark questions</td><td>${m.count}</td>
-        <td style="color:${color};font-weight:600;">${m.avg_pct}%</td>
-        <td>${m.avg_pct>=75?'✅ Strong':m.avg_pct>=50?'⚠️ Average':'❌ Needs Work'}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">No data</td></tr>';
-
-    // Chapter-wise chart + table
-    const chBars = data.chapter_wise.map(c => {
-      const color = c.avg_pct >= 75 ? 'var(--green)' : c.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
-      return `<div style="margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-          <span>${c.chapter}</span>
-          <span style="font-weight:600;color:${color};">${c.avg_pct}%</span>
-        </div>
-        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
-          <div style="width:${c.avg_pct}%;height:100%;background:${color};border-radius:4px;"></div>
-        </div>
-      </div>`;
-    }).join('');
-    document.getElementById('perf-chapter-bars').innerHTML = chBars;
-    document.getElementById('perf-chapter-tbody').innerHTML = data.chapter_wise.map(c => {
-      const color = c.avg_pct >= 75 ? 'var(--green)' : c.avg_pct >= 50 ? 'var(--amber)' : 'var(--red)';
-      return `<tr>
-        <td>${c.chapter}</td><td>${c.count}</td>
-        <td>${c.awarded}/${c.total}</td>
-        <td style="color:${color};font-weight:600;">${c.avg_pct}%</td>
-        <td>${c.avg_pct>=75?'✅ Strong':c.avg_pct>=50?'⚠️ Needs Practice':'❌ Weak Area'}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No data</td></tr>';
-
-    // Exam history
-    document.getElementById('perf-exams-tbody').innerHTML = data.submissions.map(s => {
-      const pct   = s.percentage ? Math.round(s.percentage) : 0;
-      const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
-      const date  = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('en-IN') : '—';
-      return `<tr>
-        <td>${s.paper_title}</td><td>${s.subject||'—'}</td>
-        <td>${s.total_awarded||0}/${s.total_max||0}</td>
-        <td style="color:${color};font-weight:600;">${pct}%</td>
-        <td>${date}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">No exams yet</td></tr>';
-
-  } catch(e) { console.error('Performance error:', e); }
-}
-
-function printPerformance() { window.print(); }
-
-// ── DOUBTS ────────────────────────────────────────────
 async function loadDoubts() {
   try {
-    const res  = await fetch('/api/teacher/doubts');
+    const res  = await fetch('/api/teacher/doubts?status=' + currentDoubtsTab);
     const data = await res.json();
     if (!data.ok) return;
-    allDoubtsData = data.doubts;
+    allDoubtsGroups = data.groups;
 
-    // Badge
-    const badge = document.getElementById('doubts-badge');
-    if (data.doubts.length > 0) {
-      badge.textContent    = data.doubts.length;
-      badge.style.display  = 'inline-block';
-    } else {
-      badge.style.display  = 'none';
+    if (currentDoubtsTab === 'open') {
+      const badge = document.getElementById('doubts-badge');
+      if (data.total > 0) { badge.textContent = data.total; badge.style.display = 'inline-block'; }
+      else badge.style.display = 'none';
     }
 
-    // Chapter summary
-    const summaryEl = document.getElementById('doubts-summary');
-    if (data.summary.length) {
-      summaryEl.innerHTML = data.summary.map(s =>
-        `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);">
-          <div style="flex:1;font-size:13px;font-weight:600;">${s.chapter}</div>
-          <div style="font-size:12px;color:var(--muted);">${s.student_count} student${s.student_count>1?'s':''}</div>
-          <div style="background:var(--red-l);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">${s.count} doubt${s.count>1?'s':''}</div>
-        </div>`).join('');
-    } else {
-      summaryEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No doubts raised yet.</div>';
-    }
+    const label = document.getElementById('doubts-total-label');
+    if (label) label.textContent = data.total + ' doubt' + (data.total !== 1 ? 's' : '') +
+      ' across ' + data.groups.length + ' question' + (data.groups.length !== 1 ? 's' : '');
 
-    renderDoubts(data.doubts);
+    renderDoubtGroups(data.groups);
   } catch(e) { console.error('Doubts error:', e); }
 }
 
-function filterDoubts() {
-  const q        = document.getElementById('doubts-search').value.toLowerCase();
-  const filtered = allDoubtsData.filter(d =>
-    (d.student_name||'').toLowerCase().includes(q) ||
-    (d.chapter||'').toLowerCase().includes(q) ||
-    (d.doubt_text||'').toLowerCase().includes(q)
-  );
-  renderDoubts(filtered);
+function switchDoubtsTab(tab) {
+  currentDoubtsTab = tab;
+  document.getElementById('doubts-tab-open').className      = tab === 'open'      ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('doubts-tab-addressed').className = tab === 'addressed' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('doubts-search').value = '';
+  loadDoubts();
 }
 
-function renderDoubts(doubts) {
+function filterDoubts() {
+  const q = document.getElementById('doubts-search').value.toLowerCase();
+  const filtered = allDoubtsGroups.filter(g =>
+    (g.chapter||'').toLowerCase().includes(q) ||
+    (g.latex_content||'').toLowerCase().includes(q) ||
+    g.doubts.some(d => (d.student_name||'').toLowerCase().includes(q) || (d.doubt_text||'').toLowerCase().includes(q))
+  );
+  renderDoubtGroups(filtered);
+}
+
+function renderDoubtGroups(groups) {
   const listEl = document.getElementById('doubts-list');
-  if (!doubts.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">No doubts found.</div>';
+  if (!groups.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);">' +
+      (currentDoubtsTab === 'open' ? 'No open doubts. All clear! 🎉' : 'No addressed doubts yet.') + '</div>';
     return;
   }
-  listEl.innerHTML = doubts.map(d => {
-    const date  = d.raised_at ? new Date(d.raised_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '—';
-    const score = (d.marks_awarded !== null && d.marks_awarded !== undefined && d.q_max_marks)
-      ? `· Got ${d.marks_awarded}/${d.q_max_marks}` : '';
-    return `<div class="card" style="margin-bottom:12px;padding:14px 16px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <div style="width:32px;height:32px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(d.student_name||'?').charAt(0).toUpperCase()}</div>
-        <div>
-          <div style="font-size:13px;font-weight:600;">${d.student_name||'—'}</div>
-          <div style="font-size:11px;color:var(--muted);">${d.chapter||'—'} · ${date} ${score}</div>
-        </div>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Question</div>
-      <div style="font-size:13px;background:var(--bg);padding:8px 12px;border-radius:8px;margin-bottom:10px;">${d.latex_content||'—'}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Student's Doubt</div>
-      <div style="font-size:13px;font-style:italic;color:var(--text);">"${d.doubt_text}"</div>
-    </div>`;
-  }).join('');
+  let html = '';
+  groups.forEach(function(g, gi) {
+    const latestDate = g.latest_date
+      ? new Date(g.latest_date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'})
+      : '—';
+
+    let studentRows = '';
+    g.doubts.forEach(function(d) {
+      const dDate = d.raised_at ? new Date(d.raised_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '—';
+      const score = (d.marks_awarded !== null && d.marks_awarded !== undefined && d.q_max_marks)
+        ? '<span style="background:var(--blue-l);color:var(--blue);padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;margin-left:6px;">Got ' + d.marks_awarded + '/' + d.q_max_marks + '</span>' : '';
+      studentRows += '<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;">' +
+        '<div style="width:28px;height:28px;border-radius:50%;background:var(--blue-l);color:var(--blue);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+        (d.student_name||'?').charAt(0).toUpperCase() + '</div>' +
+        '<div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + (d.student_name||'—') + score +
+        '<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:6px;">' + dDate + '</span></div>' +
+        '<div style="font-size:13px;color:var(--text);font-style:italic;margin-top:3px;">&ldquo;' + d.doubt_text + '&rdquo;</div></div></div>';
+    });
+
+    const addressBtn = currentDoubtsTab === 'open'
+      ? '<button class="btn btn-green btn-sm" onclick="addressQuestion(this)" data-qid="' + g.question_id + '" data-idx="' + gi + '" style="font-size:11px;">✅ Mark all as Addressed</button>'
+      : '<span style="font-size:11px;color:var(--green);font-weight:600;">✅ Addressed</span>';
+
+    html += '<div class="card" style="margin-bottom:14px;padding:0;overflow:hidden;">' +
+      '<div style="padding:14px 16px;cursor:pointer;display:flex;align-items:flex-start;gap:12px;background:var(--white);" onclick="toggleDoubtGroup(this)" data-gid="' + gi + '">' +
+      '<div style="flex:1;">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">' + (g.chapter||'Unknown') + '</div>' +
+      '<div style="font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:6px;">' + g.latex_content + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+      '<span style="background:var(--red-l);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">' + g.doubt_count + ' doubt' + (g.doubt_count!==1?'s':'') + '</span>' +
+      '<span style="background:var(--blue-l);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;">' + g.student_count + ' student' + (g.student_count!==1?'s':'') + '</span>' +
+      '<span style="font-size:11px;color:var(--muted);">Latest: ' + latestDate + '</span>' +
+      '</div></div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;">' +
+      addressBtn +
+      '<span class="dg-chevron" style="font-size:12px;color:var(--muted);">▼</span>' +
+      '</div></div>' +
+      '<div class="dg-body" style="display:none;padding:0 16px 12px;background:var(--bg);">' +
+      studentRows + '</div></div>';
+  });
+  listEl.innerHTML = html;
   if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([listEl]);
+}
+
+
+function toggleDoubtGroup(header) {
+  const body   = header.nextElementSibling;
+  const chv    = header.querySelector('.dg-chevron');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (chv) chv.textContent = isOpen ? '▼' : '▲';
+}
+
+async function addressQuestion(btn) {
+  const questionId = btn.getAttribute('data-qid');
+  const groupIdx   = parseInt(btn.getAttribute('data-idx'));
+  try {
+    const res  = await fetch('/api/teacher/doubts/address', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ question_id: questionId })
+    });
+    const data = await res.json();
+    if (data.ok) { allDoubtsGroups.splice(groupIdx, 1); renderDoubtGroups(allDoubtsGroups); loadDoubts(); }
+    else alert('Error: ' + data.error);
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 </script>

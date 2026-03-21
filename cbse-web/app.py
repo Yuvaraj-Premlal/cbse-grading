@@ -512,7 +512,7 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                     percentage    = :pct,
                     grade         = :grade,
                     graded_at     = GETUTCDATE()
-                WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {
                 "awarded"  : total_awarded,
                 "total_max": total_max,
@@ -538,7 +538,7 @@ def run_grading_async(submission_id, assignment_id, student_id, questions, answe
                 conn.execute(text("""
                     UPDATE submissions SET
                         ai_results = 'ai_failed'
-                    WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                    WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
                 """), {"sid": str(submission_id)})
         except:
             pass
@@ -1651,7 +1651,7 @@ def submission_status(submission_id):
                 SELECT total_awarded, total_max, percentage, grade,
                        graded_at, ai_results
                 FROM submissions
-                WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {"sid": submission_id}).fetchone()
             if not sub:
                 return jsonify({"ok": False, "error": "Not found"})
@@ -1708,11 +1708,9 @@ def get_student_result(submission_id):
                 JOIN questions q ON sq.question_id = q.question_id
                 JOIN paper_questions pq ON q.question_id = pq.question_id
                     AND pq.paper_id = (
-                        SELECT paper_id FROM assignments
-                        WHERE assignment_id = (
-                            SELECT assignment_id FROM submissions
-                            WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
-                        )
+                        SELECT a.paper_id FROM assignments a
+                        JOIN submissions sub ON sub.assignment_id = a.assignment_id
+                        WHERE sub.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
                     )
                 WHERE sq.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
                 ORDER BY sq.question_number
@@ -1721,20 +1719,20 @@ def get_student_result(submission_id):
             # Check if AI failed
             ai_failed = conn.execute(text("""
                 SELECT ai_results FROM submissions
-                WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {"sid": submission_id}).fetchone()
             ai_failed = ai_failed and ai_failed[0] == 'ai_failed' 
 
             # Open disputes count
             disputes = conn.execute(text("""
                 SELECT COUNT(*) FROM disputes
-                WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {"sid": submission_id}).fetchone()[0]
 
             # Get annotations
             annot = conn.execute(text("""
                 SELECT annotations FROM submissions
-                WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {"sid": submission_id}).fetchone()
 
         result = dict(sub._mapping)
@@ -1879,7 +1877,7 @@ def approve_release(submission_id):
                     final_released = 1,
                     released_at    = GETUTCDATE(),
                     annotations    = :annotations
-                WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
             """), {
                 "awarded"    : total_awarded,
                 "total_max"  : total_max,
@@ -1894,7 +1892,7 @@ def approve_release(submission_id):
                 UPDATE assignments SET status = 'released'
                 WHERE assignment_id = (
                     SELECT assignment_id FROM submissions
-                    WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                    WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
                 )
             """), {"sid": submission_id})
 
@@ -2889,8 +2887,9 @@ def get_student_report(submission_id):
                 JOIN questions q ON sq.question_id = q.question_id
                 JOIN paper_questions pq ON q.question_id = pq.question_id
                     AND pq.paper_id = (
-                        SELECT paper_id FROM assignments
-                        WHERE assignment_id = (SELECT assignment_id FROM submissions WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER))
+                        SELECT a.paper_id FROM assignments a
+                        JOIN submissions sub ON sub.assignment_id = a.assignment_id
+                        WHERE sub.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
                     )
                 WHERE sq.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
                 ORDER BY sq.question_number

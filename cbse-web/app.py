@@ -124,45 +124,34 @@ def get_openai_client():
     )
 
 def wrap_latex(text):
-    """Ensure LaTeX expressions are wrapped in $ delimiters for MathJax rendering.
-    If text already has $ or \\( delimiters, return as-is.
-    If text contains raw LaTeX commands without delimiters, wrap math segments."""
+    """
+    Safety net: if GPT-4o returned raw LaTeX without $ delimiters,
+    wrap continuous math expressions. Prompt instructs GPT-4o to use $
+    delimiters — this handles cases where it doesn't comply.
+    """
     if not text:
         return text
-    # Already has delimiters
     import re
-    if '$' in text or r'\(' in text or r'\[' in text:
+    # Already has $ delimiters — return as-is
+    if '$' in text or r'\(' in text:
         return text
-    # No LaTeX at all
+    # No LaTeX commands — plain English
     if not re.search(r'\\[a-zA-Z]', text):
         return text
-    # Has raw LaTeX — wrap segments that look like math expressions
-    # Strategy: split on sentence boundaries, wrap segments containing LaTeX
-    def wrap_segment(s):
-        s = s.strip()
-        if not s:
-            return s
-        if re.search(r'\\[a-zA-Z]|_\{|\^\{|\^[0-9]', s):
-            if not s.startswith('$'):
-                return '$' + s + '$'
-        return s
-
-    # Split into sentences/clauses and process each
-    parts = re.split(r'(\. |\.\n|\n\n)', text)
-    result = []
-    for part in parts:
-        if re.search(r'\\[a-zA-Z]', part) and not re.match(r'^[\s.,;:]+$', part):
-            # Mixed text and math — wrap inline math patterns
-            # Find continuous math segments (sequences with \cmd or _ or ^)
-            processed = re.sub(
-                r'((?:\\[a-zA-Z]+(?:\{[^}]*\})*|\$[^$]+\$|[_^]\{[^}]*\}|[_^][0-9a-zA-Z])+(?:\s+(?:\\[a-zA-Z]+(?:\{[^}]*\})*|[_^]\{[^}]*\}|[_^][0-9a-zA-Z])+)*)',
-                lambda m: '$' + m.group(0) + '$' if not m.group(0).startswith('$') else m.group(0),
-                part
-            )
-            result.append(processed)
-        else:
-            result.append(part)
-    return ''.join(result)
+    # Wrap sequences of LaTeX tokens: \cmd{...} possibly chained with operators
+    # This matches things like: \int x \cdot e^x dx = x \cdot e^x - \int e^x dx + C
+    result = re.sub(
+        r'((?:\\[a-zA-Z]+(?:\{[^{}]*\})*'   # \command{optional args}
+        r'|[a-zA-Z0-9](?:_|\^)\{[^{}]+\}'   # x_{sub} or x^{sup}
+        r'|[a-zA-Z0-9](?:_|\^)[a-zA-Z0-9]'  # x_n or x^2
+        r')(?:\s*(?:[=+\-/*]|\\[a-zA-Z]+(?:\{[^{}]*\})*'
+        r'|[a-zA-Z0-9](?:_|\^)[{a-zA-Z0-9][^{}]*}?'
+        r'|\d+(?:\.\d+)?)\s*)*)',
+        lambda m: '$' + m.group(0).strip() + '$'
+        if not m.group(0).strip().startswith('$') else m.group(0),
+        text
+    )
+    return result
 
 
 def grade_submission(questions, answer_sheet_urls):
@@ -2144,10 +2133,14 @@ Question: {q['latex_content']}
         p1_response = client.chat.completions.create(
             model      = secrets["oai_deploy"],
             messages   = [
-                {"role": "system", "content": open('/dev/stdin').read() if False else """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
+                {"role": "system", "content": """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
 Grade this single practice question. Follow all CBSE marking rules. Award marks for correct steps.
 If student used alternate valid method, award full marks.
-LATEX RULES: Use LaTeX ONLY for math expressions. Never wrap English in LaTeX.
+LATEX RULES:
+- ALL mathematical expressions, equations, symbols MUST be wrapped in $ delimiters.
+- Inline math: $expression$ — example: $\\int x \\cdot e^x dx$
+- NEVER write raw LaTeX without $ delimiters — example WRONG: \\int x dx  RIGHT: $\\int x dx$
+- NEVER wrap English words in LaTeX.
 RESPOND ONLY with a valid JSON array containing one object. No preamble, no markdown."""},
                 {"role": "user", "content": [
                     {"type": "text", "text": f"""Grade this student's practice answer:
@@ -2509,40 +2502,101 @@ def create_assignment():
 @app.route("/api/teacher/doubts", methods=["GET"])
 @require_role("teacher")
 def get_doubts():
-    """Get all doubts aggregated by chapter."""
+    """Get doubts grouped by question, sorted by most recent, with status filter."""
+    status_filter = request.args.get("status", "open")  # open or addressed
     try:
         engine = get_engine()
         with engine.connect() as conn:
             rows = conn.execute(text("""
-                SELECT d.doubt_id, d.doubt_text, d.chapter, d.raised_at,
-                       u.name as student_name,
-                       q.latex_content, q.max_marks,
-                       pa.marks_awarded, pa.max_marks as q_max_marks
+                SELECT
+                    CAST(d.doubt_id AS NVARCHAR(36))     as doubt_id,
+                    CAST(d.question_id AS NVARCHAR(36))  as question_id,
+                    d.doubt_text, d.chapter, d.raised_at,
+                    ISNULL(d.status, 'open')             as status,
+                    u.name                               as student_name,
+                    q.latex_content, q.max_marks,
+                    pa.marks_awarded,
+                    pa.max_marks                         as q_max_marks
                 FROM doubts d
-                JOIN students s  ON d.student_id = s.student_id
-                JOIN users u     ON s.user_id = u.user_id
-                JOIN questions q ON d.question_id = q.question_id
+                JOIN students s   ON d.student_id   = s.student_id
+                JOIN users u      ON s.user_id       = u.user_id
+                JOIN questions q  ON d.question_id   = q.question_id
                 LEFT JOIN practice_attempts pa ON d.practice_attempt_id = pa.attempt_id
+                WHERE ISNULL(d.status, 'open') = :status
                 ORDER BY d.raised_at DESC
-            """)).fetchall()
+            """), {"status": status_filter}).fetchall()
 
             doubts = [dict(r._mapping) for r in rows]
 
-            # Aggregate by chapter
-            agg = {}
+            # Group by question_id
+            groups = {}
             for d in doubts:
-                ch = d.get("chapter") or "Unknown"
-                if ch not in agg:
-                    agg[ch] = {"chapter": ch, "count": 0, "students": set()}
-                agg[ch]["count"] += 1
-                agg[ch]["students"].add(d["student_name"])
+                qid = d["question_id"]
+                if qid not in groups:
+                    groups[qid] = {
+                        "question_id"   : qid,
+                        "latex_content" : d["latex_content"],
+                        "chapter"       : d.get("chapter") or "Unknown",
+                        "max_marks"     : d["max_marks"],
+                        "doubt_count"   : 0,
+                        "student_count" : 0,
+                        "latest_date"   : d["raised_at"],
+                        "students"      : set(),
+                        "doubts"        : []
+                    }
+                g = groups[qid]
+                g["doubt_count"] += 1
+                g["students"].add(d["student_name"])
+                # Track most recent
+                if d["raised_at"] and (not g["latest_date"] or d["raised_at"] > g["latest_date"]):
+                    g["latest_date"] = d["raised_at"]
+                g["doubts"].append({
+                    "doubt_id"     : d["doubt_id"],
+                    "student_name" : d["student_name"],
+                    "doubt_text"   : d["doubt_text"],
+                    "raised_at"    : d["raised_at"].isoformat() if d["raised_at"] else None,
+                    "marks_awarded": d["marks_awarded"],
+                    "q_max_marks"  : d["q_max_marks"],
+                    "status"       : d["status"]
+                })
 
-            summary = [
-                {"chapter": k, "count": v["count"], "student_count": len(v["students"])}
-                for k, v in sorted(agg.items(), key=lambda x: -x[1]["count"])
-            ]
+            # Convert to list, sort by latest_date DESC
+            grouped = []
+            for g in groups.values():
+                g["student_count"] = len(g["students"])
+                g["latest_date"]   = g["latest_date"].isoformat() if g["latest_date"] else None
+                del g["students"]
+                grouped.append(g)
 
-            return jsonify({"ok": True, "doubts": doubts, "summary": summary})
+            grouped.sort(key=lambda x: x["latest_date"] or "", reverse=True)
+
+            return jsonify({"ok": True, "groups": grouped, "total": len(doubts)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+@app.route("/api/teacher/doubts/address", methods=["POST"])
+@require_role("teacher")
+def address_doubts():
+    """Mark doubts as addressed — by question_id (all for that question) or single doubt_id."""
+    data        = request.json
+    question_id = data.get("question_id")
+    doubt_id    = data.get("doubt_id")
+    try:
+        engine = get_engine()
+        with engine.begin() as conn:
+            if question_id:
+                conn.execute(text("""
+                    UPDATE doubts SET status = 'addressed', addressed_at = GETDATE()
+                    WHERE question_id = CAST(:qid AS UNIQUEIDENTIFIER)
+                    AND ISNULL(status, 'open') = 'open'
+                """), {"qid": question_id})
+            elif doubt_id:
+                conn.execute(text("""
+                    UPDATE doubts SET status = 'addressed', addressed_at = GETDATE()
+                    WHERE doubt_id = CAST(:did AS UNIQUEIDENTIFIER)
+                """), {"did": doubt_id})
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
 

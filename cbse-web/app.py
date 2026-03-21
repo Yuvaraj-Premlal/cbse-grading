@@ -2132,14 +2132,17 @@ Return ONLY the JSON array."""},
                      percentage, difficulty_used, answer_image_url,
                      ai_concept, ai_formula, ai_calculation, ai_model_solution,
                      ai_coaching_tip, ai_confidence, ai_strict_marks, ai_strict_reason,
-                     ai_irrelevant, attempted_at, attempt_date)
+                     ai_irrelevant, attempted_at, attempt_date,
+                     allowed_attempt_sec, actual_attempt_sec, actual_upload_sec,
+                     total_allowed_sec, total_taken_sec, time_delta_sec, submitted_on_time)
                 VALUES
                     (CAST(:aid AS UNIQUEIDENTIFIER), CAST(:sid AS UNIQUEIDENTIFIER),
                      CAST(:qid AS UNIQUEIDENTIFIER), :marks, :max_marks,
                      :pct, :diff, :img_url,
                      :concept, :formula, :calc, :model_sol,
                      :tip, :conf, :strict_marks, :strict_reason,
-                     :irrelevant, GETDATE(), CAST(GETDATE() AS DATE))
+                     :irrelevant, GETDATE(), CAST(GETDATE() AS DATE),
+                     0, 0, 0, 0, 0, 0, 1)
             """), {
                 "aid"          : attempt_id,
                 "sid"          : student_id,

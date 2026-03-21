@@ -2033,7 +2033,7 @@ def get_practice_questions():
                        q.difficulty, q.max_marks, q.type, q.class
                 FROM questions q
                 WHERE LOWER(q.difficulty) IN ('hard', 'very_hard', 'very hard')
-                AND (q.class = :cls OR q.class IS NULL)
+                AND q.class = :cls
             """
             params = {"cls": student_class}
             if chapter:
@@ -2686,22 +2686,27 @@ def get_performance():
                     chapter_wise[ch]["awarded"] += final
                     chapter_wise[ch]["count"]   += 1
 
-            # Student name
-            s_name = next((dict(r._mapping)["name"] for r in students
-                          if str(dict(r._mapping)["student_id"]) == student_id), "Student")
+            # Student name, reg number, class
+            s_data = next((dict(r._mapping) for r in students
+                          if str(dict(r._mapping)["student_id"]) == student_id), {})
+            s_name   = s_data.get("name", "Student")
+            s_reg    = s_data.get("system_reg_number", "")
+            s_class  = s_data.get("class", "")
 
             return jsonify({
-                "ok"          : True,
-                "student_name": s_name,
-                "submissions" : [dict(r._mapping) for r in submissions],
-                "questions"   : [dict(r._mapping) for r in questions],
-                "practice"    : [dict(r._mapping) for r in practice],
-                "mark_wise"   : [
+                "ok"              : True,
+                "student_name"    : s_name,
+                "system_reg_number": s_reg,
+                "student_class"   : s_class,
+                "submissions"     : [dict(r._mapping) for r in submissions],
+                "questions"       : [dict(r._mapping) for r in questions],
+                "practice"        : [dict(r._mapping) for r in practice],
+                "mark_wise"       : [
                     {"marks": k, "avg_pct": round(v["awarded"]/v["total"]*100, 1) if v["total"] > 0 else 0,
                      "count": v["count"]}
                     for k, v in sorted(mark_wise.items())
                 ],
-                "chapter_wise": [
+                "chapter_wise"    : [
                     {"chapter": k, "avg_pct": round(v["awarded"]/v["total"]*100, 1) if v["total"] > 0 else 0,
                      "count": v["count"], "total": v["total"], "awarded": v["awarded"]}
                     for k, v in sorted(chapter_wise.items(), key=lambda x: -x[1]["awarded"]/x[1]["total"] if x[1]["total"] > 0 else 0)
@@ -2711,5 +2716,333 @@ def get_performance():
         return jsonify({"ok": False, "error": str(e)[:200]})
 
 
+@app.route("/api/teacher/performance/narrative", methods=["POST"])
+@require_role("teacher")
+def get_performance_narrative():
+    """Generate AI narrative summary for a student's performance."""
+    data       = request.json
+    student_id = data.get("student_id")
+    if not student_id:
+        return jsonify({"ok": False, "error": "student_id required"})
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Get student name
+            s_row = conn.execute(text("""
+                SELECT u.name, s.class FROM students s
+                JOIN users u ON s.user_id = u.user_id
+                WHERE CAST(s.student_id AS NVARCHAR(36)) = :sid
+            """), {"sid": student_id}).fetchone()
+            s_name  = s_row[0] if s_row else "Student"
+            s_class = s_row[1] if s_row else 12
+
+            # Get chapter-wise performance
+            rows = conn.execute(text("""
+                SELECT q.chapter, q.max_marks,
+                       ISNULL(sq.final_marks, sq.ai_marks_awarded) as awarded
+                FROM submission_questions sq
+                JOIN questions q ON sq.question_id = q.question_id
+                JOIN submissions sub ON sq.submission_id = sub.submission_id
+                JOIN assignments a ON sub.submission_id = a.submission_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND sub.graded_at IS NOT NULL
+            """), {"sid": student_id}).fetchall()
+
+            # Aggregate
+            chapters = {}
+            for r in rows:
+                ch = r[0] or "Unknown"
+                if ch not in chapters:
+                    chapters[ch] = {"total": 0, "awarded": 0}
+                chapters[ch]["total"]   += r[1] or 0
+                chapters[ch]["awarded"] += r[2] or 0
+
+            chapter_summary = "\n".join([
+                f"- {ch}: {round(v['awarded']/v['total']*100,1)}% ({v['awarded']}/{v['total']})"
+                for ch, v in sorted(chapters.items(), key=lambda x: -x[1]["awarded"]/x[1]["total"] if x[1]["total"] > 0 else 0)
+            ]) or "No exam data available yet."
+
+            # Practice summary
+            practice_count = conn.execute(text("""
+                SELECT COUNT(*) FROM practice_attempts
+                WHERE student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+            """), {"sid": student_id}).fetchone()[0]
+
+        client = get_openai_client()
+        prompt = f"""You are an expert academic counselor writing a brief performance summary for a teacher.
+
+Student: {s_name}, Class {s_class}
+Chapter-wise exam performance:
+{chapter_summary}
+Practice attempts: {practice_count}
+
+Write a 3-4 sentence performance summary that:
+1. Identifies the student's strongest topics
+2. Identifies areas needing improvement
+3. Mentions practice engagement
+4. Gives one specific actionable recommendation for the teacher
+
+Write in third person, professional tone. Be specific and constructive, not generic."""
+
+        response = client.chat.completions.create(
+            model      = secrets["oai_deploy"],
+            messages   = [{"role": "user", "content": prompt}],
+            max_tokens = 300,
+            temperature = 0.7
+        )
+        narrative = response.choices[0].message.content.strip()
+        return jsonify({"ok": True, "narrative": narrative})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+# ── STUDENT REPORTS API ───────────────────────────────
+@app.route("/api/teacher/student-submissions", methods=["GET"])
+@require_role("teacher")
+def get_student_submissions():
+    """Get all submissions for a student — for Student Reports page."""
+    student_id = request.args.get("student_id", "")
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            if not student_id:
+                # Return student list
+                rows = conn.execute(text("""
+                    SELECT CAST(s.student_id AS NVARCHAR(36)) as student_id,
+                           u.name, s.class, s.system_reg_number
+                    FROM students s
+                    JOIN users u ON s.user_id = u.user_id
+                    WHERE u.role = 'student' AND u.is_active = 1
+                    ORDER BY u.name
+                """)).fetchall()
+                return jsonify({"ok": True, "students": [dict(r._mapping) for r in rows]})
+
+            # Get submissions for this student
+            rows = conn.execute(text("""
+                SELECT CAST(sub.submission_id AS NVARCHAR(36)) as submission_id,
+                       p.title as paper_title, p.subject,
+                       sub.total_awarded, sub.total_max, sub.percentage,
+                       sub.submitted_at, sub.final_released,
+                       sub.graded_at
+                FROM submissions sub
+                JOIN assignments a ON sub.submission_id = a.submission_id
+                JOIN papers p      ON a.paper_id = p.paper_id
+                WHERE a.student_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                AND sub.graded_at IS NOT NULL
+                ORDER BY sub.submitted_at DESC
+            """), {"sid": student_id}).fetchall()
+            return jsonify({"ok": True, "submissions": [dict(r._mapping) for r in rows]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+@app.route("/api/teacher/student-report/<submission_id>", methods=["GET"])
+@require_role("teacher")
+def get_student_report(submission_id):
+    """Get full Q-by-Q report for a submission — for Student Reports page."""
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            # Submission info
+            sub = conn.execute(text("""
+                SELECT CAST(sub.submission_id AS NVARCHAR(36)) as submission_id,
+                       p.title as paper_title, p.subject,
+                       sub.total_awarded, sub.total_max, sub.percentage,
+                       sub.submitted_at, sub.final_released, sub.annotations,
+                       sub.answer_sheet_url,
+                       u.name as student_name,
+                       s.system_reg_number, s.class
+                FROM submissions sub
+                JOIN assignments a ON sub.submission_id = a.submission_id
+                JOIN papers p      ON a.paper_id = p.paper_id
+                JOIN students s    ON a.student_id = s.student_id
+                JOIN users u       ON s.user_id = u.user_id
+                WHERE CAST(sub.submission_id AS NVARCHAR(36)) = :sid
+            """), {"sid": submission_id}).fetchone()
+            if not sub:
+                return jsonify({"ok": False, "error": "Submission not found"})
+
+            # Questions
+            questions = conn.execute(text("""
+                SELECT sq.question_number, sq.max_marks,
+                       sq.ai_marks_awarded, sq.teacher_marks, sq.final_marks,
+                       sq.ai_concept, sq.ai_formula, sq.ai_calculation,
+                       sq.ai_model_solution, sq.ai_coaching_tip,
+                       sq.ai_strict_marks, sq.ai_strict_reason,
+                       sq.ai_confidence, sq.ai_flag_review, sq.ai_irrelevant,
+                       sq.teacher_feedback,
+                       q.latex_content, q.chapter, q.max_marks as q_max,
+                       pq.section
+                FROM submission_questions sq
+                JOIN questions q ON sq.question_id = q.question_id
+                JOIN paper_questions pq ON q.question_id = pq.question_id
+                    AND pq.paper_id = (
+                        SELECT paper_id FROM assignments
+                        WHERE submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                    )
+                WHERE sq.submission_id = CAST(:sid AS UNIQUEIDENTIFIER)
+                ORDER BY sq.question_number
+            """), {"sid": submission_id}).fetchall()
+
+            return jsonify({
+                "ok"        : True,
+                "submission": dict(sub._mapping),
+                "questions" : [dict(r._mapping) for r in questions]
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+# ── ERROR ANALYSIS API ────────────────────────────────
+@app.route("/api/teacher/error-analysis", methods=["GET"])
+@require_role("teacher")
+def get_error_analysis():
+    """Get cached error analysis for this teacher."""
+    user = get_current_user(request)
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            teacher = conn.execute(text("""
+                SELECT u.user_id FROM users u WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            if not teacher:
+                return jsonify({"ok": False, "error": "Teacher not found"})
+            teacher_id = str(teacher[0])
+
+            row = conn.execute(text("""
+                SELECT analysis, generated_at
+                FROM error_analysis_cache
+                WHERE CAST(teacher_id AS NVARCHAR(36)) = :tid
+                ORDER BY generated_at DESC
+            """), {"tid": teacher_id}).fetchone()
+
+            if not row or not row[0]:
+                return jsonify({"ok": True, "analysis": None, "generated_at": None})
+
+            return jsonify({
+                "ok"          : True,
+                "analysis"    : json.loads(row[0]),
+                "generated_at": row[1].isoformat() if row[1] else None
+            })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
+
+@app.route("/api/teacher/error-analysis/generate", methods=["POST"])
+@require_role("teacher")
+def generate_error_analysis():
+    """Generate AI error analysis across all student submissions for this teacher."""
+    user = get_current_user(request)
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            teacher = conn.execute(text("""
+                SELECT u.user_id FROM users u
+                JOIN teachers t ON t.user_id = u.user_id
+                WHERE u.email = :email
+            """), {"email": user["email"]}).fetchone()
+            if not teacher:
+                return jsonify({"ok": False, "error": "Teacher not found"})
+            teacher_id = str(teacher[0])
+
+            # Get all feedback from submitted questions for papers by this teacher
+            rows = conn.execute(text("""
+                SELECT q.chapter, q.subject,
+                       sq.ai_concept, sq.ai_formula, sq.ai_calculation,
+                       sq.ai_strict_reason, sq.teacher_feedback,
+                       sq.ai_marks_awarded, sq.max_marks,
+                       sq.ai_irrelevant
+                FROM submission_questions sq
+                JOIN questions q ON sq.question_id = q.question_id
+                JOIN submissions sub ON sq.submission_id = sub.submission_id
+                JOIN assignments a ON sub.submission_id = a.submission_id
+                JOIN papers p ON a.paper_id = p.paper_id
+                WHERE p.created_by = CAST(:tid AS UNIQUEIDENTIFIER)
+                AND sub.graded_at IS NOT NULL
+                AND sq.ai_marks_awarded < sq.max_marks
+            """), {"tid": teacher_id}).fetchall()
+
+        if not rows:
+            return jsonify({"ok": False, "error": "No graded submissions found to analyse."})
+
+        # Build feedback text grouped by chapter
+        chapter_data = {}
+        for r in rows:
+            ch = r.chapter or "Unknown"
+            if ch not in chapter_data:
+                chapter_data[ch] = []
+            feedback_parts = []
+            if r.ai_concept:    feedback_parts.append(f"Concept: {r.ai_concept}")
+            if r.ai_formula:    feedback_parts.append(f"Formula: {r.ai_formula}")
+            if r.ai_calculation: feedback_parts.append(f"Calculation: {r.ai_calculation}")
+            if r.ai_strict_reason and r.ai_strict_reason != "Strict and neutral agree":
+                feedback_parts.append(f"Strict note: {r.ai_strict_reason}")
+            if r.teacher_feedback: feedback_parts.append(f"Teacher: {r.teacher_feedback}")
+            if feedback_parts:
+                chapter_data[ch].append(" | ".join(feedback_parts))
+
+        # Build prompt
+        feedback_text = ""
+        for ch, feedbacks in chapter_data.items():
+            feedback_text += f"\n\n{ch}:\n" + "\n".join(f"- {f}" for f in feedbacks[:20])
+
+        client = get_openai_client()
+        prompt = f"""You are an expert academic analyst. Below is AI and teacher feedback from student exam submissions, grouped by chapter.
+
+{feedback_text}
+
+Analyse these feedbacks and identify RECURRING error patterns (errors appearing in multiple submissions, not one-off mistakes).
+
+Return a JSON object with exactly this structure:
+{{
+  "by_chapter": {{
+    "Chapter Name": ["bullet point error pattern", "another pattern"],
+    "Another Chapter": ["pattern"]
+  }},
+  "by_error_type": {{
+    "Conceptual Errors": ["pattern — Chapter", "pattern — Chapter"],
+    "Calculation Errors": ["pattern — Chapter"],
+    "Formula Errors": ["pattern — Chapter"],
+    "Incomplete Solutions": ["pattern — Chapter"]
+  }},
+  "summary": "2-3 sentence overall summary of the most critical patterns"
+}}
+
+Only include error types that actually appear in the data. Only include recurring patterns (2+ occurrences). Be specific and actionable. Return ONLY valid JSON."""
+
+        response = client.chat.completions.create(
+            model       = secrets["oai_deploy"],
+            messages    = [{"role": "user", "content": prompt}],
+            max_tokens  = 1500,
+            temperature = 0.3
+        )
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"): raw = raw[4:]
+        analysis = json.loads(raw.strip())
+
+        # Save to cache
+        with engine.begin() as conn:
+            # Delete old cache for this teacher
+            conn.execute(text("""
+                DELETE FROM error_analysis_cache
+                WHERE CAST(teacher_id AS NVARCHAR(36)) = :tid
+            """), {"tid": teacher_id})
+            # Insert new
+            conn.execute(text("""
+                INSERT INTO error_analysis_cache (cache_id, teacher_id, analysis, generated_at)
+                VALUES (NEWID(), CAST(:tid AS UNIQUEIDENTIFIER), :analysis, GETDATE())
+            """), {"tid": teacher_id, "analysis": json.dumps(analysis)})
+
+        return jsonify({
+            "ok"          : True,
+            "analysis"    : analysis,
+            "generated_at": datetime.now().isoformat()
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e)[:300]})

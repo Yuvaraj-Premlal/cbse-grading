@@ -725,7 +725,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       </div>
     </div>
   </nav>
-  <div class="wrap" style="max-width:480px;margin:0 auto;">
+  <div class="wrap" style="max-width:480px;margin:0 auto;padding-bottom:80px;">
     <div style="margin-bottom:24px;">
       <div class="page-title">My Profile</div>
     </div>
@@ -771,6 +771,16 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
       </div>
       <button class="btn btn-secondary btn-full" onclick="changePassword()">Update Password</button>
       <div id="pw-save-msg" style="display:none;font-size:12px;margin-top:8px;text-align:center;"></div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-item" onclick="showPage('page-dashboard')"><div class="bn-icon">🏠</div>Home</button>
+      <button class="bn-item" onclick="showPage('page-exam')"><div class="bn-icon">📝</div>Exam</button>
+      <button class="bn-item" onclick="showPage('page-practice')"><div class="bn-icon">📚</div>Practice</button>
+      <button class="bn-item" onclick="showPage('page-report')"><div class="bn-icon">📊</div>Reports</button>
+      <button class="bn-item active" onclick="showPage('page-profile')"><div class="bn-icon">👤</div>Profile</button>
     </div>
   </div>
 </div>

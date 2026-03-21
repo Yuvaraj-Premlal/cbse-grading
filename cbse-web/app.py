@@ -2906,7 +2906,9 @@ def get_error_analysis():
         engine = get_engine()
         with engine.connect() as conn:
             teacher = conn.execute(text("""
-                SELECT u.user_id FROM users u WHERE u.email = :email
+                SELECT t.teacher_id FROM teachers t
+                JOIN users u ON t.user_id = u.user_id
+                WHERE u.email = :email
             """), {"email": user["email"]}).fetchone()
             if not teacher:
                 return jsonify({"ok": False, "error": "Teacher not found"})
@@ -2940,8 +2942,9 @@ def generate_error_analysis():
         engine = get_engine()
         with engine.connect() as conn:
             teacher = conn.execute(text("""
-                SELECT u.user_id FROM users u
-                WHERE u.email = :email AND u.role = 'teacher'
+                SELECT t.teacher_id FROM teachers t
+                JOIN users u ON t.user_id = u.user_id
+                WHERE u.email = :email
             """), {"email": user["email"]}).fetchone()
             if not teacher:
                 return jsonify({"ok": False, "error": "Teacher not found"})

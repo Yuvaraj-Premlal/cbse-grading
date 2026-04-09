@@ -163,19 +163,26 @@ def grade_submission(questions, answer_sheet_urls):
     """
     client = get_openai_client()
 
-    # Build q_text — conditional model solution instruction
+    # Build q_text and collect question image SAS URLs
     q_text = ""
+    question_image_urls = []
     for i, q in enumerate(questions, 1):
         model_sol = (q.get('model_solution') or '').strip()
         if model_sol:
             model_sol_text = f"Model Solution (one valid approach only — award full marks for any correct alternate method): {model_sol}"
         else:
             model_sol_text = "No model solution provided — solve this question independently before grading. Award full marks for any correct method that reaches the right answer."
+        has_image = bool(q.get('image_url'))
         q_text += f"""
-Q{i}. [{q['chapter']} · {q['max_marks']} marks]
+Q{i}. [{q['chapter']} · {q['max_marks']} marks]{' [See diagram/image attached]' if has_image else ''}
 Question: {q['latex_content']}
 {model_sol_text}
 ---"""
+        if has_image:
+            question_image_urls.append({
+                "q_num": i,
+                "url"  : get_sas_url(q['image_url'], expiry_hours=1)
+            })
 
     # ── PASS 1 — GRADE ────────────────────────────────────────────────────────
     p1_system = """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
@@ -295,7 +302,23 @@ Follow all grading rules strictly.
 Return ONLY the JSON array, nothing else."""
 
     # Build image content for Pass 1
+    # Order: prompt text → question images (diagrams) → student answer sheet images
     image_contents = [{"type": "text", "text": p1_user}]
+    if question_image_urls:
+        image_contents.append({
+            "type": "text",
+            "text": "The following are question diagram images (one per question that has a diagram):"
+        })
+        for qi in question_image_urls:
+            image_contents.append({"type": "text", "text": f"Diagram for Q{qi['q_num']}:"})
+            image_contents.append({
+                "type": "image_url",
+                "image_url": {"url": qi["url"], "detail": "high"}
+            })
+        image_contents.append({
+            "type": "text",
+            "text": "The following are the student's handwritten answer sheet pages:"
+        })
     for item in answer_sheet_urls:
         image_contents.append({
             "type": "image_url",
@@ -894,6 +917,7 @@ def get_questions():
                     q.source,
                     q.year,
                     q.class,
+                    q.image_url,
                     q.approved,
                     CONVERT(VARCHAR, q.created_at, 120) as created_at
                 FROM questions q
@@ -975,11 +999,11 @@ def save_question():
                 INSERT INTO questions
                     (latex_content, subject, chapter, class, difficulty,
                      type, max_marks, source, year, created_by, approved,
-                     model_solution)
+                     model_solution, image_url)
                 VALUES
                     (:content, :subject, :chapter, :class, :difficulty,
                      :type, :marks, :source, :year, :created_by, 1,
-                     :model_solution)
+                     :model_solution, :image_url)
             """), {
                 "content"        : data["latex_content"],
                 "subject"        : data["subject"],
@@ -991,11 +1015,41 @@ def save_question():
                 "source"         : data["source"],
                 "year"           : data.get("year") or None,
                 "created_by"     : str(teacher[0]),
-                "model_solution" : data.get("model_solution") or None
+                "model_solution" : data.get("model_solution") or None,
+                "image_url"      : data.get("image_url") or None
             })
         return jsonify({"ok": True, "message": "Question saved"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})
+
+# ── QUESTION IMAGE UPLOAD ─────────────────────────────
+@app.route("/api/teacher/questions/upload-image", methods=["POST"])
+@require_role("teacher")
+def upload_question_image():
+    """Upload an image for a question to Azure Blob Storage."""
+    try:
+        if 'image' not in request.files:
+            return jsonify({"ok": False, "error": "No image provided"})
+        f = request.files['image']
+        if not f.filename:
+            return jsonify({"ok": False, "error": "Empty filename"})
+        ext = f.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ('jpg', 'jpeg', 'png'):
+            return jsonify({"ok": False, "error": "Only JPG and PNG allowed"})
+
+        from azure.storage.blob import BlobServiceClient
+        import uuid as uuid_mod
+        blob_name = f"questions/{uuid_mod.uuid4()}.{ext}"
+        conn_str  = secrets["storage_conn"]
+        blob_client = BlobServiceClient.from_connection_string(conn_str)\
+            .get_blob_client(container="answer-sheets", blob=blob_name)
+        blob_client.upload_blob(f.read(), overwrite=True,
+            content_settings=ContentSettings(content_type=f"image/{ext}"))
+        url = blob_client.url
+        return jsonify({"ok": True, "url": url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:200]})
+
 
 # ── PAPERS API ────────────────────────────────────────
 @app.route("/api/teacher/papers", methods=["GET"])
@@ -1250,7 +1304,8 @@ def update_question(question_id):
                     max_marks      = :marks,
                     source         = :source,
                     year           = :year,
-                    model_solution = :model_solution
+                    model_solution = :model_solution,
+                    image_url      = :image_url
                 WHERE question_id = :qid
             """), {
                 "content"        : data["latex_content"],
@@ -1263,6 +1318,7 @@ def update_question(question_id):
                 "source"         : data["source"],
                 "year"           : data.get("year") or None,
                 "model_solution" : data.get("model_solution") or None,
+                "image_url"      : data.get("image_url") or None,
                 "qid"            : question_id
             })
         return jsonify({"ok": True, "message": "Question updated"})
@@ -1474,7 +1530,7 @@ def get_student_paper(paper_id):
             questions = conn.execute(text("""
                 SELECT pq.order_num, pq.section,
                        q.question_id, q.latex_content, q.chapter,
-                       q.difficulty, q.type, q.max_marks
+                       q.difficulty, q.type, q.max_marks, q.image_url
                 FROM paper_questions pq
                 JOIN questions q ON pq.question_id = q.question_id
                 WHERE pq.paper_id = CAST(:pid AS UNIQUEIDENTIFIER)
@@ -1588,7 +1644,7 @@ def submit_exam():
             questions = conn.execute(text("""
                 SELECT pq.order_num, pq.section,
                        q.question_id, q.latex_content, q.chapter,
-                       q.max_marks, q.type, q.model_solution,
+                       q.max_marks, q.type, q.model_solution, q.image_url,
                        CONCAT('Q', pq.order_num) as question_number
                 FROM paper_questions pq
                 JOIN questions q ON pq.question_id = q.question_id
@@ -2033,7 +2089,7 @@ def get_practice_questions():
 
             query = """
                 SELECT q.question_id, q.latex_content, q.subject, q.chapter,
-                       q.difficulty, q.max_marks, q.type, q.class
+                       q.difficulty, q.max_marks, q.type, q.class, q.image_url
                 FROM questions q
                 WHERE LOWER(q.difficulty) IN ('hard', 'very_hard', 'very hard')
                 AND q.class = :cls
@@ -2109,19 +2165,22 @@ def submit_practice():
             # Get question
             q_row = conn.execute(text("""
                 SELECT question_id, latex_content, chapter, subject,
-                       max_marks, model_solution, difficulty, type
+                       max_marks, model_solution, difficulty, type, image_url
                 FROM questions WHERE question_id = CAST(:qid AS UNIQUEIDENTIFIER)
             """), {"qid": q_id}).fetchone()
             if not q_row:
                 return jsonify({"ok": False, "error": "Question not found"})
             q = dict(q_row._mapping)
 
-        # Generate SAS URLs for all images (multi-page support)
+        # Generate SAS URLs for all answer images (multi-page support)
         try:
             raw_urls = json.loads(img_url) if img_url.startswith('[') else [img_url]
         except Exception:
             raw_urls = [img_url]
         sas_urls = [get_sas_url(u, expiry_hours=1) for u in raw_urls if u]
+
+        # Generate SAS URL for question image if present
+        q_image_sas = get_sas_url(q['image_url'], expiry_hours=1) if q.get('image_url') else None
 
         # Single pass grading for practice
         client = get_openai_client()
@@ -2141,6 +2200,11 @@ Question: {q['latex_content']}
 {q_text}
 Return a JSON array with ONE object with fields: question_number, max_marks, ai_marks_awarded, ai_strict_marks, ai_strict_reason, ai_irrelevant, ai_concept, ai_formula, ai_calculation, ai_model_solution, ai_coaching_tip, ai_confidence, ai_flag_review.
 Return ONLY the JSON array."""}]
+        # Add question diagram image if present (before answer sheet)
+        if q_image_sas:
+            image_contents.append({"type": "text", "text": "Question diagram/image:"})
+            image_contents.append({"type": "image_url", "image_url": {"url": q_image_sas, "detail": "high"}})
+            image_contents.append({"type": "text", "text": "Student's answer sheet:"})
         for sas_url in sas_urls:
             image_contents.append({"type": "image_url", "image_url": {"url": sas_url, "detail": "high"}})
 
@@ -2152,48 +2216,6 @@ Grade this practice question. Follow CBSE marking rules. Award marks for correct
 LATEX: ALL math expressions MUST be wrapped in $ delimiters. NEVER raw LaTeX without $.
 RESPOND ONLY with valid JSON array, one object. No preamble, no markdown."""},
                 {"role": "user", "content": image_contents}
-            ],
-            max_tokens  = 2000,
-            temperature = 0.1
-        )
-        q_text = f"""
-Q1. [{q['chapter']} · {q['max_marks']} marks]
-Question: {q['latex_content']}
-{model_sol_text}
----"""
-
-        p1_response = client.chat.completions.create(
-            model      = secrets["oai_deploy"],
-            messages   = [
-                {"role": "system", "content": """You are an expert CBSE Mathematics and Science examiner with deep pedagogical knowledge.
-Grade this single practice question. Follow all CBSE marking rules. Award marks for correct steps.
-If student used alternate valid method, award full marks.
-LATEX RULES:
-- ALL mathematical expressions, equations, symbols MUST be wrapped in $ delimiters.
-- Inline math: $expression$ — example: $\\int x \\cdot e^x dx$
-- NEVER write raw LaTeX without $ delimiters — example WRONG: \\int x dx  RIGHT: $\\int x dx$
-- NEVER wrap English words in LaTeX.
-RESPOND ONLY with a valid JSON array containing one object. No preamble, no markdown."""},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"""Grade this student's practice answer:
-{q_text}
-Return a JSON array with ONE object containing:
-- question_number: "Q1"
-- max_marks: integer
-- ai_marks_awarded: integer
-- ai_strict_marks: integer
-- ai_strict_reason: string
-- ai_irrelevant: boolean
-- ai_concept: string
-- ai_formula: string
-- ai_calculation: string
-- ai_model_solution: string
-- ai_coaching_tip: string
-- ai_confidence: float 0 to 1
-- ai_flag_review: boolean
-Return ONLY the JSON array."""},
-                    {"type": "image_url", "image_url": {"url": sas_url, "detail": "high"}}
-                ]}
             ],
             max_tokens  = 2000,
             temperature = 0.1

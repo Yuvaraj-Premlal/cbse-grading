@@ -2023,6 +2023,7 @@ async function pbViewPaper(paperId) {
               </div>
             </div>
             <div style="font-size:13.5px;color:var(--text);line-height:1.8;">${q.latex_content}</div>
+            ${q.image_url ? `<img src="" data-blob-url="${q.image_url}" class="paper-preview-img" style="max-width:100%;max-height:200px;border-radius:9px;border:1px solid var(--border);margin-top:8px;display:block;" />` : ''}
             ${q.model_solution ? `
             <div style="margin-top:10px;background:var(--green-l);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--green);line-height:1.6;">
               <strong>Model Solution:</strong> ${q.model_solution}
@@ -2031,6 +2032,21 @@ async function pbViewPaper(paperId) {
       </div>`).join('');
 
     renderMath(sectionsEl);
+
+    // Load SAS URLs for all question images in preview
+    const imgEls = sectionsEl.querySelectorAll('.paper-preview-img');
+    const blobUrls = [...imgEls].map(el => el.dataset.blobUrl);
+    if (blobUrls.length) {
+      const sasRes  = await fetch('/api/teacher/sas-url', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ urls: blobUrls })
+      });
+      const sasData = await sasRes.json();
+      if (sasData.ok) {
+        imgEls.forEach((el, i) => { el.src = sasData.sas_urls[i]; });
+      }
+    }
     document.getElementById('pp-loading').style.display = 'none';
     document.getElementById('pp-sections').style.display = 'block';
   } catch(e) {

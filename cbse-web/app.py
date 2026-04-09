@@ -1037,10 +1037,10 @@ def upload_question_image():
         if ext not in ('jpg', 'jpeg', 'png'):
             return jsonify({"ok": False, "error": "Only JPG and PNG allowed"})
 
-        from azure.storage.blob import BlobServiceClient
+        from azure.storage.blob import BlobServiceClient, ContentSettings
         import uuid as uuid_mod
         blob_name = f"questions/{uuid_mod.uuid4()}.{ext}"
-        conn_str  = secrets["storage_conn"]
+        conn_str  = secrets["storage"]
         blob_client = BlobServiceClient.from_connection_string(conn_str)\
             .get_blob_client(container="answer-sheets", blob=blob_name)
         blob_client.upload_blob(f.read(), overwrite=True,

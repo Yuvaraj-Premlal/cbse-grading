@@ -891,6 +891,8 @@ def teacher_dashboard():
             }
         })
     except Exception as e:
+        if "FK__paper_que" in str(e) or "REFERENCE constraint" in str(e):
+            return jsonify({"ok": False, "error": "This question cannot be deleted — it is already used in one or more papers. Remove it from those papers first."})
         return jsonify({"ok": False, "error": str(e)[:300]})
 
 # ── QUESTION BANK ─────────────────────────────────────

@@ -2037,16 +2037,21 @@ async function pbViewPaper(paperId) {
     const imgEls = sectionsEl.querySelectorAll('.paper-preview-img');
     const blobUrls = [...imgEls].map(el => el.dataset.blobUrl);
     if (blobUrls.length) {
-      const sasRes  = await fetch('/api/teacher/sas-url', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ urls: blobUrls })
-      });
-      const sasData = await sasRes.json();
-      if (sasData.ok) {
-        imgEls.forEach((el, i) => { el.src = sasData.sas_urls[i]; });
+      try {
+        const sasRes  = await fetch('/api/teacher/sas-url', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ urls: blobUrls })
+        });
+        const sasData = await sasRes.json();
+        if (sasData.ok) {
+          imgEls.forEach((el, i) => { el.src = sasData.sas_urls[i]; });
+        }
+      } catch(e) {
+        console.error('Failed to load image SAS URLs', e);
       }
     }
+
     document.getElementById('pp-loading').style.display = 'none';
     document.getElementById('pp-sections').style.display = 'block';
   } catch(e) {

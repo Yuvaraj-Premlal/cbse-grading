@@ -640,7 +640,10 @@ nav{background:var(--white);border-bottom:1px solid var(--border);position:stick
     <div id="practice-attempt-section" style="display:none;margin-top:20px;">
       <div class="card" style="margin-bottom:16px;">
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;" id="pq-meta"></div>
-        <div id="pq-text" style="font-size:14px;line-height:1.8;margin-bottom:16px;"></div>
+        <div id="pq-text" style="font-size:14px;line-height:1.8;margin-bottom:8px;"></div>
+        <div id="pq-image-section" style="display:none;margin-bottom:16px;">
+          <img id="pq-image" style="max-width:100%;max-height:220px;border-radius:9px;border:1px solid var(--border);" />
+        </div>
         <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Upload your answer:</div>
         <div class="upload-zone" id="practice-upload-zone" onclick="document.getElementById('practice-file-input').click()" style="padding:20px;">
           <div class="uz-icon" style="font-size:24px;">📸</div>
@@ -923,7 +926,8 @@ async function loadReport(submissionId) {
             <div class="q-chevron">▼</div>
           </div>
           <div class="q-card-body">
-            <div style="font-size:13.5px;color:var(--text);line-height:1.8;margin-bottom:14px;">${q.latex_content}</div>
+            <div style="font-size:13.5px;color:var(--text);line-height:1.8;margin-bottom:${q.image_url?'8px':'14px'};">${q.latex_content}</div>
+            ${q.image_url ? `<div style="margin-bottom:14px;"><img src="${q.image_url}" style="max-width:100%;max-height:200px;border-radius:9px;border:1px solid var(--border);" /></div>` : ''}
             ${strictWarn}
             ${irrelevantBox}
             ${!q.ai_irrelevant && q.ai_concept ? `
@@ -1133,7 +1137,8 @@ async function loadViewPaper(paperId) {
               <div style="font-size:12px;font-weight:700;color:var(--muted);">Q${q.order_num || i+1} · ${q.chapter}</div>
               <span class="badge badge-blue">${q.max_marks} marks</span>
             </div>
-            <div style="font-size:14px;color:var(--text);line-height:1.8;">${q.latex_content}</div>
+            <div style="font-size:14px;color:var(--text);line-height:1.8;margin-bottom:${q.image_url?'8px':'0'};">${q.latex_content}</div>
+            ${q.image_url ? `<div style="margin-top:8px;margin-bottom:4px;"><img src="${q.image_url}" style="max-width:100%;max-height:200px;border-radius:9px;border:1px solid var(--border);" /></div>` : ''}
             <div style="font-size:11.5px;color:var(--muted);margin-top:8px;">${q.difficulty} · ${(q.type||'').replace(/_/g,' ')}</div>
           </div>`).join('')}
       </div>`).join('');
@@ -1604,6 +1609,7 @@ async function loadPracticeQuestions() {
               <span style="color:${q.difficulty==='very_hard'||q.difficulty==='very_tough'?'var(--red)':'var(--amber)'};">${q.difficulty.replace('_',' ').toUpperCase()}</span>
             </div>
             <div style="font-size:13.5px;line-height:1.7;">${q.latex_content}</div>
+            ${q.image_url ? `<div style="margin-top:8px;"><img src="${q.image_url}" style="max-height:80px;max-width:100%;border-radius:6px;border:1px solid var(--border);" /></div>` : ''}
           </div>
           <button class="btn btn-primary btn-sm" style="flex-shrink:0;margin-top:4px;"
             onclick="startPracticeAttempt('${q.question_id}')" ${remaining <= 0 ? 'disabled' : ''}>
@@ -1627,8 +1633,18 @@ function startPracticeAttempt(questionId) {
   document.getElementById('pq-meta').textContent =
     `${currentPracticeQ.chapter} · ${currentPracticeQ.max_marks} marks · ${(currentPracticeQ.difficulty||'').replace('_',' ').toUpperCase()}`;
   const textEl = document.getElementById('pq-text');
-  textEl.textContent = currentPracticeQ.latex_content;
+  textEl.innerHTML = currentPracticeQ.latex_content;
   if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([textEl]);
+
+  // Show question image if present
+  const pqImgSection = document.getElementById('pq-image-section');
+  const pqImg = document.getElementById('pq-image');
+  if (currentPracticeQ.image_url) {
+    pqImg.src = currentPracticeQ.image_url;
+    pqImgSection.style.display = 'block';
+  } else {
+    pqImgSection.style.display = 'none';
+  }
 
   document.getElementById('practice-file-list').style.display  = 'none';
   document.getElementById('practice-submit-btn').style.display = 'none';

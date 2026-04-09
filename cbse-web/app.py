@@ -941,10 +941,19 @@ def get_questions():
             query += " ORDER BY q.created_at DESC"
 
             rows = conn.execute(text(query), params).fetchall()
+            questions = []
+            for r in rows:
+                q = dict(r._mapping)
+                # Check if question is used in any paper
+                in_papers = conn.execute(text(
+                    "SELECT COUNT(*) FROM paper_questions WHERE question_id = CAST(:qid AS UNIQUEIDENTIFIER)"
+                ), {"qid": str(q["question_id"])}).fetchone()[0]
+                q["in_papers"] = in_papers > 0
+                questions.append(q)
             return jsonify({
                 "ok": True,
-                "questions": [dict(r._mapping) for r in rows],
-                "total": len(rows)
+                "questions": questions,
+                "total": len(questions)
             })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})

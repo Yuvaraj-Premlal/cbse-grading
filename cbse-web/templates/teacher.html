@@ -1016,6 +1016,20 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
       <label class="form-label">Model Solution <span style="color:var(--muted);font-weight:400;">(optional — AI uses this for grading)</span></label>
       <textarea class="form-input" id="q-solution" rows="3" placeholder="Step 1: ... (1 mark)&#10;Step 2: ... (2 marks)&#10;Final answer: ... (2 marks)"></textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">Question Image <span style="color:var(--muted);font-weight:400;">(optional — diagram, figure, graph)</span></label>
+      <div id="q-image-zone" style="border:1.5px dashed var(--border);border-radius:9px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--bg);" onclick="document.getElementById('q-image-input').click()">
+        <span style="font-size:20px;">🖼️</span>
+        <div style="flex:1;">
+          <div id="q-image-label" style="font-size:13px;color:var(--muted);">Click to upload JPG or PNG image</div>
+        </div>
+        <button type="button" id="q-image-clear" style="display:none;font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;" onclick="clearQuestionImage(event)">✕ Remove</button>
+      </div>
+      <input type="file" id="q-image-input" accept=".jpg,.jpeg,.png" style="display:none;" onchange="handleQuestionImageSelect(this)"/>
+      <div id="q-image-preview" style="display:none;margin-top:8px;">
+        <img id="q-image-thumb" style="max-height:120px;max-width:100%;border-radius:8px;border:1px solid var(--border);" />
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-question')">Cancel</button>
       <button class="btn btn-primary" id="q-save-btn" onclick="saveQuestion()">Save Question →</button>
@@ -1029,6 +1043,9 @@ textarea.form-input{resize:vertical;min-height:90px;line-height:1.6;}
     <div class="modal-title">Question Preview</div>
     <div class="modal-sub" id="vq-sub"></div>
     <div id="vq-text" style="background:var(--bg);border-radius:11px;padding:16px;margin-bottom:16px;font-size:14px;line-height:1.8;color:var(--ink);"></div>
+    <div id="vq-image-section" style="display:none;margin-bottom:16px;">
+      <img id="vq-image" style="max-width:100%;max-height:200px;border-radius:9px;border:1px solid var(--border);" />
+    </div>
     <div class="grid-3" style="margin-bottom:16px;">
       <div style="text-align:center;background:var(--blue-l);border-radius:9px;padding:10px;">
         <div id="vq-marks" style="font-weight:700;color:var(--blue);"></div>
@@ -1520,19 +1537,55 @@ function viewQuestion(q) {
   document.getElementById('vq-type').textContent   = (q.type || '').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 
   const textEl = document.getElementById('vq-text');
-  textEl.textContent = q.latex_content;
+  textEl.innerHTML = q.latex_content;
   renderMath(textEl);
+
+  // Show question image if present
+  const imgSection = document.getElementById('vq-image-section');
+  if (q.image_url) {
+    document.getElementById('vq-image').src = q.image_url;
+    imgSection.style.display = 'block';
+  } else {
+    imgSection.style.display = 'none';
+  }
 
   const solSection = document.getElementById('vq-solution-section');
   if (q.model_solution) {
     const solEl = document.getElementById('vq-solution');
-    solEl.textContent = q.model_solution;
+    solEl.innerHTML = q.model_solution;
     solSection.style.display = 'block';
     renderMath(solEl);
   } else {
     solSection.style.display = 'none';
   }
   openModal('modal-view-question');
+}
+
+// ── QUESTION IMAGE HELPERS ────────────────────────────
+function handleQuestionImageSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // Clear previously uploaded URL so it re-uploads
+  input.dataset.uploadedUrl = '';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('q-image-thumb').src = e.target.result;
+    document.getElementById('q-image-preview').style.display = 'block';
+    document.getElementById('q-image-label').textContent = '✅ ' + file.name;
+    document.getElementById('q-image-clear').style.display = 'inline';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearQuestionImage(evt) {
+  if (evt) evt.stopPropagation();
+  const inp = document.getElementById('q-image-input');
+  inp.value = '';
+  inp.dataset.uploadedUrl = '';
+  document.getElementById('q-image-label').textContent = 'Click to upload JPG or PNG image';
+  document.getElementById('q-image-clear').style.display = 'none';
+  document.getElementById('q-image-preview').style.display = 'none';
+  document.getElementById('q-image-thumb').src = '';
 }
 
 function editQuestion(q) {
@@ -1556,6 +1609,18 @@ function editQuestion(q) {
   document.getElementById('q-source').value     = q.source || 'teacher';
   document.getElementById('q-year').value       = q.year || '';
   document.getElementById('q-solution').value   = q.model_solution || '';
+
+  // Pre-fill image if exists
+  if (q.image_url) {
+    const sas = q.image_url; // will display direct — SAS not needed for teacher view
+    document.getElementById('q-image-input').dataset.uploadedUrl = q.image_url;
+    document.getElementById('q-image-label').textContent = '✅ Image attached';
+    document.getElementById('q-image-clear').style.display = 'inline';
+    document.getElementById('q-image-thumb').src = sas;
+    document.getElementById('q-image-preview').style.display = 'block';
+  } else {
+    clearQuestionImage();
+  }
 
   // Update preview
   updatePreview();
@@ -1761,6 +1826,9 @@ async function loadPickQuestions() {
       const isAdded    = alreadyAdded.has(q.question_id);
       const isSelected = !!pickSelectedMap[q.question_id];
       const qEncoded   = encodeURIComponent(JSON.stringify(q));
+      const imgHtml    = q.image_url
+        ? `<img src="${q.image_url}" style="max-height:60px;max-width:100%;border-radius:6px;margin-top:6px;border:1px solid var(--border);display:block;" />`
+        : '';
       return `
         <div class="q-bank-item ${isSelected?'q-selected':''}"
              style="cursor:${isAdded?'default':'pointer'};${isAdded?'opacity:0.4;pointer-events:none;':''}"
@@ -1769,6 +1837,7 @@ async function loadPickQuestions() {
              data-q="${qEncoded}">
           <div class="q-body">
             <div class="q-text" style="font-size:13px;">${q.latex_content}</div>
+            ${imgHtml}
             <div class="q-meta">
               <span class="badge badge-blue" style="font-size:10px;">${q.chapter}</span>
               <span>${q.max_marks} marks</span>
@@ -2064,6 +2133,7 @@ async function loadQuestions() {
               <span class="badge ${diffBadge}" style="font-size:10px;">${q.difficulty}</span>
               <span>${q.max_marks} marks</span>
               <span>${source}</span>
+              ${q.image_url ? '<span style="background:var(--purple-l);color:var(--purple);padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;">🖼 Image</span>' : ''}
             </div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -2096,6 +2166,26 @@ async function saveQuestion() {
   errBox.style.display = 'none';
   okBox.style.display  = 'none';
 
+  // Upload image first if one is selected
+  let imageUrl = document.getElementById('q-image-input').dataset.uploadedUrl || null;
+  const imageFile = document.getElementById('q-image-input').files[0];
+  if (imageFile && !imageUrl) {
+    btn.disabled = true;
+    btn.textContent = 'Uploading image...';
+    try {
+      const fd = new FormData();
+      fd.append('image', imageFile);
+      const upRes  = await fetch('/api/teacher/questions/upload-image', {method:'POST', body:fd});
+      const upData = await upRes.json();
+      if (!upData.ok) { errBox.textContent = 'Image upload failed: ' + upData.error; errBox.style.display='block'; btn.disabled=false; btn.textContent='Save Question →'; return; }
+      imageUrl = upData.url;
+      document.getElementById('q-image-input').dataset.uploadedUrl = imageUrl;
+    } catch(e) {
+      errBox.textContent = 'Image upload failed.'; errBox.style.display='block';
+      btn.disabled=false; btn.textContent='Save Question →'; return;
+    }
+  }
+
   const payload = {
     latex_content  : document.getElementById('q-content').value.trim(),
     subject        : document.getElementById('q-subject').value,
@@ -2106,7 +2196,8 @@ async function saveQuestion() {
     max_marks      : document.getElementById('q-marks').value,
     source         : document.getElementById('q-source').value,
     year           : document.getElementById('q-year').value || null,
-    model_solution : document.getElementById('q-solution').value.trim() || null
+    model_solution : document.getElementById('q-solution').value.trim() || null,
+    image_url      : imageUrl || null
   };
 
   if (!payload.latex_content) { errBox.textContent='Question text is required.'; errBox.style.display='block'; return; }
@@ -2137,6 +2228,7 @@ async function saveQuestion() {
       document.getElementById('q-year').value       = '';
       document.getElementById('q-solution').value   = '';
       document.getElementById('q-editing-id').value = '';
+      clearQuestionImage();
       setTimeout(() => { closeModal('modal-add-question'); loadQuestions(); }, 800);
     }
   } catch(err) {

@@ -1838,7 +1838,7 @@ async function loadPickQuestions() {
       const isSelected = !!pickSelectedMap[q.question_id];
       const qEncoded   = encodeURIComponent(JSON.stringify(q));
       const imgHtml    = q.image_url
-        ? `<img src="${q.image_url}" style="max-height:60px;max-width:100%;border-radius:6px;margin-top:6px;border:1px solid var(--border);display:block;" />`
+        ? `<img src="" data-blob-url="${q.image_url}" class="pick-q-img" style="max-height:60px;max-width:100%;border-radius:6px;margin-top:6px;border:1px solid var(--border);display:block;" />`
         : '';
       return `
         <div class="q-bank-item ${isSelected?'q-selected':''}"
@@ -1862,6 +1862,21 @@ async function loadPickQuestions() {
         </div>`;
     }).join('');
     renderMath(list);
+
+    // Load SAS URLs for all question images
+    const imgEls = list.querySelectorAll('.pick-q-img');
+    const blobUrls = [...imgEls].map(el => el.dataset.blobUrl);
+    if (blobUrls.length) {
+      const sasRes  = await fetch('/api/teacher/sas-url', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ urls: blobUrls })
+      });
+      const sasData = await sasRes.json();
+      if (sasData.ok) {
+        imgEls.forEach((el, i) => { el.src = sasData.sas_urls[i]; });
+      }
+    }
   } catch(e) {
     list.innerHTML = '<div style="color:var(--red);padding:16px;">Failed to load.</div>';
   }

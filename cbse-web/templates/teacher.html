@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Skool Test — Teacher Portal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;Skool Test 1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
 <!-- MathJax for LaTeX rendering -->
 <script>
 window.MathJax = {
@@ -2033,13 +2033,16 @@ async function pbViewPaper(paperId) {
 
     renderMath(sectionsEl);
 
-    // Load SAS URLs for all question images in preview
+    // Show sections FIRST before loading images
+    document.getElementById('pp-loading').style.display = 'none';
+    document.getElementById('pp-sections').style.display = 'block';
+
+    // NOW load SAS URLs for all question images
     const imgEls = sectionsEl.querySelectorAll('.paper-preview-img');
-    const blobUrls = [...imgEls].map(el => el.dataset.blobUrl);
+    const blobUrls = [...imgEls].map(el => el.dataset.blobUrl).filter(Boolean);
     if (blobUrls.length) {
       try {
-        const sasRes  = await fetch('/api/teacher/sas-url', {
-          method: 'POST',
+        const sasRes  = await fetch('/api/teacher/sas-url', {      method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ urls: blobUrls })
         });
@@ -2052,8 +2055,6 @@ async function pbViewPaper(paperId) {
       }
     }
 
-    document.getElementById('pp-loading').style.display = 'none';
-    document.getElementById('pp-sections').style.display = 'block';
   } catch(e) {
     alert('Failed to load paper.');
     closeModal('modal-preview-paper');

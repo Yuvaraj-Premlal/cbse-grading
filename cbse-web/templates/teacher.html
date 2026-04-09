@@ -1529,7 +1529,7 @@ function updateChapters() {
 // Also update chapters when class changes
 function onClassChange() { updateChapters(); }
 
-function viewQuestion(q) {
+async function viewQuestion(q) {
   const source = q.source === 'past_paper' ? `CBSE ${q.year || ''}` : 'Teacher Created';
   document.getElementById('vq-sub').textContent    = `${source} · ${q.subject} · ${q.chapter}`;
   document.getElementById('vq-marks').textContent  = q.max_marks;
@@ -1543,7 +1543,18 @@ function viewQuestion(q) {
   // Show question image if present
   const imgSection = document.getElementById('vq-image-section');
   if (q.image_url) {
-    document.getElementById('vq-image').src = q.image_url;
+    try {
+      const sasRes  = await fetch('/api/teacher/sas-url', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ urls: [q.image_url] })
+      });
+      const sasData = await sasRes.json();
+      const displayUrl = sasData.ok ? sasData.sas_urls[0] : q.image_url;
+      document.getElementById('vq-image').src = displayUrl;
+    } catch(e) {
+      document.getElementById('vq-image').src = q.image_url;
+    }
     imgSection.style.display = 'block';
   } else {
     imgSection.style.display = 'none';

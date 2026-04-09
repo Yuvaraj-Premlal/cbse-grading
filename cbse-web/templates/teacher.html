@@ -2150,8 +2150,7 @@ async function loadQuestions() {
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewQuestion(JSON.parse(decodeURIComponent('${qJson}')))">View</button>
             <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();editQuestion(JSON.parse(decodeURIComponent('${qJson}')))">Edit</button>
-            <button class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid #FCCACA;" onclick="event.stopPropagation();confirmDelete('${q.question_id}', this)">Delete</button>
-          </div>
+            <button class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid #FCCACA;" onclick="event.stopPropagation();confirmDelete('${q.question_id}', this)">Delete</button>          </div>
         </div>`;
     }).join('');
 

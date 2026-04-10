@@ -2902,6 +2902,174 @@ Write in third person, professional tone. Be specific and constructive, not gene
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:200]})
 
+# ══════════════════════════════════════════════════════
+# ADMIN API
+# ══════════════════════════════════════════════════════
+
+@app.route("/api/admin/users", methods=["GET"])
+@require_role("admin")
+def admin_get_users():
+    """Get all users with student class and reg number."""
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT
+                    CAST(u.user_id AS NVARCHAR(36)) as user_id,
+                    u.name, u.email, u.role, u.is_active,
+                    CONVERT(VARCHAR, u.created_at, 120) as created_at,
+                    s.class, s.system_reg_number
+                FROM users u
+                LEFT JOIN students s ON s.user_id = u.user_id
+                ORDER BY u.created_at DESC
+            """)).fetchall()
+        return jsonify({"ok": True, "users": [dict(r._mapping) for r in rows]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/admin/users", methods=["POST"])
+@require_role("admin")
+def admin_create_user():
+    """Create a new user. Auto-creates student/teacher profile as needed."""
+    data = request.json
+    try:
+        name     = (data.get("name") or "").strip()
+        email    = (data.get("email") or "").strip().lower()
+        password = (data.get("password") or "").strip()
+        role     = (data.get("role") or "").strip()
+        cls      = int(data.get("class_num") or 12)
+
+        if not all([name, email, password, role]):
+            return jsonify({"ok": False, "error": "Name, email, password and role are required"})
+        if role not in ["student", "teacher", "admin"]:
+            return jsonify({"ok": False, "error": "Invalid role"})
+        if len(password) < 4:
+            return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
+
+        engine = get_engine()
+        with engine.connect() as conn:
+            existing = conn.execute(text(
+                "SELECT user_id FROM users WHERE email = :email"
+            ), {"email": email}).fetchone()
+            if existing:
+                return jsonify({"ok": False, "error": "Email already exists"})
+
+        reg_number = None
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO users (name, email, password_hash, role, is_active)
+                VALUES (:name, :email, :hash, :role, 1)
+            """), {
+                "name" : name,
+                "email": email,
+                "hash" : hash_password(password),
+                "role" : role
+            })
+
+            user_row = conn.execute(text(
+                "SELECT user_id FROM users WHERE email = :email"
+            ), {"email": email}).fetchone()
+            user_id = str(user_row[0])
+
+            if role == "student":
+                reg_number = generate_system_reg_number(conn)
+                conn.execute(text("""
+                    INSERT INTO students (student_id, user_id, class, system_reg_number)
+                    VALUES (NEWID(), CAST(:uid AS UNIQUEIDENTIFIER), :cls, :reg)
+                """), {"uid": user_id, "cls": cls, "reg": reg_number})
+
+            elif role == "teacher":
+                conn.execute(text("""
+                    INSERT INTO teachers (user_id, subject)
+                    VALUES (CAST(:uid AS UNIQUEIDENTIFIER), 'General')
+                """), {"uid": user_id})
+
+        return jsonify({"ok": True, "message": f"User {email} created", "reg_number": reg_number})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/admin/users/<user_id>", methods=["PUT"])
+@require_role("admin")
+def admin_update_user(user_id):
+    """Update user name and class (for students)."""
+    data = request.json
+    try:
+        name = (data.get("name") or "").strip()
+        cls  = data.get("class_num")
+        password = (data.get("password") or "").strip()
+
+        if not name:
+            return jsonify({"ok": False, "error": "Name is required"})
+
+        engine = get_engine()
+        with engine.begin() as conn:
+            updates = "name = :name"
+            params  = {"name": name, "uid": user_id}
+
+            if password:
+                if len(password) < 4:
+                    return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
+                updates += ", password_hash = :hash"
+                params["hash"] = hash_password(password)
+
+            conn.execute(text(f"UPDATE users SET {updates} WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)"), params)
+
+            # Update student class if provided
+            if cls:
+                conn.execute(text("""
+                    UPDATE students SET class = :cls
+                    WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)
+                """), {"cls": int(cls), "uid": user_id})
+
+        return jsonify({"ok": True, "message": "User updated"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/admin/users/<user_id>/reset-password", methods=["POST"])
+@require_role("admin")
+def admin_reset_password(user_id):
+    """Reset a user's password."""
+    data = request.json
+    try:
+        password = (data.get("password") or "").strip()
+        if not password:
+            return jsonify({"ok": False, "error": "Password is required"})
+        if len(password) < 4:
+            return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
+
+        engine = get_engine()
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE users SET password_hash = :hash
+                WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)
+            """), {"hash": hash_password(password), "uid": user_id})
+
+        return jsonify({"ok": True, "message": "Password updated"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+
+@app.route("/api/admin/users/<user_id>/status", methods=["POST"])
+@require_role("admin")
+def admin_toggle_status(user_id):
+    """Activate or deactivate a user."""
+    data = request.json
+    try:
+        active = bool(data.get("active", False))
+        engine = get_engine()
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE users SET is_active = :active
+                WHERE user_id = CAST(:uid AS UNIQUEIDENTIFIER)
+            """), {"active": 1 if active else 0, "uid": user_id})
+        return jsonify({"ok": True, "message": "Status updated"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:300]})
+
+-------------
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

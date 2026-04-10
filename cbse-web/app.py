@@ -1557,7 +1557,14 @@ def get_student_paper(paper_id):
             """), {"pid": paper_id}).fetchall()
 
         result = dict(paper._mapping)
-        result["questions"] = [dict(q._mapping) for q in questions]
+        qs = [dict(q._mapping) for q in questions]
+        for q in qs:
+            if q.get("image_url"):
+                try:
+                    q["image_url"] = get_sas_url(q["image_url"], expiry_hours=3)
+                except:
+                    pass
+        result["questions"] = qs
         return jsonify({"ok": True, "paper": result})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)[:300]})

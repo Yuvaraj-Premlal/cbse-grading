@@ -1879,7 +1879,7 @@ def review_queue():
                            sq.ai_confidence, sq.ai_flag_review,
                            sq.ai_strict_marks, sq.ai_strict_reason,
                            sq.ai_concept, sq.ai_formula, sq.ai_calculation, sq.ai_irrelevant,
-                           q.latex_content, q.chapter, pq.section
+                           q.latex_content, q.chapter, q.image_url, pq.section
                     FROM submission_questions sq
                     JOIN questions q ON sq.question_id = q.question_id
                     JOIN paper_questions pq ON q.question_id = pq.question_id
@@ -1894,8 +1894,15 @@ def review_queue():
                     "aid": str(sub.assignment_id)
                 }).fetchall()
 
-                sub_dict["questions"] = [dict(q._mapping) for q in questions]
-
+                qs = [dict(q._mapping) for q in questions]
+                for q in qs:
+                    if q.get("image_url"):
+                        try:
+                            q["image_url"] = get_sas_url(q["image_url"], expiry_hours=3)
+                        except:
+                            pass
+                sub_dict["questions"] = qs
+                
                 # Parse answer_sheet_url — may be single URL or JSON array
                 url_field = sub.answer_sheet_url or ''
                 if url_field.startswith('['):

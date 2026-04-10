@@ -2215,7 +2215,7 @@ def submit_practice():
 
         # Generate SAS URLs for all answer images (multi-page support)
         try:
-            raw_urls = json.loads(img_url) if img_url.startswith('[') else [img_url]
+            raw_urls = json.loads(img_url) if isinstance(img_url, str) and img_url.startswith('[') else [img_url]
         except Exception:
             raw_urls = [img_url]
         sas_urls = [get_sas_url(u, expiry_hours=1) for u in raw_urls if u]

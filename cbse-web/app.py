@@ -1789,7 +1789,7 @@ def get_student_result(submission_id):
                        sq.teacher_feedback,
                        sq.ai_strict_marks, sq.ai_strict_reason,
                        sq.ai_concept, sq.ai_formula, sq.ai_calculation, sq.ai_irrelevant,
-                       q.latex_content, q.chapter, q.type,
+                       q.latex_content, q.chapter, q.type,q.image_url,
                        pq.section
                 FROM submission_questions sq
                 JOIN questions q ON sq.question_id = q.question_id
@@ -1823,7 +1823,15 @@ def get_student_result(submission_id):
             """), {"sid": submission_id}).fetchone()
 
         result = dict(sub._mapping)
-        result["questions"]      = [dict(q._mapping) for q in questions]
+        qs = [dict(q._mapping) for q in questions]
+        for q in qs:
+            if q.get("image_url"):
+                try:
+                    q["image_url"] = get_sas_url(q["image_url"], expiry_hours=3)
+                except:
+                    pass
+        result["questions"] = qs
+        
         result["disputes_count"] = disputes
         result["ai_failed"]      = bool(ai_failed)
         result["annotations"]    = annot[0] if annot and annot[0] else None

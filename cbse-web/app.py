@@ -1121,7 +1121,7 @@ def get_paper(paper_id):
                 SELECT
                     pq.question_id, pq.section, pq.order_num, pq.marks_override,
                     q.latex_content, q.subject, q.chapter, q.difficulty,
-                    q.max_marks, q.type, q.model_solution
+                    q.max_marks, q.type, q.model_solution, q.image_url
                 FROM paper_questions pq
                 JOIN questions q ON pq.question_id = q.question_id
                 WHERE pq.paper_id = :pid

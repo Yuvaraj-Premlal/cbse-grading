@@ -2270,7 +2270,10 @@ RESPOND ONLY with valid JSON array, one object. No preamble, no markdown."""},
 
         # Safeguards
         marks      = min(max(int(r.get("ai_marks_awarded", 0)), 0), q["max_marks"])
-        confidence = min(max(float(r.get("ai_confidence", 0.8)), 0.0), 1.0)
+        try:
+            confidence = min(max(float(r.get("ai_confidence", 0.8)), 0.0), 1.0)
+        except (ValueError, TypeError):
+            confidence = 0.8
         irrelevant = str(r.get("ai_irrelevant", "false")).lower() in ("true", "1")
         flag       = bool(r.get("ai_flag_review", False)) or confidence < 0.85
         strict_marks = min(max(int(r.get("ai_strict_marks", marks)), 0), q["max_marks"])

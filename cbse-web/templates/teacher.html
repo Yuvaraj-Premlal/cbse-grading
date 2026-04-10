@@ -1405,7 +1405,6 @@ async function rqRenderPanel(idx) {
       '<input class="mark-input" type="number" value="' + q.ai_marks_awarded + '" min="0" max="' + q.max_marks + '" data-sqid="' + q.sq_id + '" oninput="rqUpdateTotal()" style="width:52px;"/>' +
       '<div style="font-size:13px;color:var(--muted);">/' + q.max_marks + '</div></div></div>' +
       '<div style="font-size:12.5px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:10px;line-height:1.7;">' + q.latex_content + '</div>' +
-      '<div style="font-size:12.5px;color:var(--text);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:10px;line-height:1.7;">' + q.latex_content + '</div>' +
       (q.image_url ? '<img src="' + q.image_url + '" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;display:block;" />' : '') +
       // Confidence display for teacher
       (function() {

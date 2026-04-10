@@ -1,9 +1,689 @@
 <!DOCTYPE html>
-<html>
-<head><title>Admin — Skool Test</title></head>
-<body style="font-family:sans-serif;padding:40px;">
-  <h2>Admin Panel — Coming Soon</h2>
-  <p>Logged in as admin.</p>
-  <a href="/logout">Sign out</a>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Skool Test — Admin Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --blue:#0068B5;--blue-d:#004F8C;--blue-l:#E8F3FC;--blue-m:#C2DDF5;
+  --ink:#0A0E1A;--text:#1E2A3A;--muted:#6B7A8D;--border:#E2EAF2;
+  --bg:#F7FAFD;--white:#FFFFFF;
+  --green:#0A7C52;--green-l:#E6F5EF;
+  --red:#C0392B;--red-l:#FDECEA;
+  --amber:#9A5D00;--amber-l:#FEF3E2;
+  --purple:#5B21B6;--purple-l:#EDE9FE;
+  --radius:14px;
+  --shadow:0 2px 20px rgba(0,104,181,.08);
+  --shadow-lg:0 8px 40px rgba(0,104,181,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.page{display:none;}.page.active{display:block;min-height:100vh;}
+.app-shell{display:flex;min-height:100vh;}
+.sidebar{width:240px;background:var(--white);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:100;}
+.sidebar-logo{padding:22px 24px 18px;border-bottom:1px solid var(--border);}
+.sidebar-logo-text{font-family:'DM Serif Display',serif;font-size:19px;color:var(--blue);}
+.sidebar-logo-sub{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-top:2px;}
+.sidebar-nav{flex:1;padding:16px 12px;overflow-y:auto;}
+.nav-section-label{font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;padding:0 12px;margin:16px 0 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--muted);transition:all .15s;border:none;background:none;font-family:'DM Sans',sans-serif;width:100%;text-align:left;}
+.nav-item:hover{background:var(--bg);color:var(--text);}
+.nav-item.active{background:var(--blue-l);color:var(--blue);font-weight:700;}
+.nav-item .ni-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border);}
+.main-content{margin-left:240px;flex:1;min-width:0;}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+.content-area{padding:32px;}
+.page-title{font-family:'DM Serif Display',serif;font-size:26px;color:var(--ink);line-height:1.2;margin-bottom:4px;}
+.page-sub{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.section-label{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;}
+.card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:24px;box-shadow:var(--shadow);}
+.stat-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:20px 22px;box-shadow:var(--shadow);}
+.sc-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.sc-val{font-family:'DM Serif Display',serif;font-size:30px;color:var(--ink);line-height:1;}
+.sc-icon{font-size:22px;margin-bottom:8px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all .16s ease;text-decoration:none;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-d);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,104,181,.28);}
+.btn-secondary{background:var(--white);color:var(--blue);border:1.5px solid var(--blue);}
+.btn-secondary:hover{background:var(--blue-l);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-sm{padding:7px 14px;font-size:12.5px;border-radius:8px;}
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:9px;font-size:13.5px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--white);transition:border-color .15s;}
+.form-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,104,181,.1);}
+.form-input::placeholder{color:#B0BAC8;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-blue{background:var(--blue-l);color:var(--blue);}
+.badge-green{background:var(--green-l);color:var(--green);}
+.badge-red{background:var(--red-l);color:var(--red);}
+.badge-amber{background:var(--amber-l);color:var(--amber);}
+.badge-purple{background:var(--purple-l);color:var(--purple);}
+.badge-muted{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:10px 14px;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
+.tbl td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--bg);}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.modal-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(10,14,26,.4);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--white);border-radius:18px;padding:32px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);margin-bottom:4px;}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
+.role-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--white);transition:all .15s;}
+.role-pill.selected-student{background:var(--blue-l);border-color:var(--blue);color:var(--blue);}
+.role-pill.selected-teacher{background:var(--green-l);border-color:var(--green);color:var(--green);}
+.role-pill.selected-admin{background:var(--purple-l);border-color:var(--purple);color:var(--purple);}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">Skool Test</div>
+      <div class="sidebar-logo-sub">Admin Portal</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <button class="nav-item active" onclick="showPage('page-dashboard',this)"><span class="ni-icon">🏠</span> Dashboard</button>
+      <div class="nav-section-label">User Management</div>
+      <button class="nav-item" onclick="showPage('page-students',this)"><span class="ni-icon">🎓</span> Students</button>
+      <button class="nav-item" onclick="showPage('page-teachers',this)"><span class="ni-icon">👩‍🏫</span> Teachers</button>
+      <button class="nav-item" onclick="showPage('page-admins',this)"><span class="ni-icon">🔐</span> Admins</button>
+      <div class="nav-section-label">System</div>
+      <button class="nav-item" onclick="showPage('page-all-users',this)"><span class="ni-icon">👥</span> All Users</button>
+    </div>
+    <div class="sidebar-footer">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--purple-l);color:var(--purple);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;" id="sidebar-avatar">A</div>
+        <div><div style="font-size:13px;font-weight:600;" id="sidebar-name">Admin</div><div style="font-size:11px;color:var(--muted);">Administrator</div></div>
+      </div>
+      <button onclick="window.location.href='/logout'" style="width:100%;padding:9px;background:none;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;" onmouseover="this.style.borderColor='#C0392B';this.style.color='#C0392B';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)';">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="topbar">
+    <div class="topbar-title">Dashboard</div>
+    <div class="topbar-actions"><button class="btn btn-primary btn-sm" onclick="openModal('modal-add-user')">+ Add User</button></div>
+  </div>
+  <div class="content-area">
+    <div style="margin-bottom:24px;">
+      <div class="page-title" id="dash-greeting">Admin Dashboard</div>
+      <div class="page-sub">Manage users, registrations and system access.</div>
+    </div>
+    <div class="grid-4" style="margin-bottom:28px;">
+      <div class="stat-card"><div class="sc-icon">🎓</div><div class="sc-label">Students</div><div class="sc-val" id="stat-students">—</div></div>
+      <div class="stat-card"><div class="sc-icon">👩‍🏫</div><div class="sc-label">Teachers</div><div class="sc-val" id="stat-teachers">—</div></div>
+      <div class="stat-card"><div class="sc-icon">🔐</div><div class="sc-label">Admins</div><div class="sc-val" id="stat-admins">—</div></div>
+      <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">Total Users</div><div class="sc-val" id="stat-total">—</div></div>
+    </div>
+    <div class="section-label">Recent Users</div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead>
+        <tbody id="recent-users-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENTS PAGE -->
+<div id="page-students" class="page">
+  <div class="topbar">
+    <div class="topbar-title">Students</div>
+    <div class="topbar-actions"><button class="btn btn-primary btn-sm" onclick="openAddModal('student')">+ Add Student</button></div>
+  </div>
+  <div class="content-area">
+    <div class="card" style="margin-bottom:20px;padding:16px 20px;">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <input class="form-input" type="text" id="student-search" placeholder="Search by name or email..." style="flex:1;max-width:360px;" oninput="filterUsers('student')"/>
+        <select class="form-input" id="student-class-filter" style="width:140px;" onchange="filterUsers('student')">
+          <option value="">All Classes</option>
+          <option value="6">Class 6</option><option value="7">Class 7</option><option value="8">Class 8</option>
+          <option value="9">Class 9</option><option value="10">Class 10</option>
+          <option value="11">Class 11</option><option value="12">Class 12</option>
+        </select>
+        <select class="form-input" id="student-status-filter" style="width:130px;" onchange="filterUsers('student')">
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-label" style="margin-bottom:0;" id="student-count-label">Loading...</div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>Email</th><th>Reg Number</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="students-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TEACHERS PAGE -->
+<div id="page-teachers" class="page">
+  <div class="topbar">
+    <div class="topbar-title">Teachers</div>
+    <div class="topbar-actions"><button class="btn btn-primary btn-sm" onclick="openAddModal('teacher')">+ Add Teacher</button></div>
+  </div>
+  <div class="content-area">
+    <div class="card" style="margin-bottom:20px;padding:16px 20px;">
+      <div style="display:flex;gap:12px;align-items:center;">
+        <input class="form-input" type="text" id="teacher-search" placeholder="Search by name or email..." style="flex:1;max-width:360px;" oninput="filterUsers('teacher')"/>
+        <select class="form-input" id="teacher-status-filter" style="width:130px;" onchange="filterUsers('teacher')">
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="section-label" style="margin-bottom:0;" id="teacher-count-label">Loading...</div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody id="teachers-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADMINS PAGE -->
+<div id="page-admins" class="page">
+  <div class="topbar">
+    <div class="topbar-title">Admins</div>
+    <div class="topbar-actions"><button class="btn btn-primary btn-sm" onclick="openAddModal('admin')">+ Add Admin</button></div>
+  </div>
+  <div class="content-area">
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody id="admins-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ALL USERS PAGE -->
+<div id="page-all-users" class="page">
+  <div class="topbar">
+    <div class="topbar-title">All Users</div>
+    <div class="topbar-actions"><button class="btn btn-primary btn-sm" onclick="openModal('modal-add-user')">+ Add User</button></div>
+  </div>
+  <div class="content-area">
+    <div class="card" style="margin-bottom:20px;padding:16px 20px;">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <input class="form-input" type="text" id="all-search" placeholder="Search by name or email..." style="flex:1;max-width:360px;" oninput="filterUsers('all')"/>
+        <select class="form-input" id="all-role-filter" style="width:130px;" onchange="filterUsers('all')">
+          <option value="">All Roles</option>
+          <option value="student">Students</option>
+          <option value="teacher">Teachers</option>
+          <option value="admin">Admins</option>
+        </select>
+        <select class="form-input" id="all-status-filter" style="width:130px;" onchange="filterUsers('all')">
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;"><div class="section-label" style="margin-bottom:0;" id="all-count-label">Loading...</div></div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Class</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody id="all-users-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+  </div><!-- end main-content -->
+</div><!-- end app-shell -->
+<!-- ADD / EDIT USER MODAL -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <div class="modal-title" id="modal-user-title">Add User</div>
+    <div class="modal-sub" id="modal-user-sub">Create a new account on Skool Test</div>
+    <input type="hidden" id="edit-user-id" value=""/>
+
+    <div id="modal-error" style="display:none;background:var(--red-l);border:1px solid #FCCACA;color:var(--red);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
+    <div id="modal-success" style="display:none;background:var(--green-l);border:1px solid #A7F3D0;color:var(--green);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
+
+    <!-- ROLE SELECTOR -->
+    <div class="form-group">
+      <div class="form-label">Role</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="role-pill selected-student" id="pill-student" onclick="selectRole('student')">🎓 Student</button>
+        <button type="button" class="role-pill" id="pill-teacher" onclick="selectRole('teacher')">👩‍🏫 Teacher</button>
+        <button type="button" class="role-pill" id="pill-admin" onclick="selectRole('admin')">🔐 Admin</button>
+      </div>
+      <input type="hidden" id="user-role" value="student"/>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" type="text" id="user-name" placeholder="e.g. Aryan Mehta"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" id="user-email" placeholder="aryan@school.edu"/>
+      </div>
+    </div>
+
+    <!-- Password — hidden in edit mode if left blank -->
+    <div class="form-group" id="password-group">
+      <label class="form-label" id="password-label">Password</label>
+      <input class="form-input" type="password" id="user-password" placeholder="Set a password"/>
+      <div id="password-hint" style="font-size:11.5px;color:var(--muted);margin-top:4px;">Leave blank to keep existing password (edit mode only)</div>
+    </div>
+
+    <!-- Student-only fields -->
+    <div id="student-fields">
+      <div class="form-group">
+        <label class="form-label">Class</label>
+        <select class="form-input" id="user-class">
+          <option value="6">Class 6</option><option value="7">Class 7</option>
+          <option value="8">Class 8</option><option value="9">Class 9</option>
+          <option value="10">Class 10</option><option value="11">Class 11</option>
+          <option value="12" selected>Class 12</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-user')">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveUser()">Create User →</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div class="modal-overlay" id="modal-reset-password">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Reset Password</div>
+    <div class="modal-sub" id="reset-user-name-label">Set a new password for this user</div>
+    <input type="hidden" id="reset-user-id" value=""/>
+    <div id="reset-error" style="display:none;background:var(--red-l);border:1px solid #FCCACA;color:var(--red);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
+    <div id="reset-success" style="display:none;background:var(--green-l);border:1px solid #A7F3D0;color:var(--green);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">New Password</label>
+      <input class="form-input" type="password" id="reset-password" placeholder="Enter new password"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reset-password')">Cancel</button>
+      <button class="btn btn-primary" onclick="resetPassword()">Set Password →</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEACTIVATE CONFIRM MODAL -->
+<div class="modal-overlay" id="modal-deactivate">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title" id="deactivate-title">Deactivate User</div>
+    <div class="modal-sub" id="deactivate-sub">This will prevent the user from logging in.</div>
+    <input type="hidden" id="deactivate-user-id" value=""/>
+    <input type="hidden" id="deactivate-action" value="deactivate"/>
+    <div id="deactivate-error" style="display:none;background:var(--red-l);color:var(--red);border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:14px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-deactivate')">Cancel</button>
+      <button class="btn btn-red" id="deactivate-confirm-btn" onclick="confirmDeactivate()">Deactivate</button>
+    </div>
+  </div>
+</div>
+<script>
+// ── DATA STORE ──
+let allUsers = [];
+
+// ── PAGE NAV ──
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) { document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); btn.classList.add('active'); }
+  if (id === 'page-students')  renderUsersTable('student');
+  if (id === 'page-teachers')  renderUsersTable('teacher');
+  if (id === 'page-admins')    renderUsersTable('admin');
+  if (id === 'page-all-users') renderUsersTable('all');
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+  if (id === 'modal-add-user') resetModalForm();
+}
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.style.display = 'none'; });
+});
+
+function openAddModal(role) {
+  resetModalForm();
+  selectRole(role);
+  document.getElementById('modal-user-title').textContent = 'Add ' + role.charAt(0).toUpperCase() + role.slice(1);
+  document.getElementById('password-hint').style.display = 'none';
+  document.getElementById('user-password').placeholder = 'Set a password';
+  openModal('modal-add-user');
+}
+
+function resetModalForm() {
+  document.getElementById('edit-user-id').value = '';
+  document.getElementById('user-name').value = '';
+  document.getElementById('user-email').value = '';
+  document.getElementById('user-password').value = '';
+  document.getElementById('user-class').value = '12';
+  document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('modal-success').style.display = 'none';
+  document.getElementById('modal-save-btn').textContent = 'Create User →';
+  document.getElementById('modal-user-title').textContent = 'Add User';
+  document.getElementById('password-hint').style.display = 'none';
+  selectRole('student');
+}
+
+function selectRole(role) {
+  document.getElementById('user-role').value = role;
+  ['student','teacher','admin'].forEach(r => {
+    const pill = document.getElementById('pill-' + r);
+    pill.className = 'role-pill' + (r === role ? ' selected-' + r : '');
+  });
+  document.getElementById('student-fields').style.display = role === 'student' ? 'block' : 'none';
+}
+
+function openEditModal(user) {
+  resetModalForm();
+  document.getElementById('edit-user-id').value = user.user_id || '';
+  document.getElementById('user-name').value = user.name || '';
+  document.getElementById('user-email').value = user.email || '';
+  document.getElementById('user-class').value = user.class || 12;
+  document.getElementById('modal-user-title').textContent = 'Edit User';
+  document.getElementById('modal-save-btn').textContent = 'Save Changes →';
+  document.getElementById('password-hint').style.display = 'block';
+  selectRole(user.role || 'student');
+  // Email readonly in edit mode
+  document.getElementById('user-email').readOnly = true;
+  document.getElementById('user-email').style.background = 'var(--bg)';
+  openModal('modal-add-user');
+}
+
+// ── SAVE USER (create or update) ──
+async function saveUser() {
+  const btn = document.getElementById('modal-save-btn');
+  const errBox = document.getElementById('modal-error');
+  const okBox  = document.getElementById('modal-success');
+  errBox.style.display = 'none'; okBox.style.display = 'none';
+
+  const editId   = document.getElementById('edit-user-id').value;
+  const name     = document.getElementById('user-name').value.trim();
+  const email    = document.getElementById('user-email').value.trim();
+  const password = document.getElementById('user-password').value;
+  const role     = document.getElementById('user-role').value;
+  const cls      = document.getElementById('user-class').value;
+
+  if (!name || !email) { errBox.textContent = 'Name and email are required.'; errBox.style.display = 'block'; return; }
+  if (!editId && !password) { errBox.textContent = 'Password is required for new users.'; errBox.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const isEdit = !!editId;
+    const url    = isEdit ? `/api/admin/users/${editId}` : '/api/admin/users';
+    const method = isEdit ? 'PUT' : 'POST';
+    const body   = { name, email, role, class_num: parseInt(cls) };
+    if (password) body.password = password;
+
+    const res  = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+
+    if (!data.ok) {
+      errBox.textContent = data.error; errBox.style.display = 'block';
+    } else {
+      okBox.textContent = isEdit ? '✅ User updated!' : '✅ User created! Reg: ' + (data.reg_number || '');
+      okBox.style.display = 'block';
+      await loadAllUsers();
+      setTimeout(() => { closeModal('modal-add-user'); }, 1200);
+    }
+  } catch(e) {
+    errBox.textContent = 'Failed. Try again.'; errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editId ? 'Save Changes →' : 'Create User →';
+  }
+}
+
+// ── RESET PASSWORD ──
+function openResetPassword(userId, userName) {
+  document.getElementById('reset-user-id').value = userId;
+  document.getElementById('reset-user-name-label').textContent = 'Set a new password for ' + userName;
+  document.getElementById('reset-password').value = '';
+  document.getElementById('reset-error').style.display = 'none';
+  document.getElementById('reset-success').style.display = 'none';
+  openModal('modal-reset-password');
+}
+
+async function resetPassword() {
+  const userId   = document.getElementById('reset-user-id').value;
+  const password = document.getElementById('reset-password').value;
+  const errBox   = document.getElementById('reset-error');
+  const okBox    = document.getElementById('reset-success');
+  errBox.style.display = 'none'; okBox.style.display = 'none';
+  if (!password) { errBox.textContent = 'Password cannot be empty.'; errBox.style.display = 'block'; return; }
+  try {
+    const res  = await fetch(`/api/admin/users/${userId}/reset-password`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!data.ok) { errBox.textContent = data.error; errBox.style.display = 'block'; }
+    else { okBox.textContent = '✅ Password updated!'; okBox.style.display = 'block'; setTimeout(() => closeModal('modal-reset-password'), 1000); }
+  } catch(e) { errBox.textContent = 'Failed.'; errBox.style.display = 'block'; }
+}
+
+// ── DEACTIVATE / REACTIVATE ──
+function openDeactivate(userId, userName, isActive) {
+  document.getElementById('deactivate-user-id').value = userId;
+  document.getElementById('deactivate-action').value  = isActive ? 'deactivate' : 'activate';
+  document.getElementById('deactivate-title').textContent = isActive ? 'Deactivate User' : 'Reactivate User';
+  document.getElementById('deactivate-sub').textContent   = isActive
+    ? `This will prevent ${userName} from logging in.`
+    : `This will restore ${userName}'s access.`;
+  document.getElementById('deactivate-confirm-btn').textContent = isActive ? 'Deactivate' : 'Reactivate';
+  document.getElementById('deactivate-confirm-btn').className   = isActive ? 'btn btn-red' : 'btn btn-green';
+  document.getElementById('deactivate-error').style.display = 'none';
+  openModal('modal-deactivate');
+}
+
+async function confirmDeactivate() {
+  const userId = document.getElementById('deactivate-user-id').value;
+  const action = document.getElementById('deactivate-action').value;
+  const errBox = document.getElementById('deactivate-error');
+  try {
+    const res  = await fetch(`/api/admin/users/${userId}/status`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ active: action === 'activate' })
+    });
+    const data = await res.json();
+    if (!data.ok) { errBox.textContent = data.error; errBox.style.display = 'block'; return; }
+    closeModal('modal-deactivate');
+    await loadAllUsers();
+    renderCurrentPage();
+  } catch(e) { errBox.textContent = 'Failed.'; errBox.style.display = 'block'; }
+}
+
+// ── DATA LOADING ──
+async function loadAllUsers() {
+  try {
+    const res  = await fetch('/api/admin/users');
+    const data = await res.json();
+    if (data.ok) allUsers = data.users;
+  } catch(e) { console.error(e); }
+}
+
+function renderCurrentPage() {
+  const active = document.querySelector('.page.active');
+  if (!active) return;
+  const id = active.id;
+  if (id === 'page-students')  renderUsersTable('student');
+  if (id === 'page-teachers')  renderUsersTable('teacher');
+  if (id === 'page-admins')    renderUsersTable('admin');
+  if (id === 'page-all-users') renderUsersTable('all');
+  if (id === 'page-dashboard') renderDashboard();
+}
+
+function renderDashboard() {
+  const students = allUsers.filter(u => u.role === 'student');
+  const teachers = allUsers.filter(u => u.role === 'teacher');
+  const admins   = allUsers.filter(u => u.role === 'admin');
+  document.getElementById('stat-students').textContent = students.length;
+  document.getElementById('stat-teachers').textContent = teachers.length;
+  document.getElementById('stat-admins').textContent   = admins.length;
+  document.getElementById('stat-total').textContent    = allUsers.length;
+
+  const recent = [...allUsers].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0)).slice(0,10);
+  document.getElementById('recent-users-tbody').innerHTML = recent.length
+    ? recent.map(u => userRow(u, true)).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No users yet</td></tr>';
+}
+
+function renderUsersTable(role) {
+  let filtered = role === 'all' ? allUsers : allUsers.filter(u => u.role === role);
+
+  // Apply filters
+  if (role === 'student') {
+    const q   = (document.getElementById('student-search')?.value || '').toLowerCase();
+    const cls = document.getElementById('student-class-filter')?.value || '';
+    const st  = document.getElementById('student-status-filter')?.value || '';
+    if (q)   filtered = filtered.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    if (cls) filtered = filtered.filter(u => String(u.class) === cls);
+    if (st)  filtered = filtered.filter(u => st === 'active' ? u.is_active : !u.is_active);
+    document.getElementById('student-count-label').textContent = filtered.length + ' Student' + (filtered.length !== 1 ? 's' : '');
+    document.getElementById('students-tbody').innerHTML = filtered.length
+      ? filtered.map(u => studentRow(u)).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px;">No students found</td></tr>';
+  } else if (role === 'teacher') {
+    const q  = (document.getElementById('teacher-search')?.value || '').toLowerCase();
+    const st = document.getElementById('teacher-status-filter')?.value || '';
+    if (q)  filtered = filtered.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    if (st) filtered = filtered.filter(u => st === 'active' ? u.is_active : !u.is_active);
+    document.getElementById('teacher-count-label').textContent = filtered.length + ' Teacher' + (filtered.length !== 1 ? 's' : '');
+    document.getElementById('teachers-tbody').innerHTML = filtered.length
+      ? filtered.map(u => teacherRow(u)).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">No teachers found</td></tr>';
+  } else if (role === 'admin') {
+    document.getElementById('admins-tbody').innerHTML = filtered.length
+      ? filtered.map(u => teacherRow(u)).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">No admins found</td></tr>';
+  } else if (role === 'all') {
+    const q   = (document.getElementById('all-search')?.value || '').toLowerCase();
+    const rl  = document.getElementById('all-role-filter')?.value || '';
+    const st  = document.getElementById('all-status-filter')?.value || '';
+    if (q)  filtered = filtered.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+    if (rl) filtered = filtered.filter(u => u.role === rl);
+    if (st) filtered = filtered.filter(u => st === 'active' ? u.is_active : !u.is_active);
+    document.getElementById('all-count-label').textContent = filtered.length + ' User' + (filtered.length !== 1 ? 's' : '');
+    document.getElementById('all-users-tbody').innerHTML = filtered.length
+      ? filtered.map(u => userRow(u, false)).join('')
+      : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">No users found</td></tr>';
+  }
+}
+
+function filterUsers(role) { renderUsersTable(role); }
+
+// ── ROW RENDERERS ──
+const ROLE_BADGE = { student:'badge-blue', teacher:'badge-green', admin:'badge-purple' };
+
+function actionBtns(u) {
+  const activeLabel = u.is_active ? 'Deactivate' : 'Reactivate';
+  const activeClass = u.is_active ? 'background:var(--red-l);color:var(--red);border:1px solid #FCCACA;' : 'background:var(--green-l);color:var(--green);border:1px solid #A7F3D0;';
+  const uEncoded = encodeURIComponent(JSON.stringify(u));
+  return `<div style="display:flex;gap:6px;">
+    <button class="btn btn-ghost btn-sm" onclick="openEditModal(JSON.parse(decodeURIComponent('${uEncoded}')))">Edit</button>
+    <button class="btn btn-sm" style="background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-m);" onclick="openResetPassword('${u.user_id}','${u.name.replace(/'/g,"\\'")}')">🔑 Password</button>
+    <button class="btn btn-sm" style="${activeClass}" onclick="openDeactivate('${u.user_id}','${u.name.replace(/'/g,"\\'")}',${u.is_active})">${activeLabel}</button>
+  </div>`;
+}
+
+function studentRow(u) {
+  const statusBadge = u.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-muted">Inactive</span>';
+  return `<tr>
+    <td><strong>${u.name}</strong></td>
+    <td style="color:var(--muted);font-size:13px;">${u.email}</td>
+    <td style="font-size:12px;color:var(--muted);font-family:monospace;">${u.system_reg_number || '—'}</td>
+    <td><span class="badge badge-blue" style="font-size:10px;">Class ${u.class || '—'}</span></td>
+    <td>${statusBadge}</td>
+    <td>${actionBtns(u)}</td>
+  </tr>`;
+}
+
+function teacherRow(u) {
+  const statusBadge = u.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-muted">Inactive</span>';
+  const created = u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—';
+  return `<tr>
+    <td><strong>${u.name}</strong></td>
+    <td style="color:var(--muted);font-size:13px;">${u.email}</td>
+    <td>${statusBadge}</td>
+    <td style="font-size:12px;color:var(--muted);">${created}</td>
+    <td>${actionBtns(u)}</td>
+  </tr>`;
+}
+
+function userRow(u, showRole) {
+  const roleBadge  = `<span class="badge ${ROLE_BADGE[u.role]||'badge-muted'}" style="font-size:10px;">${u.role}</span>`;
+  const statusBadge = u.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-muted">Inactive</span>';
+  const created = u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—';
+  if (showRole) {
+    return `<tr>
+      <td><strong>${u.name}</strong></td>
+      <td style="color:var(--muted);font-size:13px;">${u.email}</td>
+      <td>${roleBadge}</td>
+      <td>${statusBadge}</td>
+      <td style="font-size:12px;color:var(--muted);">${created}</td>
+      <td>${actionBtns(u)}</td>
+    </tr>`;
+  }
+  return `<tr>
+    <td><strong>${u.name}</strong></td>
+    <td style="color:var(--muted);font-size:13px;">${u.email}</td>
+    <td>${roleBadge}</td>
+    <td style="font-size:12px;color:var(--muted);">${u.class ? 'Class ' + u.class : '—'}</td>
+    <td>${statusBadge}</td>
+    <td style="font-size:12px;color:var(--muted);">${created}</td>
+    <td>${actionBtns(u)}</td>
+  </tr>`;
+}
+
+// ── INIT ──
+async function init() {
+  try {
+    const res  = await fetch('/api/me');
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('sidebar-name').textContent  = data.user.name;
+      document.getElementById('sidebar-avatar').textContent = data.user.name.charAt(0).toUpperCase();
+    }
+  } catch(e) {}
+  await loadAllUsers();
+  renderDashboard();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
 </body>
 </html>

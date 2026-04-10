@@ -2162,9 +2162,16 @@ def get_practice_questions():
                 """), {"sid": str(s_row2[0]), "today": today}).fetchone()
                 attempts_today = cnt[0] if cnt else 0
 
+            qs = [dict(r._mapping) for r in rows]
+            for q in qs:
+                if q.get("image_url"):
+                    try:
+                        q["image_url"] = get_sas_url(q["image_url"], expiry_hours=3)
+                    except:
+                        pass
             return jsonify({
                 "ok"            : True,
-                "questions"     : [dict(r._mapping) for r in rows],
+                "questions"     : qs,
                 "attempts_today": attempts_today,
                 "daily_limit"   : 3
             })

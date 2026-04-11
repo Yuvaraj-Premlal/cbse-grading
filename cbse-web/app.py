@@ -2309,6 +2309,15 @@ RESPOND ONLY with valid JSON array, one object. No preamble, no markdown."""},
         strict_marks = min(max(int(r.get("ai_strict_marks", marks)), 0), q["max_marks"])
         pct        = round((marks / q["max_marks"] * 100), 2) if q["max_marks"] > 0 else 0
 
+        def clean_field(val, fallback=""):
+            """Convert GPT field to clean string. Return fallback if boolean/empty/useless."""
+            if val is None or isinstance(val, bool):
+                return fallback
+            s = str(val).strip()
+            if s.lower() in ("true", "false", "none", "null", ""):
+                return fallback
+            return s
+
         # Store attempt
         with engine.begin() as conn:
             attempt_id = str(uuid.uuid4())
@@ -2338,11 +2347,11 @@ RESPOND ONLY with valid JSON array, one object. No preamble, no markdown."""},
                 "pct"          : pct,
                 "diff"         : q.get("difficulty", ""),
                 "img_url"      : img_url,
-                "concept"      : wrap_latex(r.get("ai_concept", "")),
-                "formula"      : wrap_latex(r.get("ai_formula", "")),
-                "calc"         : wrap_latex(r.get("ai_calculation", "")),
-                "model_sol"    : wrap_latex(r.get("ai_model_solution", "")),
-                "tip"          : wrap_latex(r.get("ai_coaching_tip", "")),
+                "concept"      : wrap_latex(clean_field(r.get("ai_concept"))),
+                "formula"      : wrap_latex(clean_field(r.get("ai_formula"))),
+                "calc"         : wrap_latex(clean_field(r.get("ai_calculation"))),
+                "model_sol"    : wrap_latex(clean_field(r.get("ai_model_solution"))),
+                "tip"          : wrap_latex(clean_field(r.get("ai_coaching_tip"))),
                 "conf"         : confidence,
                 "strict_marks" : strict_marks,
                 "strict_reason": r.get("ai_strict_reason", ""),
@@ -2355,13 +2364,13 @@ RESPOND ONLY with valid JSON array, one object. No preamble, no markdown."""},
             "marks"       : marks,
             "max_marks"   : q["max_marks"],
             "percentage"  : pct,
-            "ai_concept"  : wrap_latex(r.get("ai_concept", "")),
-            "ai_formula"  : wrap_latex(r.get("ai_formula", "")),
-            "ai_calculation"  : wrap_latex(r.get("ai_calculation", "")),
-            "ai_model_solution": wrap_latex(r.get("ai_model_solution", "")),
-            "ai_coaching_tip" : wrap_latex(r.get("ai_coaching_tip", "")),
+            "ai_concept"  : wrap_latex(clean_field(r.get("ai_concept"))),
+            "ai_formula"  : wrap_latex(clean_field(r.get("ai_formula"))),
+            "ai_calculation"  : wrap_latex(clean_field(r.get("ai_calculation"))),
+            "ai_model_solution": wrap_latex(clean_field(r.get("ai_model_solution"))),
+            "ai_coaching_tip" : wrap_latex(clean_field(r.get("ai_coaching_tip"))),
             "ai_strict_marks" : strict_marks,
-            "ai_strict_reason": r.get("ai_strict_reason", ""),
+            "ai_strict_reason": clean_field(r.get("ai_strict_reason")),
             "ai_irrelevant"   : irrelevant,
             "ai_confidence"   : confidence,
             "ai_flag_review"  : flag,

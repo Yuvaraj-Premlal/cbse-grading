@@ -92,27 +92,38 @@ def upload_answer_sheet(file_bytes, filename, content_type):
     return f"https://{account_name}.blob.core.windows.net/{BLOB_CONTAINER}/{blob_name}"
 
 def get_sas_url(blob_url, expiry_hours=2):
-    """Generate a time-limited SAS URL for a private blob."""
+    """Generate a time-limited SAS URL for a private blob.
+    Fully defensive — returns original URL on any failure.
+    """
     from azure.storage.blob import generate_blob_sas, BlobSasPermissions
     from datetime import timezone
     import urllib.parse
-    # Parse blob name from URL — decode any URL encoding first
-    parts     = blob_url.split(f".blob.core.windows.net/{BLOB_CONTAINER}/")
-    blob_name = urllib.parse.unquote(parts[1]) if len(parts) > 1 else blob_url
-    blob_service = get_blob_client()
-    # Get account key from connection string
-    conn_str = secrets["storage"]
-    key = dict(part.split("=", 1) for part in conn_str.split(";") if isinstance(part, str) and "=" in part).get("AccountKey", "")
-    account_name = blob_service.account_name
-    sas_token = generate_blob_sas(
-        account_name   = account_name,
-        container_name = BLOB_CONTAINER,
-        blob_name      = blob_name,
-        account_key    = key,
-        permission     = BlobSasPermissions(read=True),
-        expiry         = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
-    )
-    return f"{blob_url}?{sas_token}"
+    if not isinstance(blob_url, str) or not blob_url.startswith("https://"):
+        return blob_url or ""
+    try:
+        parts     = blob_url.split(f".blob.core.windows.net/{BLOB_CONTAINER}/")
+        blob_name = urllib.parse.unquote(parts[1]) if len(parts) > 1 else blob_url
+        blob_service = get_blob_client()
+        conn_str = secrets["storage"]
+        if not isinstance(conn_str, str):
+            return blob_url
+        key = dict(
+            p.split("=", 1) for p in conn_str.split(";")
+            if isinstance(p, str) and "=" in p
+        ).get("AccountKey", "")
+        account_name = blob_service.account_name
+        sas_token = generate_blob_sas(
+            account_name   = account_name,
+            container_name = BLOB_CONTAINER,
+            blob_name      = blob_name,
+            account_key    = key,
+            permission     = BlobSasPermissions(read=True),
+            expiry         = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
+        )
+        return f"{blob_url}?{sas_token}"
+    except Exception as e:
+        print(f"get_sas_url failed for {str(blob_url)[:80]}: {e}", flush=True)
+        return blob_url
 
 # ── OPENAI ────────────────────────────────────────────
 def get_openai_client():

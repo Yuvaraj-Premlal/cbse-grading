@@ -102,7 +102,7 @@ def get_sas_url(blob_url, expiry_hours=2):
     blob_service = get_blob_client()
     # Get account key from connection string
     conn_str = secrets["storage"]
-    key = dict(part.split("=", 1) for part in conn_str.split(";") if "=" in part).get("AccountKey", "")
+    key = dict(part.split("=", 1) for part in conn_str.split(";") if isinstance(part, str) and "=" in part).get("AccountKey", "")
     account_name = blob_service.account_name
     sas_token = generate_blob_sas(
         account_name   = account_name,
@@ -950,6 +950,12 @@ def get_questions():
                 ), {"qid": str(q["question_id"])}).fetchone()[0]
                 q["in_papers"] = in_papers > 0
                 questions.append(q)
+            for q in questions:
+                if q.get("image_url"):
+                    try:
+                        q["image_url"] = get_sas_url(q["image_url"], expiry_hours=3)
+                    except:
+                        pass
             return jsonify({
                 "ok": True,
                 "questions": questions,

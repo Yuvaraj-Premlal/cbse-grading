@@ -2691,7 +2691,7 @@ function annotLoadPage(idx) {
       document.getElementById('rq-canvas-loading').style.display = 'none';
       if (!annotHistory[idx]) annotHistory[idx] = ['[]'];
     });
-  }, { crossOrigin: 'anonymous' });
+  });
 }
 
 function annotStamp(x, y) {
@@ -2776,7 +2776,7 @@ function annotReloadBg(url, objects) {
         annotCanvas.renderAll();
       }
     });
-  }, { crossOrigin: 'anonymous' });
+  });
 }
 
 

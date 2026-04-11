@@ -100,6 +100,9 @@ def get_sas_url(blob_url, expiry_hours=2):
     import urllib.parse
     if not isinstance(blob_url, str) or not blob_url.startswith("https://"):
         return blob_url or ""
+    # Already has SAS token — return as-is to avoid double-SAS corruption
+    if "?sv=" in blob_url or "&sv=" in blob_url or "?sig=" in blob_url:
+        return blob_url
     try:
         parts     = blob_url.split(f".blob.core.windows.net/{BLOB_CONTAINER}/")
         blob_name = urllib.parse.unquote(parts[1]) if len(parts) > 1 else blob_url

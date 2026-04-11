@@ -2269,8 +2269,30 @@ Question: {q['latex_content']}
 
         image_contents = [{"type": "text", "text": f"""Grade this student's practice answer:
 {q_text}
-Return a JSON array with ONE object with fields: question_number, max_marks, ai_marks_awarded, ai_strict_marks, ai_strict_reason, ai_irrelevant, ai_concept, ai_formula, ai_calculation, ai_model_solution, ai_coaching_tip, ai_confidence, ai_flag_review.
-Return ONLY the JSON array."""}]
+
+CRITICAL RULES:
+- If the answer is blank, illegible, or completely unrelated to the question: set ai_marks_awarded=0, ai_irrelevant=true
+- NEVER return boolean true/false for text fields — always return a descriptive string
+- ai_concept, ai_formula, ai_calculation, ai_model_solution, ai_coaching_tip MUST always be non-empty strings
+- If the answer is correct, ai_concept should explain what the student did right
+- If the answer is wrong or irrelevant, ai_concept should explain what went wrong
+
+Return a JSON array with ONE object with these EXACT fields:
+- question_number: "Q1"
+- max_marks: integer
+- ai_marks_awarded: integer (0 to max_marks) — 0 if answer is irrelevant or blank
+- ai_strict_marks: integer (0 to max_marks)
+- ai_strict_reason: string — never empty, explain why strict differs or say "Strict and neutral agree"
+- ai_irrelevant: boolean — true if answer has no relation to the question
+- ai_concept: string — MUST be a descriptive sentence, never boolean
+- ai_formula: string — MUST be a descriptive sentence, never boolean
+- ai_calculation: string — MUST be a descriptive sentence, never boolean
+- ai_model_solution: string — complete correct solution, never boolean
+- ai_coaching_tip: string — one actionable tip, never boolean
+- ai_confidence: float 0 to 1
+- ai_flag_review: boolean
+
+Return ONLY the JSON array, nothing else."""}]
         # Add question diagram image if present (before answer sheet)
         if q_image_sas:
             image_contents.append({"type": "text", "text": "Question diagram/image:"})

@@ -145,6 +145,9 @@ def wrap_latex(text):
     """
     if not text:
         return text
+    # Guard: GPT sometimes returns booleans or non-strings
+    if not isinstance(text, str):
+        return str(text) if text else ""
     import re
     # Already has $ delimiters — return as-is
     if '$' in text or r'\(' in text:

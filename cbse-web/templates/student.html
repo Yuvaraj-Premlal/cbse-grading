@@ -1727,7 +1727,7 @@ async function submitPracticeAnswer() {
   } catch(e) {
     btn.textContent = 'Submit for AI Grading →';
     btn.disabled    = false;
-    alert('Error: ' + e.message);
+    alert('Error: ' + e.message + '\n' + (typeof data !== 'undefined' && data.trace ? data.trace : ''));
   }
 }
 
